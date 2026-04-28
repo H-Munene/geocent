@@ -1,0 +1,11 @@
+#From MPESA
+
+UDQ0H234DB Confirmed. Ksh75.00 sent to SAFARICOM DATA BUNDLES for account SAFARICOM DATA BUNDLES on 26/4/26 at 4:55 PM. New M-PESA balance is Ksh1,797.84. Transaction cost, Ksh0.00.
+
+UDR0H250GJ Confirmed. Ksh750.00 paid to PAGE ALLIANCE CONSULTANTS. on 27/4/26 at 7:58 AM.New M-PESA balance is Ksh1,037.84. Transaction cost, Ksh0.00. Amount you can transact within the day is 499,240.00.
+
+UDQ0H22TP1 Confirmed. Ksh120.00 paid to MAURICE OUMA. on 26/4/26 at 3:53 PM.New M-PESA balance is Ksh1,932.84. Transaction cost, Ksh0.00. Amount you can transact within the day is 499,800.00.
+
+#From Equity Bank:
+
+CONFIRMED. KES 289.00, Auth for card 4478..8033 at GOOGLE *YouTubePremium on 2026-04-26 21:05:24 Ref:611602020521.For any queries, contact 0763000000. #KulipaNiEquityCard
