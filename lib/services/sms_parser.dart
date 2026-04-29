@@ -138,8 +138,12 @@ class SmsParser {
   }
 
   /// Trims, collapses whitespace, title-cases the merchant name.
+  /// Also strips trailing phone numbers (e.g., "MARTHA MUNENE 070323836" -> "Martha Munene").
   static String _cleanMerchant(String raw) {
-    final cleaned = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+    // Strip trailing phone numbers (9-10 digits optionally starting with 0)
+    final noPhone = raw.trim().replaceAll(RegExp(r'\s+\d{9,10}$'), '');
+
+    final cleaned = noPhone.replaceAll(RegExp(r'\s+'), ' ');
     // Title-case: "PAGE ALLIANCE CONSULTANTS" → "Page Alliance Consultants"
     return cleaned
         .split(' ')
