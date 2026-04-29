@@ -1,20 +1,34 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/call_out_result.dart';
 
+// ── Callout (name + price tag) ─────────────────────────────────────────────
+
 Future<CalloutResult> createCalloutImage(String name, String price) async {
-  const double height = 50;
-  const double padding = 12;
-  const double shadowBlur = 8;
-  const double shadowOffsetY = 4;
+  const double cardHeight = 44.0;
+  const double namePaddingH = 14.0;
+  const double pricePaddingH = 14.0;
+  const double borderWidth = 1.5;
+
+  // Stem + dot dimensions
+  const double stemWidth = 2.0;
+  const double stemHeight = 20.0;
+  const double dotRadius = 5.0;
+
+  // Total canvas height = card + stem + dot diameter
+  const double totalHeight = cardHeight + stemHeight + dotRadius * 2;
+
+  // ── Text painters ──────────────────────────────────────────────────────────
 
   final namePainter = TextPainter(
     text: TextSpan(
-      text: name,
+      text: name.toUpperCase(),
       style: const TextStyle(
         color: Colors.black,
         fontSize: 20,
         fontWeight: FontWeight.w600,
+        letterSpacing: 1,
       ),
     ),
     textDirection: TextDirection.ltr,
@@ -24,82 +38,131 @@ Future<CalloutResult> createCalloutImage(String name, String price) async {
     text: TextSpan(
       text: price,
       style: const TextStyle(
-        color: Color(0xFFE53935),
+        color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.w500,
+        letterSpacing: 0.8,
       ),
     ),
     textDirection: TextDirection.ltr,
   )..layout();
 
-  final double width =
-      padding +
-      namePainter.width +
-      padding +
-      1.5 +
-      padding +
-      pricePainter.width +
-      padding;
-  final double canvasHeight = height + shadowOffsetY + shadowBlur;
-  final double canvasWidth = width + shadowBlur;
+  // ── Canvas sizing ──────────────────────────────────────────────────────────
+
+  final double nameBlockW = namePaddingH + namePainter.width + namePaddingH;
+  final double priceBlockW = pricePaddingH + pricePainter.width + pricePaddingH;
+  final double totalWidth = nameBlockW + priceBlockW;
+
+  // Stem is centred on the card midpoint
+  final double stemCentreX = totalWidth / 2;
+  // Dot centre sits at the very bottom of the canvas
+  final double dotCentreX = stemCentreX;
+  final double dotCentreY = cardHeight + stemHeight + dotRadius;
 
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
-  final rect = Rect.fromLTWH(shadowBlur / 2, 0, width, height);
 
-  canvas.drawRect(
-    rect,
-    Paint()
-      ..color = Colors.black.withValues(alpha: 0.15)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, shadowBlur / 2),
-  );
+  // ── 1. White name section ──────────────────────────────────────────────────
 
-  canvas.drawRect(
-    Rect.fromLTWH(shadowBlur / 2, shadowOffsetY, width, height),
-    Paint()
-      ..color = Colors.black.withValues(alpha: 0.12)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, shadowBlur),
-  );
-
-  canvas.drawRect(
-    rect,
-    Paint()
-      ..color = Colors.black
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5,
-  );
-
-  canvas.drawRect(rect, Paint()..color = Colors.white);
+  final Rect nameRect = Rect.fromLTWH(0, 0, nameBlockW, cardHeight);
+  canvas.drawRect(nameRect, Paint()..color = Colors.white);
 
   namePainter.paint(
     canvas,
-    Offset(shadowBlur / 2 + padding, (height - namePainter.height) / 2),
+    Offset(namePaddingH, (cardHeight - namePainter.height) / 2),
   );
-  final double dividerX =
-      shadowBlur / 2 + padding + namePainter.width + padding;
 
-  canvas.drawLine(
-    Offset(dividerX, 10),
-    Offset(dividerX, height - 10),
-    Paint()
-      ..color = Colors.grey.shade300
-      ..strokeWidth = 1.5,
-  );
+  // ── 2. Red price section ───────────────────────────────────────────────────
+
+  const Color red = Color(0xFFE53935);
+  final Rect priceRect = Rect.fromLTWH(nameBlockW, 0, priceBlockW, cardHeight);
+  canvas.drawRect(priceRect, Paint()..color = red);
 
   pricePainter.paint(
     canvas,
-    Offset(dividerX + padding, (height - pricePainter.height) / 2),
+    Offset(nameBlockW + pricePaddingH, (cardHeight - pricePainter.height) / 2),
   );
 
-  final picture = recorder.endRecording();
-  final image = await picture.toImage(
-    canvasWidth.toInt(),
-    canvasHeight.toInt(),
+  // ── 3. Outer border (drawn last so it sits on top of both fills) ───────────
+
+  canvas.drawRect(
+    Rect.fromLTWH(0, 0, totalWidth, cardHeight),
+    Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = borderWidth,
   );
-  final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+
+  // ── 4. Thin red stem ───────────────────────────────────────────────────────
+
+  canvas.drawLine(
+    Offset(stemCentreX, cardHeight),
+    Offset(stemCentreX, cardHeight + stemHeight),
+    Paint()
+      ..color = red
+      ..strokeWidth = stemWidth
+      ..strokeCap = StrokeCap.butt,
+  );
+
+  // ── 5. Filled red dot ──────────────────────────────────────────────────────
+
+  canvas.drawCircle(
+    Offset(dotCentreX, dotCentreY),
+    dotRadius,
+    Paint()..color = red,
+  );
+
+  // ── Rasterise ──────────────────────────────────────────────────────────────
+
+  final ui.Picture picture = recorder.endRecording();
+  final ui.Image image = await picture.toImage(
+    totalWidth.ceil(),
+    totalHeight.ceil(),
+  );
+  final ByteData? byteData = await image.toByteData(
+    format: ui.ImageByteFormat.png,
+  );
 
   return CalloutResult(
     image: byteData!.buffer.asUint8List(),
-    width: canvasWidth,
+    width: totalWidth,
   );
+}
+
+// ── Icon image (unchanged) ─────────────────────────────────────────────────
+
+Future<Uint8List> createIconImage(String iconAsset) async {
+  const double size = 50;
+  const double iconSize = 28;
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+
+  final ByteData iconByteData = await rootBundle.load('assets/$iconAsset.png');
+  final Uint8List iconBytes = iconByteData.buffer.asUint8List();
+  final ui.Codec codec = await ui.instantiateImageCodec(
+    iconBytes,
+    targetWidth: iconSize.toInt(),
+    targetHeight: iconSize.toInt(),
+  );
+  final ui.FrameInfo frameInfo = await codec.getNextFrame();
+  final ui.Image iconImg = frameInfo.image;
+
+  canvas.drawImageRect(
+    iconImg,
+    Rect.fromLTWH(0, 0, iconImg.width.toDouble(), iconImg.height.toDouble()),
+    Rect.fromLTWH(
+      (size - iconSize) / 2,
+      (size - iconSize) / 2,
+      iconSize,
+      iconSize,
+    ),
+    Paint(),
+  );
+
+  final ui.Picture picture = recorder.endRecording();
+  final ui.Image image = await picture.toImage(size.toInt(), size.toInt());
+  final ByteData? byteData = await image.toByteData(
+    format: ui.ImageByteFormat.png,
+  );
+  return byteData!.buffer.asUint8List();
 }

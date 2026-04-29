@@ -218,7 +218,7 @@ class _HomePageState extends State<HomePage>
       );
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
-          zoom: 14,
+          zoom: 15,
           center: mp.Point(
             coordinates: mp.Position(position.longitude, position.latitude),
           ),
@@ -252,7 +252,7 @@ class _HomePageState extends State<HomePage>
               !_isAnimating) {
             mapboxMapController?.setCamera(
               mp.CameraOptions(
-                zoom: 13,
+                zoom: 15,
                 center: mp.Point(
                   coordinates: mp.Position(
                     position.longitude,
