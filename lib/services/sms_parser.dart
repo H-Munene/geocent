@@ -9,22 +9,20 @@ class SmsParser {
   //           New M-PESA balance is Ksh1,797.84."
   static final RegExp _mpesaSent = RegExp(
     r'^([A-Z0-9]+)\s+Confirmed\.\s+'
-    r'Ksh([\d,]+\.?\d*)\s+sent to\s+(.+?)\s+(?:for account\s+.+?\s+)?'
-    r'on\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.'
-    r'.*?New M-PESA balance is Ksh([\d,]+\.?\d*)',
+    r'Ksh([\d, ]+\.?\d*)\s+sent to\s+(.+?)\s+(?:for account\s+.+?\s+)?'
+    r'on\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.?\s*'
+    r'.*?New M-PESA balance is Ksh([\d, ]+\.?\d*)',
     caseSensitive: false,
     dotAll: true,
   );
 
   // Matches: "UDR0H250GJ Confirmed. Ksh750.00 paid to PAGE ALLIANCE CONSULTANTS.
   //           on 27/4/26 at 7:58 AM. New M-PESA balance is Ksh1,037.84."
-  // Also:    "UDQ0H22TP1 Confirmed. Ksh120.00 paid to MAURICE OUMA.
-  //           on 26/4/26 at 3:53 PM. New M-PESA balance is Ksh1,932.84."
   static final RegExp _mpesaPaid = RegExp(
     r'^([A-Z0-9]+)\s+Confirmed\.\s+'
-    r'Ksh([\d,]+\.?\d*)\s+paid to\s+(.+?)\.?\s+'
-    r'on\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.'
-    r'.*?New M-PESA balance is Ksh([\d,]+\.?\d*)',
+    r'Ksh([\d, ]+\.?\d*)\s+paid to\s+(.+?)\.?\s+'
+    r'on\s+(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.?\s*'
+    r'.*?New M-PESA balance is Ksh([\d, ]+\.?\d*)',
     caseSensitive: false,
     dotAll: true,
   );
@@ -32,9 +30,9 @@ class SmsParser {
   // Matches: "UDS0H2AZU8 confirmed.You bought Ksh1.00 of airtime on 28/4/26 at 3:50 PM.
   //           New M-PESA balance is Ksh813.84."
   static final RegExp _mpesaAirtime = RegExp(
-    r'^([A-Z0-9]+)\s+confirmed\.\s*You bought Ksh([\d,]+\.?\d*)\s+of airtime on\s+'
-    r'(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.'
-    r'.*?New M-PESA balance is Ksh([\d,]+\.?\d*)',
+    r'^([A-Z0-9]+)\s+confirmed\.\s*You bought Ksh([\d, ]+\.?\d*)\s+of airtime on\s+'
+    r'(\d{1,2}/\d{1,2}/\d{2,4})\s+at\s+(\d{1,2}:\d{2}\s*[AP]M)\.?\s*'
+    r'.*?New M-PESA balance is Ksh([\d, ]+\.?\d*)',
     caseSensitive: false,
     dotAll: true,
   );
@@ -43,8 +41,9 @@ class SmsParser {
 
   // Matches: "CONFIRMED. KES 289.00, Auth for card 4478..8033 at
   //           GOOGLE *YouTubePremium on 2026-04-26 21:05:24 Ref:611602020521."
+  // Also handles USD and space-formatted amounts like "KES 1 306.00"
   static final RegExp _equity = RegExp(
-    r'CONFIRMED\.\s+KES\s+([\d,]+\.?\d*),\s+'
+    r'CONFIRMED\.\s+(?:KES|USD)\s+([\d, ]+\.?\d*),\s+'
     r'Auth for card\s+[\d.]+\s+at\s+(.+?)\s+'
     r'on\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+'
     r'Ref:(\d+)',
@@ -133,9 +132,9 @@ class SmsParser {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  /// "1,797.84" → 1797.84
+  /// "1,797.84" or "1 306.00" → 1797.84 or 1306.0
   static double _parseAmount(String raw) {
-    return double.tryParse(raw.replaceAll(',', '')) ?? 0.0;
+    return double.tryParse(raw.replaceAll(',', '').replaceAll(' ', '')) ?? 0.0;
   }
 
   /// Trims, collapses whitespace, title-cases the merchant name.

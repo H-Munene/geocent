@@ -35,6 +35,7 @@ migrate_working_dir/
 .env
 /windows/
 /linux/
+/assets/app_images/
 
 # Symbolication related
 app.*.symbols
