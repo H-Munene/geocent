@@ -1,18 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
+import 'package:mapbox_tut/utils/categories.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_popup/flutter_popup.dart';
+
+import 'package:hugeicons/hugeicons.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../models/call_out_result.dart';
+import '../models/category_item.dart';
 import '../models/map_place.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
+import '../widgets/cupertino_sheet_route.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -36,6 +44,12 @@ class _HomePageState extends State<HomePage>
   StreamSubscription? _bgServiceSub;
 
   int _annotationUpdateVersion = 0;
+
+  final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
+  mp.ScreenCoordinate? _popupPosition;
+  MapPlace? _selectedPlace;
+
+  final List<CategoryItem> _availableIcons = availableIcons.values.toList();
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -128,11 +142,13 @@ class _HomePageState extends State<HomePage>
     _places = saved
         .map(
           (tx) => MapPlace(
+            id: tx.id,
             name: tx.merchant,
             price: tx.formattedAmount,
             latitude: tx.latitude!,
             longitude: tx.longitude!,
             rawMessage: tx.rawMessage,
+            category: tx.category,
           ),
         )
         .toList();
@@ -175,6 +191,87 @@ class _HomePageState extends State<HomePage>
                   context.read<SpendingService>().setPeriod(period),
             ),
           ),
+          if (_popupPosition != null)
+            Positioned(
+              left: _popupPosition!.x,
+              top: _popupPosition!.y,
+              child: CustomPopup(
+                key: _popupKey,
+                contentPadding: EdgeInsets.zero,
+                content: Container(
+                  constraints: const BoxConstraints(maxWidth: 300),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Builder(
+                        builder: (context) {
+                          final cat = context
+                              .read<SpendingService>()
+                              .getCategoryByName(_selectedPlace?.category);
+                          return CustomPopup(
+                            barrierColor: Colors.transparent,
+                            contentPadding: EdgeInsets.zero,
+                            content: _buildCategoryDropdown(
+                              context,
+                              _selectedPlace!,
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: cat == null
+                                    ? Colors.grey[200]
+                                    : cat.color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (cat != null) ...[
+                                    HugeIcon(
+                                      icon: cat.icon,
+                                      color: cat.color,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                  ],
+                                  Text(
+                                    _selectedPlace?.category ?? 'Set Category',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: cat == null
+                                          ? Colors.grey[700]
+                                          : cat.color,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Divider(height: 1, color: Colors.grey[300]),
+                      const SizedBox(height: 12),
+                      Text(
+                        _selectedPlace?.rawMessage ?? '',
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.5,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                child: const SizedBox.shrink(),
+              ),
+            ),
         ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -209,6 +306,108 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  Widget _buildCategoryDropdown(BuildContext context, MapPlace place) {
+    final spending = context.read<SpendingService>();
+    final categories = spending.categories;
+
+    return Container(
+      width: 240,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  final isSelected = place.category == cat.name;
+                  return InkWell(
+                    onTap: () {
+                      spending.updateCategory(place.id, cat.name);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      color: isSelected
+                          ? const Color(0xFFF5F5F5)
+                          : Colors.white,
+                      child: Row(
+                        children: [
+                          HugeIcon(icon: cat.icon, color: cat.color, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              cat.name,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: const Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 1, color: Color(0xFFEEEEEE)),
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                _showCreateCategorySheet(place);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                width: double.infinity,
+                alignment: Alignment.center,
+                child: Text(
+                  '+ Create New',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.systemBlue,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showCreateCategorySheet(MapPlace place) {
+    Navigator.of(context).push(
+      AppCupertinoSheetRoute(
+        builder: (context) =>
+            CreateCategorySheet(place: place, availableIcons: _availableIcons),
+      ),
+    );
+  }
+
   Future<void> _flyToUserLocation() async {
     try {
       final position = await gl.Geolocator.getCurrentPosition(
@@ -216,9 +415,10 @@ class _HomePageState extends State<HomePage>
           accuracy: gl.LocationAccuracy.high,
         ),
       );
+      if (!mounted) return;
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
-          zoom: 15,
+          zoom: 17,
           center: mp.Point(
             coordinates: mp.Position(position.longitude, position.latitude),
           ),
@@ -252,7 +452,7 @@ class _HomePageState extends State<HomePage>
               !_isAnimating) {
             mapboxMapController?.setCamera(
               mp.CameraOptions(
-                zoom: 15,
+                zoom: 17,
                 center: mp.Point(
                   coordinates: mp.Position(
                     position.longitude,
@@ -282,7 +482,7 @@ class _HomePageState extends State<HomePage>
 
     // Handle marker taps using modern API
     _annotationManager?.tapEvents(
-      onTap: (annotation) {
+      onTap: (annotation) async {
         final place = _places.firstWhere(
           (p) =>
               (p.longitude - annotation.geometry.coordinates.lng).abs() <
@@ -290,7 +490,22 @@ class _HomePageState extends State<HomePage>
               (p.latitude - annotation.geometry.coordinates.lat).abs() < 0.0001,
           orElse: () => _places.first,
         );
-        _showTransactionDetails(place);
+
+        final screenCoord = await mapboxMapController?.pixelForCoordinate(
+          annotation.geometry,
+        );
+
+        if (screenCoord != null && mounted) {
+          setState(() {
+            _selectedPlace = place;
+            _popupPosition = screenCoord;
+          });
+
+          // Show popup in next frame after Positioned has moved the anchor
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _popupKey.currentState?.show();
+          });
+        }
       },
     );
 
@@ -321,11 +536,13 @@ class _HomePageState extends State<HomePage>
     final newPlaces = saved
         .map(
           (tx) => MapPlace(
+            id: tx.id,
             name: tx.merchant,
             price: tx.formattedAmount,
             latitude: tx.latitude!,
             longitude: tx.longitude!,
             rawMessage: tx.rawMessage,
+            category: tx.category,
           ),
         )
         .toList();
@@ -338,93 +555,14 @@ class _HomePageState extends State<HomePage>
     await _addAllAnnotations(newPlaces);
   }
 
-  void _showTransactionDetails(MapPlace place) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    place.name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ),
-                Text(
-                  place.price,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFFE53935),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'TRANSACTION MESSAGE',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: Colors.grey,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                place.rawMessage,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: Colors.grey[800],
-                  fontFamily: 'monospace',
-                ),
-              ),
-            ),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
+    final spending = context.read<SpendingService>();
     for (final place in places) {
+      final cat = spending.getCategoryByName(place.category);
       final CalloutResult callout = await createCalloutImage(
         place.name,
         place.price,
+        color: cat?.color,
       );
 
       await _annotationManager?.create(
@@ -465,9 +603,13 @@ class _HomePageState extends State<HomePage>
       mp.MapAnimationOptions(duration: 1000),
     );
 
+    if (!mounted) return;
+    final spending = context.read<SpendingService>();
+    final cat = spending.getCategoryByName(place.category);
     final CalloutResult callout = await createCalloutImage(
       place.name,
       place.price,
+      color: cat?.color,
     );
 
     final mp.PointAnnotation? calloutAnnotation = await _annotationManager
@@ -526,6 +668,161 @@ class _HomePageState extends State<HomePage>
             child: const Text('SAVE'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class CreateCategorySheet extends StatefulWidget {
+  final MapPlace place;
+  final List<CategoryItem> availableIcons;
+
+  const CreateCategorySheet({
+    super.key,
+    required this.place,
+    required this.availableIcons,
+  });
+
+  @override
+  State<CreateCategorySheet> createState() => _CreateCategorySheetState();
+}
+
+class _CreateCategorySheetState extends State<CreateCategorySheet> {
+  final TextEditingController _controller = TextEditingController();
+  CategoryItem? _selectedIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: Theme.of(
+        context,
+      ).copyWith(textTheme: GoogleFonts.spaceGroteskTextTheme()),
+      child: CupertinoPageScaffold(
+        backgroundColor: Colors.white,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: Colors.white,
+          border: null,
+          middle: Text(
+            'New Category',
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              color: const Color(0xFF1A1A1A),
+            ),
+          ),
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              final name = _controller.text.trim();
+              if (name.isNotEmpty && _selectedIcon != null) {
+                final spending = context.read<SpendingService>();
+                final newCategory = CategoryItem(
+                  name: name,
+                  icon: _selectedIcon!.icon,
+                  color: _selectedIcon!.color,
+                );
+                spending.addCategory(newCategory);
+                spending.updateCategory(widget.place.id, name);
+                Navigator.pop(context);
+              }
+            },
+            child: Text(
+              'Create',
+              style: GoogleFonts.spaceGrotesk(
+                fontWeight: FontWeight.w600,
+                color: CupertinoColors.activeBlue,
+              ),
+            ),
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NAME',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey[500],
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                CupertinoTextField(
+                  controller: _controller,
+                  placeholder: 'e.g. Entertainment',
+                  placeholderStyle: GoogleFonts.spaceGrotesk(
+                    color: Colors.grey[400],
+                  ),
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF1A1A1A),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFEEEEEE), width: 1.5),
+                    ),
+                  ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'SELECT ICON',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey[500],
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                        ),
+                    itemCount: widget.availableIcons.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.availableIcons[index];
+                      final isSelected = _selectedIcon == item;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIcon = item),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? item.color.withValues(alpha: 0.15)
+                                : const Color(0xFFF8F8F8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? item.color
+                                  : Colors.transparent,
+                              width: 2,
+                            ),
+                          ),
+                          child: HugeIcon(
+                            icon: item.icon,
+                            color: isSelected ? item.color : Colors.grey[400]!,
+                            size: 26,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

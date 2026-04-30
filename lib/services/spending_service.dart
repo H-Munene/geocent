@@ -1,6 +1,8 @@
 // lib/services/spending_service.dart
-import 'package:flutter/foundation.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:mapbox_tut/utils/categories.dart';
 import '../models/app_transaction.dart';
+import '../models/category_item.dart';
 import '../repositories/transaction_repository.dart';
 
 class SpendingService extends ChangeNotifier {
@@ -14,15 +16,46 @@ class SpendingService extends ChangeNotifier {
   List<AppTransaction> _mappedTransactions = [];
   bool _isLoading = false;
 
+  // default icons that are more likely to be used. I know this implementation
+  // is not robust but whatever man
+  final List<CategoryItem> _defaultCategories = [
+    availableIcons[2]!, // dining
+    availableIcons[29]!, // snacks
+    availableIcons[35]!, // public transport
+    availableIcons[1]!, // shopping
+    availableIcons[6]!, // taxi
+    availableIcons[37]!, // social
+    availableIcons[10]!, // entertainment
+    availableIcons[17]!, // laundry
+    availableIcons[24]!, // household utilities
+    availableIcons[23]!, // phone bill
+    availableIcons[26]!, // subscription
+    availableIcons[25]!, // savings
+    availableIcons[7]!, // health
+    availableIcons[5]!, // services
+    availableIcons[43]!, // hobby
+    availableIcons[4]!, // pet
+  ];
+
   // ── Getters ────────────────────────────────────────────────────────────────
   double get spent => _spent;
   double get limit => _limit;
   String get period => _period;
   bool get isLoading => _isLoading;
   List<AppTransaction> get periodTransactions => _periodTransactions;
+  List<CategoryItem> get categories => List.unmodifiable(_defaultCategories);
 
   /// Only transactions with GPS — used to rebuild map annotations.
   List<AppTransaction> get mappedTransactions => _mappedTransactions;
+
+  CategoryItem? getCategoryByName(String? name) {
+    if (name == null) return null;
+    try {
+      return _defaultCategories.firstWhere((c) => c.name == name);
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// 0.0 → 1.0, clamped so the UI never breaks at >100 %.
   double get progress => _limit > 0 ? (_spent / _limit).clamp(0.0, 1.0) : 0.0;
@@ -93,11 +126,25 @@ class SpendingService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Update the category of an existing transaction then refresh state.
+  Future<void> updateCategory(String txId, String category) async {
+    await _repo.updateCategory(txId, category);
+    // Refresh to update UI with new category
+    await refresh();
+  }
+
   /// Persist a new limit for the current period then refresh.
   Future<void> setLimit(String period, double amount) async {
     await _repo.setLimit(_toDbPeriod(period), amount);
     if (period == _period) {
       _limit = amount;
+      notifyListeners();
+    }
+  }
+
+  void addCategory(CategoryItem category) {
+    if (!_defaultCategories.any((c) => c.name == category.name)) {
+      _defaultCategories.add(category);
       notifyListeners();
     }
   }
