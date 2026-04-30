@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
-import 'package:mapbox_tut/utils/categories.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_popup/flutter_popup.dart';
@@ -20,7 +19,7 @@ import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
-import '../widgets/cupertino_sheet_route.dart';
+import '../widgets/category_sheet.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -49,7 +48,163 @@ class _HomePageState extends State<HomePage>
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
 
-  final List<CategoryItem> _availableIcons = availableIcons.values.toList();
+  final List<CategoryItem> _availableIcons = [
+    CategoryItem(
+      name: 'Home',
+      icon: HugeIcons.strokeRoundedHome01,
+      color: CupertinoColors.systemIndigo,
+    ),
+    CategoryItem(
+      name: 'Shopping',
+      icon: HugeIcons.strokeRoundedShoppingCart01,
+      color: CupertinoColors.systemGreen,
+    ),
+    CategoryItem(
+      name: 'Dining',
+      icon: HugeIcons.strokeRoundedRestaurant01,
+      color: CupertinoColors.systemOrange,
+    ),
+    CategoryItem(
+      name: 'Transport',
+      icon: HugeIcons.strokeRoundedCar01,
+      color: CupertinoColors.systemBlue,
+    ),
+    CategoryItem(
+      name: 'Health',
+      icon: HugeIcons.strokeRoundedHospital01,
+      color: CupertinoColors.systemRed,
+    ),
+    CategoryItem(
+      name: 'Bills',
+      icon: HugeIcons.strokeRoundedIdea01,
+      color: CupertinoColors.systemYellow,
+    ),
+    CategoryItem(
+      name: 'Travel',
+      icon: HugeIcons.strokeRoundedAirplane01,
+      color: CupertinoColors.systemTeal,
+    ),
+    CategoryItem(
+      name: 'Entertainment',
+      icon: HugeIcons.strokeRoundedTicket01,
+      color: CupertinoColors.systemPurple,
+    ),
+    CategoryItem(
+      name: 'Education',
+      icon: HugeIcons.strokeRoundedBook01,
+      color: CupertinoColors.systemBrown,
+    ),
+    CategoryItem(
+      name: 'Music',
+      icon: HugeIcons.strokeRoundedMusicNote01,
+      color: CupertinoColors.systemPink,
+    ),
+    CategoryItem(
+      name: 'Fitness',
+      icon: HugeIcons.strokeRoundedDumbbell01,
+      color: CupertinoColors.activeBlue,
+    ),
+    CategoryItem(
+      name: 'Work',
+      icon: HugeIcons.strokeRoundedBriefcase01,
+      color: CupertinoColors.activeGreen,
+    ),
+    CategoryItem(
+      name: 'Hobby',
+      icon: HugeIcons.strokeRoundedCamera01,
+      color: CupertinoColors.systemCyan,
+    ),
+    CategoryItem(
+      name: 'Pizza',
+      icon: HugeIcons.strokeRoundedPizza01,
+      color: CupertinoColors.systemOrange,
+    ),
+    CategoryItem(
+      name: 'Bus',
+      icon: HugeIcons.strokeRoundedBus01,
+      color: CupertinoColors.systemYellow,
+    ),
+    CategoryItem(
+      name: 'Bicycle',
+      icon: HugeIcons.strokeRoundedBicycle,
+      color: CupertinoColors.systemGreen,
+    ),
+    CategoryItem(
+      name: 'Groceries',
+      icon: HugeIcons.strokeRoundedApple01,
+      color: CupertinoColors.systemRed,
+    ),
+    CategoryItem(
+      name: 'Sports',
+      icon: HugeIcons.strokeRoundedBasketball01,
+      color: CupertinoColors.systemOrange,
+    ),
+    CategoryItem(
+      name: 'Nightlife',
+      icon: HugeIcons.strokeRoundedMoon01,
+      color: CupertinoColors.systemIndigo,
+    ),
+    CategoryItem(
+      name: 'Favorite',
+      icon: HugeIcons.strokeRoundedStar,
+      color: CupertinoColors.systemYellow,
+    ),
+    CategoryItem(
+      name: 'Clothing',
+      icon: HugeIcons.strokeRoundedTShirt,
+      color: CupertinoColors.systemBlue,
+    ),
+    CategoryItem(
+      name: 'Audio',
+      icon: HugeIcons.strokeRoundedHeadphones,
+      color: CupertinoColors.systemPink,
+    ),
+    CategoryItem(
+      name: 'Security',
+      icon: HugeIcons.strokeRoundedKey01,
+      color: CupertinoColors.systemGrey2,
+    ),
+    CategoryItem(
+      name: 'Tech',
+      icon: HugeIcons.strokeRoundedLaptop,
+      color: CupertinoColors.systemBlue,
+    ),
+    CategoryItem(
+      name: 'Cloud',
+      icon: HugeIcons.strokeRoundedCloud,
+      color: CupertinoColors.systemGreen,
+    ),
+    CategoryItem(
+      name: 'Passport',
+      icon: HugeIcons.strokeRoundedPassport,
+      color: CupertinoColors.systemTeal,
+    ),
+    CategoryItem(
+      name: 'Weather',
+      icon: HugeIcons.strokeRoundedUmbrella,
+      color: CupertinoColors.systemBlue,
+    ),
+    CategoryItem(
+      name: 'Finance',
+      icon: HugeIcons.strokeRoundedWallet01,
+      color: CupertinoColors.systemBrown,
+    ),
+    CategoryItem(
+      name: 'Gaming',
+      icon: HugeIcons.strokeRoundedGameController01,
+      color: CupertinoColors.systemPurple,
+    ),
+    CategoryItem(
+      name: 'Tools',
+      icon: HugeIcons.strokeRoundedPencil,
+      color: CupertinoColors.systemGrey,
+    ),
+    CategoryItem(
+      name: 'Phone',
+      icon: HugeIcons.strokeRoundedSmartPhone01,
+      color: CupertinoColors.systemMint,
+    ),
+  ];
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -66,13 +221,13 @@ class _HomePageState extends State<HomePage>
       TweenSequenceItem(
         tween: Tween<double>(
           begin: 1.0,
-          end: 0.98,
+          end: 0.95,
         ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 30,
       ),
       TweenSequenceItem(
         tween: Tween<double>(
-          begin: 0.98,
+          begin: 0.95,
           end: 1.0,
         ).chain(CurveTween(curve: Curves.easeOutBack)),
         weight: 70,
@@ -340,7 +495,7 @@ class _HomePageState extends State<HomePage>
                   return InkWell(
                     onTap: () {
                       spending.updateCategory(place.id, cat.name);
-                      Navigator.pop(context);
+                      Navigator.popUntil(context, (route) => route.isFirst);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -380,9 +535,12 @@ class _HomePageState extends State<HomePage>
                 _showCreateCategorySheet(place);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 width: double.infinity,
-                alignment: Alignment.center,
+                alignment: Alignment.centerLeft,
                 child: Text(
                   '+ Create New',
                   style: GoogleFonts.spaceGrotesk(
@@ -400,11 +558,10 @@ class _HomePageState extends State<HomePage>
   }
 
   void _showCreateCategorySheet(MapPlace place) {
-    Navigator.of(context).push(
-      AppCupertinoSheetRoute(
-        builder: (context) =>
-            CreateCategorySheet(place: place, availableIcons: _availableIcons),
-      ),
+    showCupertinoSheet(
+      context: context,
+      builder: (context) =>
+          CreateCategorySheet(place: place, availableIcons: _availableIcons),
     );
   }
 
@@ -526,11 +683,14 @@ class _HomePageState extends State<HomePage>
   void _refreshAnnotations() async {
     if (_annotationManager == null) return;
 
+    final spending = context.read<SpendingService>();
+    // Skip updates during the loading phase to avoid redundant/stale redrawing
+    if (spending.isLoading) return;
+
     // Versioning prevents rapid consecutive refreshes from
     // clobbering each other (race conditions).
     final int currentVersion = ++_annotationUpdateVersion;
 
-    final spending = context.read<SpendingService>();
     final saved = spending.mappedTransactions;
 
     final newPlaces = saved
@@ -557,7 +717,11 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
     final spending = context.read<SpendingService>();
-    for (final place in places) {
+
+    // Generate all callout images in parallel to speed up the process
+    final List<Future<mp.PointAnnotationOptions>> futures = places.map((
+      place,
+    ) async {
       final cat = spending.getCategoryByName(place.category);
       final CalloutResult callout = await createCalloutImage(
         place.name,
@@ -565,17 +729,22 @@ class _HomePageState extends State<HomePage>
         color: cat?.color,
       );
 
-      await _annotationManager?.create(
-        mp.PointAnnotationOptions(
-          image: callout.image,
-          iconSize: 1.5,
-          iconOpacity: 1.0,
-          geometry: mp.Point(
-            coordinates: mp.Position(place.longitude, place.latitude),
-          ),
+      return mp.PointAnnotationOptions(
+        image: callout.image,
+        iconSize: 1.5,
+        iconOpacity: 1.0,
+        geometry: mp.Point(
+          coordinates: mp.Position(place.longitude, place.latitude),
         ),
       );
-    }
+    }).toList();
+
+    final List<mp.PointAnnotationOptions> optionsList = await Future.wait(
+      futures,
+    );
+
+    // Batch create all annotations in a single platform call
+    await _annotationManager?.createMulti(optionsList);
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
@@ -668,161 +837,6 @@ class _HomePageState extends State<HomePage>
             child: const Text('SAVE'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class CreateCategorySheet extends StatefulWidget {
-  final MapPlace place;
-  final List<CategoryItem> availableIcons;
-
-  const CreateCategorySheet({
-    super.key,
-    required this.place,
-    required this.availableIcons,
-  });
-
-  @override
-  State<CreateCategorySheet> createState() => _CreateCategorySheetState();
-}
-
-class _CreateCategorySheetState extends State<CreateCategorySheet> {
-  final TextEditingController _controller = TextEditingController();
-  CategoryItem? _selectedIcon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(textTheme: GoogleFonts.spaceGroteskTextTheme()),
-      child: CupertinoPageScaffold(
-        backgroundColor: Colors.white,
-        navigationBar: CupertinoNavigationBar(
-          backgroundColor: Colors.white,
-          border: null,
-          middle: Text(
-            'New Category',
-            style: GoogleFonts.spaceGrotesk(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-              color: const Color(0xFF1A1A1A),
-            ),
-          ),
-          trailing: CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: () {
-              final name = _controller.text.trim();
-              if (name.isNotEmpty && _selectedIcon != null) {
-                final spending = context.read<SpendingService>();
-                final newCategory = CategoryItem(
-                  name: name,
-                  icon: _selectedIcon!.icon,
-                  color: _selectedIcon!.color,
-                );
-                spending.addCategory(newCategory);
-                spending.updateCategory(widget.place.id, name);
-                Navigator.pop(context);
-              }
-            },
-            child: Text(
-              'Create',
-              style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.w600,
-                color: CupertinoColors.activeBlue,
-              ),
-            ),
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NAME',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey[500],
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CupertinoTextField(
-                  controller: _controller,
-                  placeholder: 'e.g. Entertainment',
-                  placeholderStyle: GoogleFonts.spaceGrotesk(
-                    color: Colors.grey[400],
-                  ),
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1A1A1A),
-                  ),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFEEEEEE), width: 1.5),
-                    ),
-                  ),
-                  autofocus: true,
-                ),
-                const SizedBox(height: 32),
-                Text(
-                  'SELECT ICON',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.grey[500],
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Expanded(
-                  child: GridView.builder(
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                        ),
-                    itemCount: widget.availableIcons.length,
-                    itemBuilder: (context, index) {
-                      final item = widget.availableIcons[index];
-                      final isSelected = _selectedIcon == item;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedIcon = item),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? item.color.withValues(alpha: 0.15)
-                                : const Color(0xFFF8F8F8),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? item.color
-                                  : Colors.transparent,
-                              width: 2,
-                            ),
-                          ),
-                          child: HugeIcon(
-                            icon: item.icon,
-                            color: isSelected ? item.color : Colors.grey[400]!,
-                            size: 26,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

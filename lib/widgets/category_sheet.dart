@@ -24,51 +24,55 @@ class CreateCategorySheet extends StatefulWidget {
 class _CreateCategorySheetState extends State<CreateCategorySheet> {
   final TextEditingController _controller = TextEditingController();
   CategoryItem? _selectedIcon;
+
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(textTheme: GoogleFonts.spaceGroteskTextTheme()),
-      child: Material(
-        child: CupertinoPageScaffold(
-          backgroundColor: Colors.white,
-          navigationBar: CupertinoNavigationBar(
-            backgroundColor: Colors.white,
-            border: null,
-            middle: Text(
-              'New Category',
-              style: GoogleFonts.spaceGrotesk(
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-                color: const Color(0xFF1A1A1A),
-              ),
-            ),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () {
-                final name = _controller.text.trim();
-                if (name.isNotEmpty && _selectedIcon != null) {
-                  final spending = context.read<SpendingService>();
-                  final newCategory = CategoryItem(
-                    name: name,
-                    icon: _selectedIcon!.icon,
-                    color: _selectedIcon!.color,
-                  );
-                  spending.addCategory(newCategory);
-                  spending.updateCategory(widget.place.id, name);
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(
-                'Create',
-                style: GoogleFonts.spaceGrotesk(
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.activeBlue,
-                ),
-              ),
+    // CupertinoPageScaffold is now the root
+    return CupertinoPageScaffold(
+      backgroundColor: Colors.white,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: Colors.white,
+        border: null,
+        middle: Text(
+          'New Category',
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            color: const Color(0xFF1A1A1A),
+          ),
+        ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () {
+            final name = _controller.text.trim();
+            if (name.isNotEmpty && _selectedIcon != null) {
+              final spending = context.read<SpendingService>();
+              final newCategory = CategoryItem(
+                name: name,
+                icon: _selectedIcon!.icon,
+                color: _selectedIcon!.color,
+              );
+              spending.addCategory(newCategory);
+              spending.updateCategory(widget.place.id, name);
+              Navigator.popUntil(context, (route) => route.isFirst);
+            }
+          },
+          child: Text(
+            'Create',
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w600,
+              color: CupertinoColors.activeBlue,
             ),
           ),
+        ),
+      ),
+      // Theme and Material are moved INSIDE the scaffold's child
+      child: Theme(
+        data: Theme.of(
+          context,
+        ).copyWith(textTheme: GoogleFonts.spaceGroteskTextTheme()),
+        child: Material(
+          type: MaterialType.transparency, // Prevents layout visual bugs
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -82,6 +86,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                       fontWeight: FontWeight.w700,
                       color: Colors.grey[500],
                       letterSpacing: 1.2,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -115,6 +120,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                       fontWeight: FontWeight.w700,
                       color: Colors.grey[500],
                       letterSpacing: 1.2,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -151,7 +157,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                               color: isSelected
                                   ? item.color
                                   : Colors.grey[400]!,
-                              size: 15,
+                              size: 26,
                             ),
                           ),
                         );

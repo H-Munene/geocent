@@ -78,7 +78,7 @@ Future<CalloutResult> createCalloutImage(
 
   // ── 2. Color price section ───────────────────────────────────────────────────
 
-  final Color accentColor = color ?? const Color(0xFFE53935);
+  final Color accentColor = color ?? const Color(0xFFE53935); // default color
   final Rect priceRect = Rect.fromLTWH(nameBlockW, 0, priceBlockW, cardHeight);
   canvas.drawRect(priceRect, Paint()..color = accentColor);
 

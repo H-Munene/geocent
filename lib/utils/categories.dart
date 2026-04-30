@@ -228,7 +228,7 @@ const Map<int, CategoryItem> availableIcons = {
   5: CategoryItem(
     name: 'Services',
     icon: HugeIcons.strokeRoundedAiCloud01,
-    color: CupertinoColors.quaternarySystemFill,
+    color: CupertinoColors.label,
   ),
   42: CategoryItem(
     name: 'Vacation',
