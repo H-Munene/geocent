@@ -1,13 +1,13 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 import 'package:mapbox_tut/repositories/transaction_repository.dart';
-import 'package:mapbox_tut/screens/home.dart';
+import 'package:mapbox_tut/screens/main_screen.dart';
 import 'package:mapbox_tut/services/native_sms_channel.dart';
 import 'package:mapbox_tut/services/spending_service.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -36,20 +36,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return CupertinoApp(
       title: 'SpendMap',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-          brightness: Brightness.light,
+      theme: CupertinoThemeData(
+        brightness: Brightness.light,
+        primaryColor: CupertinoColors.activeBlue,
+        textTheme: CupertinoTextThemeData(
+          textStyle: GoogleFonts.spaceGrotesk(color: const Color(0xFF1A1A1A)),
         ),
-        textTheme: GoogleFonts.spaceGroteskTextTheme().apply(
-          bodyColor: const Color(0xFF1A1A1A),
-          displayColor: const Color(0xFF1A1A1A),
-        ),
-        useMaterial3: true,
       ),
-      home: const HomePage(),
+      home: const MainScreen(),
     );
   }
 }

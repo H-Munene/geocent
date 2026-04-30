@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mapbox_tut/models/category_item.dart';
 
@@ -18,22 +17,22 @@ const Map<int, CategoryItem> availableIcons = {
   21: CategoryItem(
     name: 'Fruits',
     icon: HugeIcons.strokeRoundedApple01,
-    color: Colors.lightGreen,
+    color: CupertinoColors.activeGreen,
   ),
   27: CategoryItem(
     name: 'Coffee',
     icon: HugeIcons.strokeRoundedCoffee02,
-    color: Colors.orangeAccent,
+    color: CupertinoColors.systemBrown,
   ),
   29: CategoryItem(
     name: 'Snacks',
     icon: HugeIcons.strokeRoundedPizza01,
-    color: Colors.yellowAccent,
+    color: CupertinoColors.systemYellow,
   ),
   28: CategoryItem(
     name: 'Alcohol',
     icon: HugeIcons.strokeRoundedDrink,
-    color: Colors.lightBlue,
+    color: CupertinoColors.systemBlue,
   ),
 
   // ─── TRANSPORT & TRAVEL ────────────────────────────────────────────────────
@@ -45,17 +44,17 @@ const Map<int, CategoryItem> availableIcons = {
   34: CategoryItem(
     name: 'Taxi',
     icon: HugeIcons.strokeRoundedTaxi,
-    color: Colors.deepOrangeAccent,
+    color: CupertinoColors.activeOrange,
   ),
   35: CategoryItem(
     name: 'Public Transport',
     icon: HugeIcons.strokeRoundedBus02,
-    color: Colors.tealAccent,
+    color: CupertinoColors.systemTeal,
   ),
   33: CategoryItem(
     name: 'Parking',
     icon: HugeIcons.strokeRoundedParkingAreaCircle,
-    color: Colors.indigoAccent,
+    color: CupertinoColors.systemIndigo,
   ),
   9: CategoryItem(
     name: 'Travel',
@@ -77,35 +76,35 @@ const Map<int, CategoryItem> availableIcons = {
   24: CategoryItem(
     name: 'Household Utilities',
     icon: HugeIcons.strokeRoundedElectricHome01,
-    color: Colors.indigo,
+    color: CupertinoColors.systemIndigo,
   ),
   32: CategoryItem(
     name:
         'Utilities', //** there is household utilities but with a different icon */
     icon: HugeIcons.strokeRoundedBulb,
-    color: Colors.blueAccent,
+    color: CupertinoColors.activeBlue,
   ),
   39: CategoryItem(
     name: 'Internet',
     icon: HugeIcons.strokeRoundedWifi01,
-    color: Colors.lightGreenAccent,
+    color: CupertinoColors.activeGreen,
   ),
   23: CategoryItem(
     name: 'Phone Bill',
     icon: HugeIcons.strokeRoundedCall,
-    color: Colors.amber,
+    color: CupertinoColors.systemOrange,
   ),
 
   // ─── FINANCE & WORK ────────────────────────────────────────────────────────
   18: CategoryItem(
     name: 'Finance',
     icon: HugeIcons.strokeRoundedWallet01,
-    color: Colors.deepPurple,
+    color: CupertinoColors.systemPurple,
   ),
   25: CategoryItem(
     name: 'Savings',
     icon: HugeIcons.strokeRoundedPiggyBank,
-    color: Colors.lime,
+    color: CupertinoColors.activeGreen,
   ),
   3: CategoryItem(
     name: 'Investments',
@@ -115,7 +114,7 @@ const Map<int, CategoryItem> availableIcons = {
   40: CategoryItem(
     name: 'Money',
     icon: HugeIcons.strokeRoundedMoney01,
-    color: Colors.amberAccent,
+    color: CupertinoColors.systemYellow,
   ),
   14: CategoryItem(
     name: 'Work',
@@ -125,7 +124,7 @@ const Map<int, CategoryItem> availableIcons = {
   31: CategoryItem(
     name: 'Labour',
     icon: HugeIcons.strokeRoundedLabor,
-    color: Colors.redAccent,
+    color: CupertinoColors.destructiveRed,
   ),
 
   // ─── SHOPPING & ESSENTIALS ─────────────────────────────────────────────────
@@ -137,7 +136,7 @@ const Map<int, CategoryItem> availableIcons = {
   20: CategoryItem(
     name: 'Electronics',
     icon: HugeIcons.strokeRoundedComputerPhoneSync,
-    color: Colors.blueGrey,
+    color: CupertinoColors.systemGrey,
   ),
   17: CategoryItem(
     name: 'Laundry',
@@ -147,7 +146,7 @@ const Map<int, CategoryItem> availableIcons = {
   41: CategoryItem(
     name: 'Repairs',
     icon: HugeIcons.strokeRoundedWrench01,
-    color: Colors.grey,
+    color: CupertinoColors.systemGrey,
   ),
 
   // ─── HEALTH, FAMILY & PERSONAL CARE ────────────────────────────────────────
@@ -164,12 +163,12 @@ const Map<int, CategoryItem> availableIcons = {
   38: CategoryItem(
     name: 'Beauty',
     icon: HugeIcons.strokeRoundedMirror,
-    color: Colors.lightBlueAccent,
+    color: CupertinoColors.activeBlue,
   ),
   22: CategoryItem(
     name: 'Child Care',
     icon: HugeIcons.strokeRoundedBaby01,
-    color: Colors.pinkAccent,
+    color: CupertinoColors.systemPink,
   ),
   4: CategoryItem(
     name: 'Pet',
@@ -179,7 +178,7 @@ const Map<int, CategoryItem> availableIcons = {
   37: CategoryItem(
     name: 'Social',
     icon: HugeIcons.strokeRoundedUserGroup,
-    color: Colors.greenAccent,
+    color: CupertinoColors.activeGreen,
   ),
 
   // ─── ENTERTAINMENT & LIFESTYLE ─────────────────────────────────────────────
@@ -196,7 +195,7 @@ const Map<int, CategoryItem> availableIcons = {
   19: CategoryItem(
     name: 'Gaming',
     icon: HugeIcons.strokeRoundedGameController01,
-    color: Colors.deepOrange,
+    color: CupertinoColors.activeOrange,
   ),
   43: CategoryItem(
     name: 'Hobby',
@@ -206,17 +205,17 @@ const Map<int, CategoryItem> availableIcons = {
   26: CategoryItem(
     name: 'Subscriptions',
     icon: HugeIcons.strokeRoundedCalendar02,
-    color: Colors.cyan,
+    color: CupertinoColors.systemTeal,
   ),
   30: CategoryItem(
     name: 'Person',
     icon: HugeIcons.strokeRoundedUser,
-    color: Colors.purpleAccent,
+    color: CupertinoColors.systemPurple,
   ),
   36: CategoryItem(
     name: 'Gift',
     icon: HugeIcons.strokeRoundedGift,
-    color: Colors.cyanAccent,
+    color: CupertinoColors.systemTeal,
   ),
 
   // ─── EDUCATION & SERVICES ──────────────────────────────────────────────────
@@ -233,6 +232,6 @@ const Map<int, CategoryItem> availableIcons = {
   42: CategoryItem(
     name: 'Vacation',
     icon: HugeIcons.strokeRoundedBeach02,
-    color: Colors.lightGreenAccent,
+    color: CupertinoColors.activeGreen,
   ),
 };

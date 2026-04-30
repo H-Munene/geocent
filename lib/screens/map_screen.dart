@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
@@ -21,14 +20,14 @@ import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
 import '../widgets/category_sheet.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _HomePageState extends State<HomePage>
+class _MapScreenState extends State<MapScreen>
     with SingleTickerProviderStateMixin {
   bool _islandExpanded = false;
   bool _amountsVisible = false;
@@ -308,8 +307,8 @@ class _HomePageState extends State<HomePage>
         )
         .toList();
 
-    return Scaffold(
-      body: Stack(
+    return CupertinoPageScaffold(
+      child: Stack(
         children: [
           mp.MapWidget(
             styleUri: mp.MapboxStyles.LIGHT,
@@ -346,6 +345,68 @@ class _HomePageState extends State<HomePage>
                   context.read<SpendingService>().setPeriod(period),
             ),
           ),
+          // FABs moved into the stack as Positioned widgets
+          Positioned(
+            bottom: 32,
+            right: 16,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _flyToUserLocation,
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: CupertinoColors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x33000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.location_fill,
+                      color: CupertinoColors.black,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                if (_places.isNotEmpty)
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: _isAnimating ? null : _animateAnnotations,
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _isAnimating
+                            ? CupertinoColors.systemGrey
+                            : CupertinoColors.black,
+                        shape: BoxShape.circle,
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x33000000),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: _isAnimating
+                          ? const CupertinoActivityIndicator(
+                              color: CupertinoColors.white,
+                            )
+                          : const Icon(
+                              CupertinoIcons.play_fill,
+                              color: CupertinoColors.white,
+                            ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           if (_popupPosition != null)
             Positioned(
               left: _popupPosition!.x,
@@ -353,108 +414,89 @@ class _HomePageState extends State<HomePage>
               child: CustomPopup(
                 key: _popupKey,
                 contentPadding: EdgeInsets.zero,
-                content: Container(
-                  constraints: const BoxConstraints(maxWidth: 300),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Builder(
-                        builder: (context) {
-                          final cat = context
-                              .read<SpendingService>()
-                              .getCategoryByName(_selectedPlace?.category);
-                          return CustomPopup(
-                            barrierColor: Colors.transparent,
-                            contentPadding: EdgeInsets.zero,
-                            content: _buildCategoryDropdown(
-                              context,
-                              _selectedPlace!,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
+                content: DefaultTextStyle(
+                  style: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.label,
+                    decoration: TextDecoration.none,
+                  ),
+                  child: Container(
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final cat = context
+                                .read<SpendingService>()
+                                .getCategoryByName(_selectedPlace?.category);
+                            return CustomPopup(
+                              barrierColor: CupertinoColors.transparent,
+                              contentPadding: EdgeInsets.zero,
+                              content: _buildCategoryDropdown(
+                                context,
+                                _selectedPlace!,
                               ),
-                              decoration: BoxDecoration(
-                                color: cat == null
-                                    ? Colors.grey[200]
-                                    : cat.color.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (cat != null) ...[
-                                    HugeIcon(
-                                      icon: cat.icon,
-                                      color: cat.color,
-                                      size: 16,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: cat == null
+                                      ? CupertinoColors.systemGrey5
+                                      : cat.color.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (cat != null) ...[
+                                      HugeIcon(
+                                        icon: cat.icon,
+                                        color: cat.color,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                    ],
+                                    Text(
+                                      _selectedPlace?.category ??
+                                          'Set Category',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: cat == null
+                                            ? CupertinoColors.systemGrey
+                                            : cat.color,
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
                                   ],
-                                  Text(
-                                    _selectedPlace?.category ?? 'Set Category',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: cat == null
-                                          ? Colors.grey[700]
-                                          : cat.color,
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                      Divider(height: 1, color: Colors.grey[300]),
-                      const SizedBox(height: 12),
-                      Text(
-                        _selectedPlace?.rawMessage ?? '',
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          color: Colors.grey[800],
+                            );
+                          },
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        Container(
+                          height: 1,
+                          color: CupertinoColors.systemGrey5,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _selectedPlace?.rawMessage ?? '',
+                          style: TextStyle(
+                            fontSize: 14,
+                            height: 1.5,
+                            color: CupertinoColors.label,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 child: const SizedBox.shrink(),
               ),
-            ),
-        ],
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'user_location',
-            onPressed: _flyToUserLocation,
-            backgroundColor: Colors.white,
-            child: const Icon(Icons.my_location, color: Colors.black),
-          ),
-          const SizedBox(height: 12),
-          if (_places.isNotEmpty)
-            FloatingActionButton(
-              heroTag: 'animate',
-              onPressed: _isAnimating ? null : _animateAnnotations,
-              backgroundColor: _isAnimating ? Colors.grey : Colors.black,
-              child: _isAnimating
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : const Icon(Icons.play_arrow, color: Colors.white),
             ),
         ],
       ),
@@ -468,91 +510,87 @@ class _HomePageState extends State<HomePage>
     return Container(
       width: 240,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: CupertinoColors.white,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: CupertinoColors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300),
-              child: ListView.builder(
-                shrinkWrap: true,
-                padding: EdgeInsets.zero,
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final cat = categories[index];
-                  final isSelected = place.category == cat.name;
-                  return InkWell(
-                    onTap: () {
-                      spending.updateCategory(place.id, cat.name);
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      color: isSelected
-                          ? const Color(0xFFF5F5F5)
-                          : Colors.white,
-                      child: Row(
-                        children: [
-                          HugeIcon(icon: cat.icon, color: cat.color, size: 20),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              cat.name,
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 14,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: const Color(0xFF1A1A1A),
-                              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                final cat = categories[index];
+                final isSelected = place.category == cat.name;
+                return GestureDetector(
+                  onTap: () {
+                    spending.updateCategory(place.id, cat.name);
+                    // Navigator.pop(context); // Close the popup
+                    Navigator.popUntil(context, (route) => route.isFirst);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    color: isSelected
+                        ? CupertinoColors.systemGrey6
+                        : CupertinoColors.white,
+                    child: Row(
+                      children: [
+                        HugeIcon(icon: cat.icon, color: cat.color, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            cat.name,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 14,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                              color: const Color(0xFF1A1A1A),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ),
-            const Divider(height: 1, color: Color(0xFFEEEEEE)),
-            InkWell(
-              onTap: () {
-                Navigator.pop(context);
-                _showCreateCategorySheet(place);
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                width: double.infinity,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '+ Create New',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: CupertinoColors.systemBlue,
                   ),
+                );
+              },
+            ),
+          ),
+          Container(height: 1, color: CupertinoColors.systemGrey5),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              Navigator.pop(context);
+              _showCreateCategorySheet(place);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              width: double.infinity,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '+ Create New',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: CupertinoColors.systemBlue,
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -811,24 +849,30 @@ class _HomePageState extends State<HomePage>
     final controller = TextEditingController(
       text: spending.limit.toStringAsFixed(0),
     );
-    showDialog(
+    showCupertinoDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoAlertDialog(
         title: Text('Set ${spending.period} Limit'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(
-            prefixText: 'Ksh ',
-            labelText: 'Limit Amount',
+        content: Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: CupertinoTextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            prefix: const Padding(
+              padding: EdgeInsets.only(left: 12),
+              child: Text('Ksh '),
+            ),
+            placeholder: 'Limit Amount',
+            style: GoogleFonts.spaceGrotesk(),
           ),
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
             child: const Text('CANCEL'),
           ),
-          ElevatedButton(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () {
               final amount = double.tryParse(controller.text) ?? 0.0;
               spending.setLimit(spending.period, amount);

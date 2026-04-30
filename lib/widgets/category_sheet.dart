@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mapbox_tut/models/category_item.dart';
@@ -27,11 +26,10 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
 
   @override
   Widget build(BuildContext context) {
-    // CupertinoPageScaffold is now the root
     return CupertinoPageScaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CupertinoColors.white,
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: Colors.white,
+        backgroundColor: CupertinoColors.white,
         border: null,
         middle: Text(
           'New Category',
@@ -54,7 +52,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
               );
               spending.addCategory(newCategory);
               spending.updateCategory(widget.place.id, name);
-              Navigator.popUntil(context, (route) => route.isFirst);
+              Navigator.pop(context);
             }
           },
           child: Text(
@@ -66,106 +64,101 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
           ),
         ),
       ),
-      // Theme and Material are moved INSIDE the scaffold's child
-      child: Theme(
-        data: Theme.of(
-          context,
-        ).copyWith(textTheme: GoogleFonts.spaceGroteskTextTheme()),
-        child: Material(
-          type: MaterialType.transparency, // Prevents layout visual bugs
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'NAME',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey[500],
-                      letterSpacing: 1.2,
-                      decoration: TextDecoration.none,
-                    ),
+      child: DefaultTextStyle(
+        style: GoogleFonts.spaceGrotesk(
+          color: const Color(0xFF1A1A1A),
+          decoration: TextDecoration.none,
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NAME',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CupertinoColors.systemGrey,
+                    letterSpacing: 1.2,
                   ),
-                  const SizedBox(height: 12),
-                  CupertinoTextField(
-                    controller: _controller,
-                    placeholder: 'e.g. Entertainment',
-                    placeholderStyle: GoogleFonts.spaceGrotesk(
-                      color: Colors.grey[400],
-                    ),
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF1A1A1A),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(
-                          color: Color(0xFFEEEEEE),
-                          width: 1.5,
-                        ),
+                ),
+                const SizedBox(height: 12),
+                CupertinoTextField(
+                  controller: _controller,
+                  placeholder: 'e.g. Entertainment',
+                  placeholderStyle: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.systemGrey4,
+                  ),
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF1A1A1A),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  decoration: const BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: CupertinoColors.systemGrey6,
+                        width: 1.5,
                       ),
                     ),
-                    autofocus: true,
                   ),
-                  const SizedBox(height: 32),
-                  Text(
-                    'SELECT ICON',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.grey[500],
-                      letterSpacing: 1.2,
-                      decoration: TextDecoration.none,
-                    ),
+                  autofocus: true,
+                ),
+                const SizedBox(height: 32),
+                Text(
+                  'SELECT ICON',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CupertinoColors.systemGrey,
+                    letterSpacing: 1.2,
                   ),
-                  const SizedBox(height: 20),
-                  Expanded(
-                    child: GridView.builder(
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 5,
-                            mainAxisSpacing: 16,
-                            crossAxisSpacing: 16,
-                          ),
-                      itemCount: widget.availableIcons.length,
-                      itemBuilder: (context, index) {
-                        final item = widget.availableIcons[index];
-                        final isSelected = _selectedIcon == item;
-                        return GestureDetector(
-                          onTap: () => setState(() => _selectedIcon = item),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? item.color.withValues(alpha: 0.15)
-                                  : const Color(0xFFF8F8F8),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected
-                                    ? item.color
-                                    : Colors.transparent,
-                                width: 2,
-                              ),
-                            ),
-                            child: HugeIcon(
-                              icon: item.icon,
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: GridView.builder(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                        ),
+                    itemCount: widget.availableIcons.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.availableIcons[index];
+                      final isSelected = _selectedIcon == item;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIcon = item),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? item.color.withValues(alpha: 0.15)
+                                : CupertinoColors.systemGrey6,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
                               color: isSelected
                                   ? item.color
-                                  : Colors.grey[400]!,
-                              size: 26,
+                                  : CupertinoColors.transparent,
+                              width: 2,
                             ),
                           ),
-                        );
-                      },
-                    ),
+                          child: HugeIcon(
+                            icon: item.icon,
+                            color: isSelected
+                                ? item.color
+                                : CupertinoColors.systemGrey2,
+                            size: 26,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
