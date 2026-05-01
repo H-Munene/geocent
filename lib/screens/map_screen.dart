@@ -20,6 +20,7 @@ import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
 import '../widgets/category_sheet.dart';
+import '../widgets/category_dropdown_widget.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -93,6 +94,79 @@ class _MapScreenState extends State<MapScreen>
         context.read<SpendingService>().refresh();
       }
     });
+
+    // Add listener for selected transaction from Messages screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SpendingService>().addListener(_handleSelectedTransaction);
+    });
+  }
+
+  void _handleSelectedTransaction() async {
+    final spending = context.read<SpendingService>();
+    final txId = spending.selectedTxId;
+    if (txId == null || mapboxMapController == null) return;
+
+    // Find the transaction in either mapped or period transactions
+    final allTxs = [
+      ...spending.mappedTransactions,
+      ...spending.periodTransactions,
+    ];
+    final txIndex = allTxs.indexWhere((t) => t.id == txId);
+    if (txIndex == -1) {
+      spending.clearSelectedTransaction();
+      return;
+    }
+    final tx = allTxs[txIndex];
+
+    if (tx.latitude == null || tx.longitude == null) {
+      spending.clearSelectedTransaction();
+      return;
+    }
+
+    final place = MapPlace(
+      id: tx.id,
+      name: tx.merchant,
+      price: tx.formattedAmount,
+      latitude: tx.latitude!,
+      longitude: tx.longitude!,
+      rawMessage: tx.rawMessage,
+      category: tx.category,
+    );
+
+    // Fly to the location
+    await mapboxMapController?.flyTo(
+      mp.CameraOptions(
+        zoom: 17,
+        center: mp.Point(
+          coordinates: mp.Position(place.longitude, place.latitude),
+        ),
+      ),
+      mp.MapAnimationOptions(duration: 1000),
+    );
+
+    // Wait for camera animation to finish
+    await Future.delayed(const Duration(milliseconds: 1100));
+
+    if (!mounted) return;
+
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(
+      mp.Point(coordinates: mp.Position(place.longitude, place.latitude)),
+    );
+
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = place;
+        _popupPosition = screenCoord;
+      });
+
+      // Clear the selection so it doesn't trigger again on every rebuild
+      spending.clearSelectedTransaction();
+
+      // Show popup in next frame after Positioned has moved the anchor
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _popupKey.currentState?.show();
+      });
+    }
   }
 
   void _triggerIslandAutoExpand() {
@@ -125,6 +199,7 @@ class _MapScreenState extends State<MapScreen>
     // Remove listener to prevent memory leaks
     final spending = Provider.of<SpendingService>(context, listen: false);
     spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
   }
@@ -279,9 +354,9 @@ class _MapScreenState extends State<MapScreen>
                             return CustomPopup(
                               barrierColor: CupertinoColors.transparent,
                               contentPadding: EdgeInsets.zero,
-                              content: _buildCategoryDropdown(
-                                context,
-                                _selectedPlace!,
+                              content: CategoryDropdownWidget(
+                                transactionId: _selectedPlace!.id,
+                                currentCategory: _selectedPlace!.category,
                               ),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
@@ -345,106 +420,6 @@ class _MapScreenState extends State<MapScreen>
             ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCategoryDropdown(BuildContext context, MapPlace place) {
-    final spending = context.read<SpendingService>();
-    final categories = spending.categories;
-
-    return Container(
-      width: 240,
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 300),
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = place.category == cat.name;
-                return GestureDetector(
-                  onTap: () {
-                    spending.updateCategory(place.id, cat.name);
-                    // Navigator.pop(context); // Close the popup
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: isSelected
-                        ? CupertinoColors.systemGrey6
-                        : CupertinoColors.white,
-                    child: Row(
-                      children: [
-                        HugeIcon(icon: cat.icon, color: cat.color, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            cat.name,
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: const Color(0xFF1A1A1A),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(height: 1, color: CupertinoColors.systemGrey5),
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: () {
-              Navigator.pop(context);
-              _showCreateCategorySheet(place);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              width: double.infinity,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '+ Create New',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.systemBlue,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showCreateCategorySheet(MapPlace place) {
-    showCupertinoSheet(
-      context: context,
-      builder: (context) =>
-          CreateCategorySheet(place: place, availableIcons: _availableIcons),
     );
   }
 

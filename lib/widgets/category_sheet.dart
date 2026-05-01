@@ -2,17 +2,16 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mapbox_tut/models/category_item.dart';
-import 'package:mapbox_tut/models/map_place.dart';
 import 'package:mapbox_tut/services/spending_service.dart';
 import 'package:provider/provider.dart';
 
 class CreateCategorySheet extends StatefulWidget {
-  final MapPlace place;
+  final String transactionId;
   final List<CategoryItem> availableIcons;
 
   const CreateCategorySheet({
     super.key,
-    required this.place,
+    required this.transactionId,
     required this.availableIcons,
   });
 
@@ -51,7 +50,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 color: _selectedIcon!.color,
               );
               spending.addCategory(newCategory);
-              spending.updateCategory(widget.place.id, name);
+              spending.updateCategory(widget.transactionId, name);
               Navigator.pop(context);
             }
           },

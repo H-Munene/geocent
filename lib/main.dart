@@ -10,6 +10,7 @@ import 'package:mapbox_tut/repositories/transaction_repository.dart';
 import 'package:mapbox_tut/screens/main_screen.dart';
 import 'package:mapbox_tut/services/native_sms_channel.dart';
 import 'package:mapbox_tut/services/spending_service.dart';
+import 'package:mapbox_tut/widgets/custom_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -37,6 +38,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CupertinoApp(
+      navigatorKey: rootNavigatorKey,
       title: 'SpendMap',
       theme: CupertinoThemeData(
         brightness: Brightness.light,

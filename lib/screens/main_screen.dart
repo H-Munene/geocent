@@ -1,17 +1,37 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:mapbox_tut/utils/icons.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
 import 'analytics_screen.dart';
 import 'profile_screen.dart';
+import '../utils/icons.dart';
 
-class MainScreen extends StatelessWidget {
+final GlobalKey<MainScreenState> mainScreenKey = GlobalKey<MainScreenState>();
+
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
+
+  @override
+  State<MainScreen> createState() => MainScreenState();
+}
+
+class MainScreenState extends State<MainScreen> {
+  final CupertinoTabController _tabController = CupertinoTabController();
+
+  void switchToTab(int index) {
+    _tabController.index = index;
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
+      key: mainScreenKey,
+      controller: _tabController,
       tabBar: CupertinoTabBar(
         iconSize: 25,
         backgroundColor: CupertinoColors.white,
@@ -27,13 +47,13 @@ class MainScreen extends StatelessWidget {
             label: 'Messages',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.chart_bar_square),
-            activeIcon: Icon(CupertinoIcons.chart_bar_square_fill),
+            icon: const Icon(CupertinoIcons.chart_bar_square),
+            activeIcon: const Icon(CupertinoIcons.chart_bar_square_fill),
             label: 'Analytics',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.person_circle),
-            activeIcon: Icon(CupertinoIcons.person_circle_fill),
+            icon: const Icon(CupertinoIcons.person_circle),
+            activeIcon: const Icon(CupertinoIcons.person_circle_fill),
             label: 'Profile',
           ),
         ],

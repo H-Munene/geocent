@@ -188,6 +188,16 @@ class TransactionRepository {
     return rows.map(AppTransaction.fromMap).toList();
   }
 
+  Future<List<AppTransaction>> loadActionable() async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where:
+          '${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL',
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<List<AppTransaction>> loadByPeriod(String period) async {
     final DateTime now = DateTime.now();
     final DateTime from;
