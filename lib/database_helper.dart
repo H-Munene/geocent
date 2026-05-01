@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'spendmap.db';
-  static const int _dbVersion = 1;
+  static const int _dbVersion = 2;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -18,6 +18,7 @@ class DatabaseHelper {
   static const String colType = 'type';
   static const String colLatitude = 'latitude';
   static const String colLongitude = 'longitude';
+  static const String colCategory = 'category';
 
   static const String tableSpendingLimits = 'spending_limits';
   static const String colPeriod = 'period'; // 'daily' | 'weekly' | 'monthly'
@@ -71,7 +72,8 @@ class DatabaseHelper {
         $colSource      TEXT    NOT NULL CHECK($colSource IN ('mpesa','equity')),
         $colType        TEXT    NOT NULL CHECK($colType IN ('sent','payment','received','unknown')),
         $colLatitude    REAL,
-        $colLongitude   REAL
+        $colLongitude   REAL,
+        $colCategory    TEXT
       )
     ''');
 
@@ -94,7 +96,11 @@ class DatabaseHelper {
 
   // Extend schema here in future versions without wiping data
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    // e.g. if (oldVersion < 2) { await db.execute('ALTER TABLE ...'); }
+    if (oldVersion < 2) {
+      await db.execute(
+        'ALTER TABLE $tableTransactions ADD COLUMN $colCategory TEXT',
+      );
+    }
   }
 
   // ── Low-level helpers ──────────────────────────────────────────────────────

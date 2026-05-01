@@ -5,7 +5,11 @@ import '../models/call_out_result.dart';
 
 // ── Callout (name + price tag) ─────────────────────────────────────────────
 
-Future<CalloutResult> createCalloutImage(String name, String price) async {
+Future<CalloutResult> createCalloutImage(
+  String name,
+  String price, {
+  Color? color,
+}) async {
   const double cardHeight = 44.0;
   const double namePaddingH = 14.0;
   const double pricePaddingH = 14.0;
@@ -72,11 +76,11 @@ Future<CalloutResult> createCalloutImage(String name, String price) async {
     Offset(namePaddingH, (cardHeight - namePainter.height) / 2),
   );
 
-  // ── 2. Red price section ───────────────────────────────────────────────────
+  // ── 2. Color price section ───────────────────────────────────────────────────
 
-  const Color red = Color(0xFFE53935);
+  final Color accentColor = color ?? const Color(0xFFE53935); // default color
   final Rect priceRect = Rect.fromLTWH(nameBlockW, 0, priceBlockW, cardHeight);
-  canvas.drawRect(priceRect, Paint()..color = red);
+  canvas.drawRect(priceRect, Paint()..color = accentColor);
 
   pricePainter.paint(
     canvas,
@@ -93,23 +97,23 @@ Future<CalloutResult> createCalloutImage(String name, String price) async {
       ..strokeWidth = borderWidth,
   );
 
-  // ── 4. Thin red stem ───────────────────────────────────────────────────────
+  // ── 4. Thin accented stem ───────────────────────────────────────────────────────
 
   canvas.drawLine(
     Offset(stemCentreX, cardHeight),
     Offset(stemCentreX, cardHeight + stemHeight),
     Paint()
-      ..color = red
+      ..color = accentColor
       ..strokeWidth = stemWidth
       ..strokeCap = StrokeCap.butt,
   );
 
-  // ── 5. Filled red dot ──────────────────────────────────────────────────────
+  // ── 5. Filled accented dot ──────────────────────────────────────────────────────
 
   canvas.drawCircle(
     Offset(dotCentreX, dotCentreY),
     dotRadius,
-    Paint()..color = red,
+    Paint()..color = accentColor,
   );
 
   // ── Rasterise ──────────────────────────────────────────────────────────────

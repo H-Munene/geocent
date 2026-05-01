@@ -161,6 +161,15 @@ class TransactionRepository {
     );
   }
 
+  Future<void> updateCategory(String id, String category) async {
+    await _db.rawUpdate(
+      DatabaseHelper.tableTransactions,
+      {DatabaseHelper.colCategory: category},
+      '${DatabaseHelper.colId} = ?',
+      [id],
+    );
+  }
+
   Future<List<AppTransaction>> loadAll() async {
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,

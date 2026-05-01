@@ -34,6 +34,7 @@ class AppTransaction {
   final TransactionType type;
   final double? latitude;
   final double? longitude;
+  final String? category;
 
   const AppTransaction({
     required this.id,
@@ -46,6 +47,7 @@ class AppTransaction {
     this.balanceAfter,
     this.latitude,
     this.longitude,
+    this.category,
   });
 
   // ── Persistence ────────────────────────────────────────────────────────────
@@ -62,6 +64,7 @@ class AppTransaction {
     'type': type.name, // 'sent' | 'payment' | 'received' | 'unknown'
     'latitude': latitude,
     'longitude': longitude,
+    'category': category,
   };
 
   factory AppTransaction.fromMap(Map<String, dynamic> map) => AppTransaction(
@@ -81,6 +84,7 @@ class AppTransaction {
     longitude: map['longitude'] != null
         ? (map['longitude'] as num).toDouble()
         : null,
+    category: map['category'] as String?,
   );
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -103,5 +107,6 @@ class AppTransaction {
     type: type,
     latitude: lat,
     longitude: lng,
+    category: category,
   );
 }

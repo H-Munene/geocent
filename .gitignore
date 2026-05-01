@@ -33,8 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 .env
-.windows/
-.linux/
+/windows/
+/linux/
+/assets/app_images/
 
 # Symbolication related
 app.*.symbols

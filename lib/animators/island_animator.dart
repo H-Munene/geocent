@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 class _IslandAnimator extends StatefulWidget {
   final bool visible;
