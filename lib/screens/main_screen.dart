@@ -1,4 +1,6 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:mapbox_tut/utils/icons.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
 import 'analytics_screen.dart';
@@ -11,15 +13,17 @@ class MainScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoTabScaffold(
       tabBar: CupertinoTabBar(
-        items: const [
+        iconSize: 25,
+        backgroundColor: CupertinoColors.white,
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.map),
-            activeIcon: Icon(CupertinoIcons.map_fill),
+            icon: pin,
+            activeIcon: pinActive,
             label: 'Map',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.chat_bubble_2),
-            activeIcon: Icon(CupertinoIcons.chat_bubble_2_fill),
+            icon: unmap,
+            activeIcon: unmapActive,
             label: 'Messages',
           ),
           BottomNavigationBarItem(
@@ -28,8 +32,8 @@ class MainScreen extends StatelessWidget {
             label: 'Analytics',
           ),
           BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.person),
-            activeIcon: Icon(CupertinoIcons.person_fill),
+            icon: Icon(CupertinoIcons.person_circle),
+            activeIcon: Icon(CupertinoIcons.person_circle_fill),
             label: 'Profile',
           ),
         ],
