@@ -3,7 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
-import 'package:mapbox_tut/utils/categories.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_popup/flutter_popup.dart';
@@ -12,14 +11,12 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/call_out_result.dart';
-import '../models/category_item.dart';
 import '../models/map_place.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
-import '../widgets/category_sheet.dart';
 import '../widgets/category_dropdown_widget.dart';
 
 class MapScreen extends StatefulWidget {
@@ -48,8 +45,6 @@ class _MapScreenState extends State<MapScreen>
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
-
-  final List<CategoryItem> _availableIcons = availableIcons.values.toList();
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -488,6 +483,41 @@ class _MapScreenState extends State<MapScreen>
     final locationPermission = await Permission.location.status;
     if (locationPermission != PermissionStatus.granted) return;
 
+    // Center map on user's last known position immediately to avoid New York
+    try {
+      final lastPos = await gl.Geolocator.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        controller.setCamera(
+          mp.CameraOptions(
+            zoom: 17,
+            center: mp.Point(
+              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+            ),
+          ),
+        );
+      }
+      // Trigger a fresh location fetch for high accuracy
+      gl.Geolocator.getCurrentPosition(
+        locationSettings: const gl.LocationSettings(
+          accuracy: gl.LocationAccuracy.high,
+        ),
+      ).then((pos) {
+        if (mounted) {
+          controller.flyTo(
+            mp.CameraOptions(
+              zoom: 17,
+              center: mp.Point(
+                coordinates: mp.Position(pos.longitude, pos.latitude),
+              ),
+            ),
+            mp.MapAnimationOptions(duration: 1000),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[MapScreen] Initial location fetch failed: $e');
+    }
+
     mapboxMapController?.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
@@ -565,8 +595,6 @@ class _MapScreenState extends State<MapScreen>
         )
         .toList();
 
-    await _annotationManager?.deleteAll();
-
     // If a newer refresh has started, abort this outdated one.
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
 
@@ -601,7 +629,8 @@ class _MapScreenState extends State<MapScreen>
       futures,
     );
 
-    // Batch create all annotations in a single platform call
+    // Perform an instantaneous swap to prevent flickering
+    await _annotationManager?.deleteAll();
     await _annotationManager?.createMulti(optionsList);
   }
 

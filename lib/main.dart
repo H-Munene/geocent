@@ -127,7 +127,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
           pos = await geo.Geolocator.getCurrentPosition(
             locationSettings: const geo.LocationSettings(
               accuracy: geo.LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 8),
+              timeLimit: Duration(seconds: 40),
             ),
           );
         }
@@ -174,9 +174,13 @@ Future<void> setup() async {
 }
 
 Future<void> getPermissions() async {
-  await [
+  final statuses = await [
     Permission.location,
     Permission.sms,
     Permission.notification,
   ].request();
+
+  if (statuses[Permission.location] == PermissionStatus.granted) {
+    await Permission.locationAlways.request();
+  }
 }

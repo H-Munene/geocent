@@ -40,92 +40,98 @@ class CategoryDropdownWidget extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 300),
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = currentCategory == cat.name;
-                return GestureDetector(
-                  onTap: () {
-                    spending.updateCategory(transactionId, cat.name);
-                    if (onCategorySelected != null) {
-                      onCategorySelected!();
-                    } else {
-                      // ********change made here
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  final isSelected = currentCategory == cat.name;
+                  return GestureDetector(
+                    onTap: () {
+                      spending.updateCategory(transactionId, cat.name);
+                      if (onCategorySelected != null) {
+                        onCategorySelected!();
+                      } else {
+                        // ********change made here
 
-                      // Navigator.pop(context);
-                      Navigator.popUntil(context, (route) => route.isFirst);
-                    }
-                    showCustomToast('Transaction successfully categorized');
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: isSelected
-                        ? CupertinoColors.systemGrey6
-                        : CupertinoColors.white,
-                    child: Row(
-                      children: [
-                        HugeIcon(icon: cat.icon, color: cat.color, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            cat.name,
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: const Color(0xFF1A1A1A),
+                        // Navigator.pop(context);
+                        Navigator.popUntil(context, (route) => route.isFirst);
+                      }
+                      showCustomToast('Transaction successfully categorized');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      color: isSelected
+                          ? CupertinoColors.systemGrey6
+                          : CupertinoColors.white,
+                      child: Row(
+                        children: [
+                          HugeIcon(icon: cat.icon, color: cat.color, size: 20),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              cat.name,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 14,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: const Color(0xFF1A1A1A),
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  );
+                },
+              ),
+            ),
+            Container(height: 1, color: CupertinoColors.systemGrey5),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+
+                showCupertinoSheet(
+                  showDragHandle: true,
+                  context: context,
+                  builder: (context) => CreateCategorySheet(
+                    transactionId: transactionId,
+                    availableIcons: availableIconsList,
                   ),
                 );
               },
-            ),
-          ),
-          Container(height: 1, color: CupertinoColors.systemGrey5),
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: () {
-              Navigator.popUntil(context, (route) => route.isFirst);
-
-              showCupertinoSheet(
-                showDragHandle: true,
-                context: context,
-                builder: (context) => CreateCategorySheet(
-                  transactionId: transactionId,
-                  availableIcons: availableIconsList,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
                 ),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              width: double.infinity,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '+ Create New',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.systemBlue,
+                width: double.infinity,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '+ Create New',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: CupertinoColors.systemBlue,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

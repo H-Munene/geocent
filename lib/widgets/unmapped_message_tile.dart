@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mapbox_tut/models/app_transaction.dart';
 import 'package:mapbox_tut/screens/location_picker_screen.dart';
-import 'package:flutter_popup/flutter_popup.dart';
 import 'category_dropdown_widget.dart';
 
 class UnmappedMessageTile extends StatelessWidget {

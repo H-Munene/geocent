@@ -111,10 +111,17 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       ),
       child: Stack(
         children: [
-          mp.MapWidget(
-            styleUri: mp.MapboxStyles.LIGHT,
-            onMapCreated: _onMapCreated,
-          ),
+          if (_initialPosition == null)
+            const Center(child: CupertinoActivityIndicator())
+          else
+            mp.MapWidget(
+              cameraOptions: mp.CameraOptions(
+                center: mp.Point(coordinates: _initialPosition!),
+                zoom: 15,
+              ),
+              styleUri: mp.MapboxStyles.LIGHT,
+              onMapCreated: _onMapCreated,
+            ),
           // Fixed Center Marker
           IgnorePointer(
             child: Center(
