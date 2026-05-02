@@ -87,7 +87,7 @@ class CategoryDropdownWidget extends StatelessWidget {
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w400,
-                                color: const Color(0xFF1A1A1A),
+                                color: const Color(0xFF1D1D1F),
                               ),
                             ),
                           ),
@@ -125,7 +125,7 @@ class CategoryDropdownWidget extends StatelessWidget {
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: CupertinoColors.systemBlue,
+                    color: const Color(0xFF0071E3),
                   ),
                 ),
               ),

@@ -48,18 +48,18 @@ class _ToastWidgetState extends State<_ToastWidget>
 
     _yController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 500),
+      duration: const Duration(milliseconds: 250),
     );
 
     _xController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 200),
     );
 
-    _yAnimation = Tween<Offset>(
-      begin: const Offset(0, 2),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _yController, curve: Curves.easeOutBack));
+    _yAnimation = Tween<Offset>(begin: const Offset(0, 2), end: Offset.zero)
+        .animate(
+          CurvedAnimation(parent: _yController, curve: Curves.easeOutCubic),
+        );
 
     _xAnimation = Tween<Offset>(
       begin: Offset.zero,
@@ -127,11 +127,11 @@ class _ToastWidgetState extends State<_ToastWidget>
                       Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Color(0xFFFF3B30),
+                          color: Color(0xFF00CC96), // Energy Green
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
-                          CupertinoIcons.bolt_fill,
+                          CupertinoIcons.check_mark,
                           color: CupertinoColors.white,
                           size: 14,
                         ),
@@ -141,8 +141,8 @@ class _ToastWidgetState extends State<_ToastWidget>
                         child: Text(
                           widget.message,
                           style: GoogleFonts.spaceGrotesk(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
                             color: const Color(0xFF1D1D1F),
                             decoration: TextDecoration.none,
                           ),
@@ -154,7 +154,7 @@ class _ToastWidgetState extends State<_ToastWidget>
                         child: Container(
                           padding: const EdgeInsets.all(4),
                           decoration: const BoxDecoration(
-                            color: CupertinoColors.black,
+                            color: Color(0xFF1D1D1F),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(

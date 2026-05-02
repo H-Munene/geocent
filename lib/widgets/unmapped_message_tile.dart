@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,53 +32,62 @@ class UnmappedMessageTile extends StatelessWidget {
         : 'Needs categorization';
     final String timeAgo = _getTimeAgo(transaction.timestamp);
 
-    Widget content = Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      transaction.merchant,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF1A1A1A),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$status • $timeAgo',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                transaction.formattedAmount,
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF1A1A1A),
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (showDivider)
+    Widget content = Container(
+      color: Colors.white,
+      child: Column(
+        children: [
           Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        transaction.merchant,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1D1D1F),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$status • $timeAgo',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: const Color(0xFF747780),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  transaction.formattedAmount,
+                  textAlign: TextAlign.right,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1D1D1F),
+                    fontFeatures: [const ui.FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
           ),
-      ],
+          if (showDivider)
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: Divider(
+                height: 1,
+                thickness: 1,
+                color: const Color(0xFFE9ECEF),
+              ),
+            ),
+        ],
+      ),
     );
 
     if (needsMapping) {

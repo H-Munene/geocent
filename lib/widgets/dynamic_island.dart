@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class DynamicIsland extends StatelessWidget {
   final double spent;
@@ -53,87 +55,83 @@ class DynamicIsland extends StatelessWidget {
       child: ScaleTransition(
         scale: bounceScale,
         alignment: Alignment.topRight,
-        child: AnimatedContainer(
-          duration: currentDuration,
-          curve: currentCurve,
-          width: amountsVisible ? maxWidth : 64,
-          clipBehavior: Clip.antiAlias,
-          decoration: BoxDecoration(
-            color: const Color(0xFF111111),
-            borderRadius: BorderRadius.circular(amountsVisible ? 22 : 32),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.4),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(amountsVisible ? 22 : 32),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: AnimatedContainer(
+              duration: currentDuration,
+              curve: currentCurve,
+              width: amountsVisible ? maxWidth : 64,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E).withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(amountsVisible ? 22 : 32),
               ),
-            ],
-          ),
-          child: AnimatedSize(
-            duration: currentDuration,
-            curve: currentCurve,
-            alignment: Alignment.topRight,
-            child: AnimatedSwitcher(
-              duration: Duration(milliseconds: amountsVisible ? 300 : 450),
-              layoutBuilder:
-                  (Widget? currentChild, List<Widget> previousChildren) {
-                    return Stack(
-                      alignment: Alignment.topRight,
-                      children: <Widget>[...previousChildren, ?currentChild],
-                    );
-                  },
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                if (child.key == const ValueKey('circle_content')) {
-                  if (!amountsVisible) {
-                    final blurAnim = Tween<double>(begin: 8.0, end: 0.0)
-                        .animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOut,
-                          ),
-                        );
-                    final opacityAnim = Tween<double>(begin: 0.0, end: 1.0)
-                        .animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: const Interval(0.0, 0.4),
-                          ),
-                        );
-                    return AnimatedBuilder(
-                      animation: animation,
-                      builder: (context, ch) {
-                        return Opacity(
-                          opacity: opacityAnim.value,
-                          child: ImageFiltered(
-                            imageFilter: ui.ImageFilter.blur(
-                              sigmaX: blurAnim.value,
-                              sigmaY: blurAnim.value,
-                            ),
-                            child: ch,
-                          ),
-                        );
+              child: AnimatedSize(
+                duration: currentDuration,
+                curve: currentCurve,
+                alignment: Alignment.topRight,
+                child: AnimatedSwitcher(
+                  duration: Duration(milliseconds: amountsVisible ? 300 : 450),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                        if (child.key == const ValueKey('circle_content')) {
+                          if (!amountsVisible) {
+                            final blurAnim = Tween<double>(begin: 8.0, end: 0.0)
+                                .animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: Curves.easeOut,
+                                  ),
+                                );
+                            final opacityAnim =
+                                Tween<double>(begin: 0.0, end: 1.0).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: const Interval(0.0, 0.4),
+                                  ),
+                                );
+                            return AnimatedBuilder(
+                              animation: animation,
+                              builder: (context, ch) {
+                                return Opacity(
+                                  opacity: opacityAnim.value,
+                                  child: ImageFiltered(
+                                    imageFilter: ui.ImageFilter.blur(
+                                      sigmaX: blurAnim.value,
+                                      sigmaY: blurAnim.value,
+                                    ),
+                                    child: ch,
+                                  ),
+                                );
+                              },
+                              child: child,
+                            );
+                          } else {
+                            final fastFadeOut = CurvedAnimation(
+                              parent: animation,
+                              curve: Curves.linear,
+                              reverseCurve: const Interval(0.9, 1.0),
+                            );
+                            return FadeTransition(
+                              opacity: fastFadeOut,
+                              child: child,
+                            );
+                          }
+                        }
+                        return FadeTransition(opacity: animation, child: child);
                       },
-                      child: child,
-                    );
-                  } else {
-                    final fastFadeOut = CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.linear,
-                      reverseCurve: const Interval(0.9, 1.0),
-                    );
-                    return FadeTransition(opacity: fastFadeOut, child: child);
-                  }
-                }
-                return FadeTransition(opacity: animation, child: child);
-              },
-              child: amountsVisible
-                  ? _buildExpandedContent(
-                      progress,
-                      remaining,
-                      maxWidth,
-                      isLimitSet,
-                    )
-                  : _buildCircleContent(progress, isLimitSet),
+                  child: amountsVisible
+                      ? _buildExpandedContent(
+                          progress,
+                          remaining,
+                          maxWidth,
+                          isLimitSet,
+                        )
+                      : _buildCircleContent(progress, isLimitSet),
+                ),
+              ),
             ),
           ),
         ),
@@ -144,7 +142,10 @@ class DynamicIsland extends StatelessWidget {
   Widget _buildCircleContent(double progress, bool isLimitSet) {
     return GestureDetector(
       key: const ValueKey('circle_content'),
-      onTap: onTapCircle,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTapCircle();
+      },
       child: Container(
         width: 64,
         height: 64,
@@ -160,17 +161,20 @@ class DynamicIsland extends StatelessWidget {
                 value: isLimitSet ? progress : 0.0,
                 strokeWidth: 3.5,
                 backgroundColor: const Color(0xFF333333),
-                valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFF4488FF),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  progress > 0.9
+                      ? const Color(0xFFC25100)
+                      : const Color(0xFF0071E3),
                 ),
               ),
             ),
             Text(
               isLimitSet ? '${(progress * 100).toStringAsFixed(0)}%' : '-%',
-              style: const TextStyle(
+              style: GoogleFonts.inter(
                 color: Colors.white,
-                fontSize: 9,
+                fontSize: 10,
                 fontWeight: FontWeight.w700,
+                fontFeatures: [const ui.FontFeature.tabularFigures()],
               ),
             ),
           ],
@@ -221,7 +225,10 @@ class DynamicIsland extends StatelessWidget {
                                       final isSelected =
                                           selectedPeriod == period;
                                       return GestureDetector(
-                                        onTap: () => onPeriodSelected(period),
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          onPeriodSelected(period);
+                                        },
                                         child: AnimatedContainer(
                                           duration: const Duration(
                                             milliseconds: 250,
@@ -240,7 +247,7 @@ class DynamicIsland extends StatelessWidget {
                                           ),
                                           child: Text(
                                             period,
-                                            style: TextStyle(
+                                            style: GoogleFonts.spaceGrotesk(
                                               color: isSelected
                                                   ? Colors.black
                                                   : Colors.grey,
@@ -256,7 +263,10 @@ class DynamicIsland extends StatelessWidget {
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: onTapEditLimit,
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  onTapEditLimit();
+                                },
                                 child: Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: const BoxDecoration(
@@ -265,7 +275,7 @@ class DynamicIsland extends StatelessWidget {
                                   ),
                                   child: const Icon(
                                     Icons.edit_outlined,
-                                    color: Colors.grey,
+                                    color: Color(0xFF0071E3),
                                     size: 14,
                                   ),
                                 ),
@@ -292,20 +302,25 @@ class DynamicIsland extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
+                            Text(
                               'SPENT',
-                              style: TextStyle(
+                              style: GoogleFonts.spaceGrotesk(
                                 color: Colors.grey,
                                 fontSize: 8,
                                 letterSpacing: 1,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
                               _formatKsh(spent),
-                              style: const TextStyle(
+                              textAlign: TextAlign.right,
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
+                                fontFeatures: [
+                                  const ui.FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ],
@@ -320,20 +335,25 @@ class DynamicIsland extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
+                            Text(
                               'LIMIT',
-                              style: TextStyle(
+                              style: GoogleFonts.spaceGrotesk(
                                 color: Colors.grey,
                                 fontSize: 8,
                                 letterSpacing: 1,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             Text(
                               isLimitSet ? _formatKsh(limit) : 'Not Set',
-                              style: const TextStyle(
+                              textAlign: TextAlign.right,
+                              style: GoogleFonts.inter(
                                 color: Colors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
+                                fontFeatures: [
+                                  const ui.FontFeature.tabularFigures(),
+                                ],
                               ),
                             ),
                           ],
@@ -353,9 +373,10 @@ class DynamicIsland extends StatelessWidget {
                             isLimitSet
                                 ? '${(progress * 100).toStringAsFixed(0)}% used'
                                 : '-% used',
-                            style: const TextStyle(
+                            style: GoogleFonts.spaceGrotesk(
                               color: Colors.grey,
                               fontSize: 8,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -365,8 +386,10 @@ class DynamicIsland extends StatelessWidget {
                               value: isLimitSet ? progress : 0.0,
                               minHeight: 5,
                               backgroundColor: const Color(0xFF333333),
-                              valueColor: const AlwaysStoppedAnimation<Color>(
-                                Color(0xFF4488FF),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                progress > 0.9
+                                    ? const Color(0xFFC25100)
+                                    : const Color(0xFF0071E3),
                               ),
                             ),
                           ),
@@ -375,10 +398,16 @@ class DynamicIsland extends StatelessWidget {
                             isLimitSet
                                 ? '${_formatKsh(remaining)} left'
                                 : 'N/A',
-                            style: const TextStyle(
-                              color: Color(0xFF4488FF),
+                            textAlign: TextAlign.right,
+                            style: GoogleFonts.inter(
+                              color: progress > 0.9
+                                  ? const Color(0xFFC25100)
+                                  : const Color(0xFF00CC96),
                               fontSize: 8,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              fontFeatures: [
+                                const ui.FontFeature.tabularFigures(),
+                              ],
                             ),
                           ),
                         ],
@@ -386,7 +415,10 @@ class DynamicIsland extends StatelessWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: onToggleExpand,
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      onToggleExpand();
+                    },
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: AnimatedRotation(
@@ -394,7 +426,7 @@ class DynamicIsland extends StatelessWidget {
                         duration: const Duration(milliseconds: 300),
                         child: const Icon(
                           Icons.keyboard_arrow_down,
-                          color: Colors.grey,
+                          color: Color(0xFF0071E3),
                           size: 18,
                         ),
                       ),

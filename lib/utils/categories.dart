@@ -7,124 +7,124 @@ const Map<int, CategoryItem> availableIcons = {
   2: CategoryItem(
     name: 'Dining',
     icon: HugeIcons.strokeRoundedRestaurant01,
-    color: CupertinoColors.systemOrange,
+    color: Color(0xFF0071E3), // Apple Blue
   ),
   16: CategoryItem(
     name: 'Groceries',
     icon: HugeIcons.strokeRoundedApple01,
-    color: CupertinoColors.destructiveRed,
+    color: Color(0xFF00B3E6), // Transition Teal
   ),
   21: CategoryItem(
     name: 'Fruits',
     icon: HugeIcons.strokeRoundedApple01,
-    color: CupertinoColors.activeGreen,
+    color: Color(0xFF00CC96), // Energy Green
   ),
   27: CategoryItem(
     name: 'Coffee',
     icon: HugeIcons.strokeRoundedCoffee02,
-    color: CupertinoColors.systemBrown,
+    color: Color(0xFFC25100), // Commodity Rust
   ),
   29: CategoryItem(
     name: 'Snacks',
     icon: HugeIcons.strokeRoundedPizza01,
-    color: CupertinoColors.systemYellow,
+    color: Color(0xFF0071E3),
   ),
   28: CategoryItem(
     name: 'Alcohol',
     icon: HugeIcons.strokeRoundedDrink,
-    color: CupertinoColors.systemBlue,
+    color: Color(0xFFC25100),
   ),
 
   // ─── TRANSPORT & TRAVEL ────────────────────────────────────────────────────
   6: CategoryItem(
     name: 'Taxi',
     icon: HugeIcons.strokeRoundedCar01,
-    color: CupertinoColors.systemBlue,
+    color: Color(0xFF00B3E6),
   ),
   34: CategoryItem(
     name: 'Taxi',
     icon: HugeIcons.strokeRoundedTaxi,
-    color: CupertinoColors.activeOrange,
+    color: Color(0xFF00B3E6),
   ),
   35: CategoryItem(
     name: 'Public Transport',
     icon: HugeIcons.strokeRoundedBus02,
-    color: CupertinoColors.systemTeal,
+    color: Color(0xFF00CC96),
   ),
   33: CategoryItem(
     name: 'Parking',
     icon: HugeIcons.strokeRoundedParkingAreaCircle,
-    color: CupertinoColors.systemIndigo,
+    color: Color(0xFF747780),
   ),
   9: CategoryItem(
     name: 'Travel',
     icon: HugeIcons.strokeRoundedAirplane01,
-    color: CupertinoColors.systemTeal,
+    color: Color(0xFF0071E3),
   ),
 
   // ─── HOUSING & UTILITIES ───────────────────────────────────────────────────
   0: CategoryItem(
     name: 'Home',
     icon: HugeIcons.strokeRoundedHome13,
-    color: CupertinoColors.systemIndigo,
+    color: Color(0xFF0071E3),
   ),
   8: CategoryItem(
     name: 'Bills',
     icon: HugeIcons.strokeRoundedIdea01,
-    color: CupertinoColors.systemYellow,
+    color: Color(0xFFC25100),
   ),
   24: CategoryItem(
     name: 'Household Utilities',
     icon: HugeIcons.strokeRoundedElectricHome01,
-    color: CupertinoColors.systemIndigo,
+    color: Color(0xFFC25100),
   ),
   32: CategoryItem(
     name:
         'Utilities', //** there is household utilities but with a different icon */
     icon: HugeIcons.strokeRoundedBulb,
-    color: CupertinoColors.activeBlue,
+    color: Color(0xFFC25100),
   ),
   39: CategoryItem(
     name: 'Internet',
     icon: HugeIcons.strokeRoundedWifi01,
-    color: CupertinoColors.activeGreen,
+    color: Color(0xFF00B3E6),
   ),
   23: CategoryItem(
     name: 'Phone Bill',
     icon: HugeIcons.strokeRoundedCall,
-    color: CupertinoColors.systemOrange,
+    color: Color(0xFFC25100),
   ),
 
   // ─── FINANCE & WORK ────────────────────────────────────────────────────────
   18: CategoryItem(
     name: 'Finance',
     icon: HugeIcons.strokeRoundedWallet01,
-    color: CupertinoColors.systemPurple,
+    color: Color(0xFF0071E3),
   ),
   25: CategoryItem(
     name: 'Savings',
     icon: HugeIcons.strokeRoundedPiggyBank,
-    color: CupertinoColors.activeGreen,
+    color: Color(0xFF00CC96),
   ),
   3: CategoryItem(
     name: 'Investments',
     icon: HugeIcons.strokeRoundedBank,
-    color: CupertinoColors.systemBrown,
+    color: Color(0xFF00CC96),
   ),
   40: CategoryItem(
     name: 'Money',
     icon: HugeIcons.strokeRoundedMoney01,
-    color: CupertinoColors.systemYellow,
+    color: Color(0xFF00CC96),
   ),
   14: CategoryItem(
     name: 'Work',
     icon: HugeIcons.strokeRoundedBriefcase01,
-    color: CupertinoColors.activeGreen,
+    color: Color(0xFF0071E3),
   ),
   31: CategoryItem(
     name: 'Labour',
     icon: HugeIcons.strokeRoundedLabor,
-    color: CupertinoColors.destructiveRed,
+    color: Color(0xFFC25100),
   ),
 
   // ─── SHOPPING & ESSENTIALS ─────────────────────────────────────────────────

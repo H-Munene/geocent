@@ -50,7 +50,7 @@ class MessagesScreen extends StatelessWidget {
     );
 
     return CupertinoPageScaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F7),
       navigationBar: CupertinoNavigationBar(
         backgroundColor: Colors.white.withValues(alpha: 0.8),
         border: null,
@@ -74,22 +74,38 @@ class MessagesScreen extends StatelessWidget {
                 ),
               )
             : ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 children: groupedMessages.entries.expand((entry) {
                   final String title = entry.key;
                   final List<AppTransaction> transactions = entry.value;
 
                   return [
                     _SectionHeader(title: title),
-                    ...transactions.asMap().entries.map((messageEntry) {
-                      final int index = messageEntry.key;
-                      final AppTransaction transaction = messageEntry.value;
-                      final bool isLast = index == transactions.length - 1;
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE9ECEF)),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: transactions.asMap().entries.map((
+                          messageEntry,
+                        ) {
+                          final int index = messageEntry.key;
+                          final AppTransaction transaction = messageEntry.value;
+                          final bool isLast = index == transactions.length - 1;
 
-                      return UnmappedMessageTile(
-                        transaction: transaction,
-                        showDivider: !isLast,
-                      );
-                    }),
+                          return UnmappedMessageTile(
+                            transaction: transaction,
+                            showDivider: !isLast,
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ];
                 }).toList(),
               ),
@@ -112,7 +128,7 @@ class _SectionHeader extends StatelessWidget {
         style: GoogleFonts.spaceGrotesk(
           fontSize: 20,
           fontWeight: FontWeight.w800,
-          color: Colors.black,
+          color: const Color(0xFF1D1D1F),
         ),
       ),
     );

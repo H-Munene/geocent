@@ -35,6 +35,7 @@ class MainScreenState extends State<MainScreen> {
       tabBar: CupertinoTabBar(
         iconSize: 25,
         backgroundColor: CupertinoColors.white,
+        activeColor: const Color(0xFF0071E3),
         items: [
           BottomNavigationBarItem(
             icon: pin,

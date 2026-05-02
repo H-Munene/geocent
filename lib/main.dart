@@ -15,6 +15,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import 'package:mapbox_tut/models/sms_message.dart';
 import 'services/sms_parser.dart';
 
 void main() async {
@@ -44,7 +45,11 @@ class MyApp extends StatelessWidget {
         brightness: Brightness.light,
         primaryColor: CupertinoColors.activeBlue,
         textTheme: CupertinoTextThemeData(
-          textStyle: GoogleFonts.spaceGrotesk(color: const Color(0xFF1A1A1A)),
+          textStyle: GoogleFonts.spaceGrotesk(
+            color: const Color(0xFF1D1D1F),
+            letterSpacing: -0.3,
+            fontFeatures: [const FontFeature.tabularFigures()],
+          ),
         ),
       ),
       home: const MainScreen(),
@@ -105,41 +110,61 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   NativeSmsChannel.instance.register();
 
   NativeSmsChannel.instance.smsStream.listen((sms) async {
-    debugPrint('[Background Isolate] Processing SMS from ${sms.sender}');
-
-    final tx = SmsParser.parse(sms.body);
-    if (tx != null && !(await repo.exists(tx.id))) {
-      await repo.save(tx);
-
-      service.invoke('transaction_saved');
-
-      _showTransactionNotification(
-        flutterLocalNotificationsPlugin,
-        tx.merchant,
-        tx.formattedAmount,
-      );
-
-      try {
-        geo.Position? pos = await geo.Geolocator.getLastKnownPosition();
-
-        if (pos == null ||
-            DateTime.now().difference(pos.timestamp).inMinutes > 10) {
-          pos = await geo.Geolocator.getCurrentPosition(
-            locationSettings: const geo.LocationSettings(
-              accuracy: geo.LocationAccuracy.medium,
-              timeLimit: Duration(seconds: 40),
-            ),
-          );
-        }
-
-        await repo.updateLocation(tx.id, pos.latitude, pos.longitude);
-
-        service.invoke('location_attached', {'id': tx.id});
-      } catch (e) {
-        debugPrint('[Background Isolate] GPS failed: $e');
-      }
-    }
+    _processIncomingSms(sms, repo, service, flutterLocalNotificationsPlugin);
   });
+
+  service.on('simulate_transaction').listen((_) async {
+    const mockSms =
+        'Confirmed. Ksh5,200.00 paid to ARTCAFFE. On 12/5/26 at 1:45 PM.';
+    _processIncomingSms(
+      const SmsMessage(sender: 'MPESA', body: mockSms),
+      repo,
+      service,
+      flutterLocalNotificationsPlugin,
+    );
+  });
+}
+
+Future<void> _processIncomingSms(
+  SmsMessage sms,
+  TransactionRepository repo,
+  ServiceInstance service,
+  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
+) async {
+  debugPrint('[Background Isolate] Processing SMS from ${sms.sender}');
+
+  final tx = SmsParser.parse(sms.body);
+  if (tx != null && !(await repo.exists(tx.id))) {
+    await repo.save(tx);
+
+    service.invoke('transaction_saved');
+
+    _showTransactionNotification(
+      flutterLocalNotificationsPlugin,
+      tx.merchant,
+      tx.formattedAmount,
+    );
+
+    try {
+      geo.Position? pos = await geo.Geolocator.getLastKnownPosition();
+
+      if (pos == null ||
+          DateTime.now().difference(pos.timestamp).inMinutes > 10) {
+        pos = await geo.Geolocator.getCurrentPosition(
+          locationSettings: const geo.LocationSettings(
+            accuracy: geo.LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 40),
+          ),
+        );
+      }
+
+      await repo.updateLocation(tx.id, pos.latitude, pos.longitude);
+
+      service.invoke('location_attached', {'id': tx.id});
+    } catch (e) {
+      debugPrint('[Background Isolate] GPS failed: $e');
+    }
+  }
 }
 
 void _showTransactionNotification(
