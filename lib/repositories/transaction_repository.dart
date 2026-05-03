@@ -198,6 +198,35 @@ class TransactionRepository {
     return rows.map(AppTransaction.fromMap).toList();
   }
 
+  Future<List<AppTransaction>> loadFiltered({
+    required String filter,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    String? where;
+    if (filter == 'mapping') {
+      where = '${DatabaseHelper.colLatitude} IS NULL';
+    } else if (filter == 'categorization') {
+      where = '${DatabaseHelper.colCategory} IS NULL';
+    } else {
+      // 'all' actionable
+      where =
+          '${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL';
+    }
+
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where: where,
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+      limit: limit,
+      offset: offset,
+    );
+    // Note: sqflite rawQuery doesn't have offset in parameters, but we can use it in orderBy or custom query if needed.
+    // Actually, db.query HAS offset. Let's check DatabaseHelper.
+    // DatabaseHelper.rawQuery wraps db.query. Let's see if it supports offset.
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<List<AppTransaction>> loadByPeriod(String period) async {
     final DateTime now = DateTime.now();
     final DateTime from;

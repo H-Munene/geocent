@@ -58,6 +58,18 @@ class UnmappedMessageTile extends StatelessWidget {
                         color: Colors.grey[600],
                       ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      transaction.rawMessage,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.grey[500],
+                        height: 1.4,
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -18,6 +18,13 @@ class SpendingService extends ChangeNotifier {
   String? _selectedTxId;
   bool _isLoading = false;
 
+  // Pagination & Filtering state
+  List<AppTransaction> _paginatedMessages = [];
+  String _currentFilter = 'all';
+  int _currentPage = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
   // default icons that are more likely to be used. I know this implementation
   // is not robust but whatever man
   final List<CategoryItem> _defaultCategories = [
@@ -52,6 +59,10 @@ class SpendingService extends ChangeNotifier {
 
   /// Transactions that need mapping or categorization.
   List<AppTransaction> get actionableTransactions => _actionableTransactions;
+
+  List<AppTransaction> get paginatedMessages => _paginatedMessages;
+  String get currentFilter => _currentFilter;
+  bool get hasMore => _hasMore;
 
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
@@ -128,6 +139,9 @@ class SpendingService extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+    
+    // Also refresh paginated messages to keep them in sync
+    await fetchMessages(refresh: true);
   }
 
   /// Save a freshly-parsed transaction then refresh totals.
@@ -159,6 +173,49 @@ class SpendingService extends ChangeNotifier {
     await _repo.setLimit(_toDbPeriod(period), amount);
     if (period == _period) {
       _limit = amount;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setFilter(String filter) async {
+    if (_currentFilter == filter) return;
+    _currentFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
+    await fetchMessages(refresh: true);
+  }
+
+  Future<void> fetchMessages({bool refresh = false}) async {
+    if (_isLoading) return;
+    if (!refresh && !_hasMore) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _currentPage = 0;
+      _paginatedMessages = [];
+      _hasMore = true;
+    }
+
+    try {
+      final newMessages = await _repo.loadFiltered(
+        filter: _currentFilter,
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
+
+      if (newMessages.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _paginatedMessages.addAll(newMessages);
+      _currentPage++;
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to fetch messages: $e');
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }
