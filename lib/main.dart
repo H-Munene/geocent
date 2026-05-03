@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
       title: 'SpendMap',
       theme: CupertinoThemeData(
         brightness: Brightness.light,
-        primaryColor: CupertinoColors.activeBlue,
+        primaryColor: const Color(0xFF0071E3),
         textTheme: CupertinoTextThemeData(
           textStyle: GoogleFonts.spaceGrotesk(
             color: const Color(0xFF1D1D1F),

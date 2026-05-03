@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
@@ -37,6 +38,7 @@ class _MapScreenState extends State<MapScreen>
 
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
+  final Map<String, MapPlace> _annotationToPlaceMap = {};
   bool _isAnimating = false;
   List<MapPlace> _places = [];
   mp.MapboxMap? mapboxMapController;
@@ -283,8 +285,8 @@ class _MapScreenState extends State<MapScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 10,
+                          color: Color(0x26000000),
+                          blurRadius: 12,
                           offset: Offset(0, 4),
                         ),
                       ],
@@ -314,8 +316,8 @@ class _MapScreenState extends State<MapScreen>
                         shape: BoxShape.circle,
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 10,
+                            color: Color(0x26000000),
+                            blurRadius: 12,
                             offset: Offset(0, 4),
                           ),
                         ],
@@ -340,16 +342,14 @@ class _MapScreenState extends State<MapScreen>
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: CustomPopup(
                     key: _popupKey,
-                    backgroundColor: CupertinoColors.white.withValues(
-                      alpha: 0.8,
-                    ),
+                    backgroundColor: Colors.black.withValues(alpha: 0.8),
                     contentPadding: EdgeInsets.zero,
                     content: DefaultTextStyle(
                       style: GoogleFonts.spaceGrotesk(
-                        color: const Color(0xFF1D1D1F),
+                        color: Colors.white,
                         decoration: TextDecoration.none,
                       ),
                       child: Container(
@@ -385,7 +385,7 @@ class _MapScreenState extends State<MapScreen>
                                     decoration: BoxDecoration(
                                       color: cat == null
                                           ? CupertinoColors.systemGrey5
-                                          : cat.color.withValues(alpha: 0.1),
+                                          : cat.color.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Row(
@@ -419,7 +419,7 @@ class _MapScreenState extends State<MapScreen>
                             const SizedBox(height: 12),
                             Container(
                               height: 1,
-                              color: const Color(0xFFE9ECEF),
+                              color: Colors.white.withValues(alpha: 0.1),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -427,7 +427,7 @@ class _MapScreenState extends State<MapScreen>
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 14,
                                 height: 1.5,
-                                color: const Color(0xFF1D1D1F),
+                                color: Colors.white,
                               ),
                             ),
                           ],
@@ -616,13 +616,15 @@ class _MapScreenState extends State<MapScreen>
 
       // Shared tap events for dots
       _dotManager!.tapEvents(
-        onTap: (annotation) => _onMarkerTapped(annotation.geometry),
+        onTap: (annotation) =>
+            _onMarkerTapped(annotation.id, annotation.geometry),
       );
     }
 
     // Handle marker taps for full callouts
     _annotationManager?.tapEvents(
-      onTap: (annotation) => _onMarkerTapped(annotation.geometry),
+      onTap: (annotation) =>
+          _onMarkerTapped(annotation.id, annotation.geometry),
     );
 
     if (!mounted) return;
@@ -634,13 +636,9 @@ class _MapScreenState extends State<MapScreen>
     _refreshAnnotations();
   }
 
-  void _onMarkerTapped(mp.Point geometry) async {
-    final place = _places.firstWhere(
-      (p) =>
-          (p.longitude - geometry.coordinates.lng).abs() < 0.0001 &&
-          (p.latitude - geometry.coordinates.lat).abs() < 0.0001,
-      orElse: () => _places.first,
-    );
+  void _onMarkerTapped(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
 
     final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
 
@@ -712,6 +710,7 @@ class _MapScreenState extends State<MapScreen>
         image: callout.image,
         iconSize: 1.5,
         iconAnchor: mp.IconAnchor.BOTTOM,
+        iconOffset: [0.0, 7.5],
         symbolSortKey: sortKey,
         geometry: geometry,
       );
@@ -719,7 +718,7 @@ class _MapScreenState extends State<MapScreen>
       final circleOptions = mp.CircleAnnotationOptions(
         geometry: geometry,
         circleColor:
-            cat?.color.toARGB32() ?? CupertinoColors.systemBlue.toARGB32(),
+            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
         circleRadius: 1.75,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
@@ -789,6 +788,7 @@ class _MapScreenState extends State<MapScreen>
         image: callout.image,
         iconSize: 1.5,
         iconAnchor: mp.IconAnchor.BOTTOM,
+        iconOffset: [0.0, 7.5],
         symbolSortKey: sortKey,
         geometry: geometry,
       ),
@@ -798,7 +798,7 @@ class _MapScreenState extends State<MapScreen>
       mp.CircleAnnotationOptions(
         geometry: geometry,
         circleColor:
-            cat?.color.toARGB32() ?? CupertinoColors.systemBlue.toARGB32(),
+            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
         circleRadius: 1.75,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),

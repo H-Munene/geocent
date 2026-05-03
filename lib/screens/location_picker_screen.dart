@@ -105,27 +105,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        backgroundColor: CupertinoColors.white.withValues(alpha: 0.8),
+        backgroundColor: CupertinoColors.white.withValues(alpha: 0.7),
         border: null,
         middle: Text(
           'Pick Location',
           style: GoogleFonts.spaceGrotesk(
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
-          ),
-        ),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: () {
-            HapticFeedback.mediumImpact();
-            _onConfirm();
-          },
-          child: Text(
-            'Confirm',
-            style: GoogleFonts.spaceGrotesk(
-              color: const Color(0xFF0071E3),
-              fontWeight: FontWeight.w600,
-            ),
+            color: const Color(0xFF1D1D1F),
           ),
         ),
       ),
@@ -167,12 +154,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       size: 32,
                     ),
                   ),
-                  const SizedBox(height: 40), // Offset to put the tip on center
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
-          // Crosshair for precision
+          // Precision Crosshair
           IgnorePointer(
             child: Center(
               child: Container(
@@ -193,6 +180,42 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       color: Color(0xFF0071E3),
                       shape: BoxShape.circle,
                     ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Primary CTA Button
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 24,
+            right: 24,
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                _onConfirm();
+              },
+              child: Container(
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0071E3),
+                  borderRadius: BorderRadius.circular(980), // Full pill shape
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0071E3).withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'Confirm Location',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

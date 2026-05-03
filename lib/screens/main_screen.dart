@@ -1,4 +1,6 @@
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
 import 'analytics_screen.dart';
@@ -34,7 +36,8 @@ class MainScreenState extends State<MainScreen> {
       controller: _tabController,
       tabBar: CupertinoTabBar(
         iconSize: 25,
-        backgroundColor: CupertinoColors.white,
+        backgroundColor: CupertinoColors.white.withValues(alpha: 0.7),
+        border: null,
         activeColor: const Color(0xFF0071E3),
         items: [
           BottomNavigationBarItem(
@@ -60,21 +63,25 @@ class MainScreenState extends State<MainScreen> {
         ],
       ),
       tabBuilder: (context, index) {
-        return CupertinoTabView(
-          builder: (context) {
-            switch (index) {
-              case 0:
-                return const MapScreen();
-              case 1:
-                return const MessagesScreen();
-              case 2:
-                return const AnalyticsScreen();
-              case 3:
-                return const ProfileScreen();
-              default:
-                return const MapScreen();
-            }
-          },
+        return Stack(
+          children: [
+            CupertinoTabView(
+              builder: (context) {
+                switch (index) {
+                  case 0:
+                    return const MapScreen();
+                  case 1:
+                    return const MessagesScreen();
+                  case 2:
+                    return const AnalyticsScreen();
+                  case 3:
+                    return const ProfileScreen();
+                  default:
+                    return const MapScreen();
+                }
+              },
+            ),
+          ],
         );
       },
     );
