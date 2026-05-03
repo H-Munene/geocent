@@ -2,17 +2,16 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:mapbox_tut/models/category_item.dart';
-import 'package:mapbox_tut/models/map_place.dart';
 import 'package:mapbox_tut/services/spending_service.dart';
 import 'package:provider/provider.dart';
 
 class CreateCategorySheet extends StatefulWidget {
-  final MapPlace place;
+  final String transactionId;
   final List<CategoryItem> availableIcons;
 
   const CreateCategorySheet({
     super.key,
-    required this.place,
+    required this.transactionId,
     required this.availableIcons,
   });
 
@@ -36,7 +35,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
           style: GoogleFonts.spaceGrotesk(
             fontWeight: FontWeight.w700,
             fontSize: 18,
-            color: const Color(0xFF1A1A1A),
+            color: const Color(0xFF1D1D1F),
           ),
         ),
         trailing: CupertinoButton(
@@ -51,7 +50,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 color: _selectedIcon!.color,
               );
               spending.addCategory(newCategory);
-              spending.updateCategory(widget.place.id, name);
+              spending.updateCategory(widget.transactionId, name);
               Navigator.pop(context);
             }
           },
@@ -59,14 +58,14 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
             'Create',
             style: GoogleFonts.spaceGrotesk(
               fontWeight: FontWeight.w600,
-              color: CupertinoColors.activeBlue,
+              color: const Color(0xFF0071E3),
             ),
           ),
         ),
       ),
       child: DefaultTextStyle(
         style: GoogleFonts.spaceGrotesk(
-          color: const Color(0xFF1A1A1A),
+          color: const Color(0xFF1D1D1F),
           decoration: TextDecoration.none,
         ),
         child: SafeArea(
@@ -94,7 +93,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 20,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1A1A1A),
+                    color: const Color(0xFF1D1D1F),
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   decoration: const BoxDecoration(

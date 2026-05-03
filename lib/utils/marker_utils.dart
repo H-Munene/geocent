@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/call_out_result.dart';
 
 // ── Callout (name + price tag) ─────────────────────────────────────────────
@@ -20,16 +22,13 @@ Future<CalloutResult> createCalloutImage(
   const double stemHeight = 20.0;
   const double dotRadius = 5.0;
 
-  // Total canvas height = card + stem + dot diameter
-  const double totalHeight = cardHeight + stemHeight + dotRadius * 2;
-
   // ── Text painters ──────────────────────────────────────────────────────────
 
   final namePainter = TextPainter(
     text: TextSpan(
       text: name.toUpperCase(),
-      style: const TextStyle(
-        color: Colors.black,
+      style: GoogleFonts.spaceGrotesk(
+        color: const Color(0xFF1D1D1F),
         fontSize: 20,
         fontWeight: FontWeight.w600,
         letterSpacing: 1,
@@ -41,11 +40,12 @@ Future<CalloutResult> createCalloutImage(
   final pricePainter = TextPainter(
     text: TextSpan(
       text: price,
-      style: const TextStyle(
+      style: GoogleFonts.inter(
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.8,
+        fontFeatures: [const ui.FontFeature.tabularFigures()],
       ),
     ),
     textDirection: TextDirection.ltr,
@@ -53,18 +53,42 @@ Future<CalloutResult> createCalloutImage(
 
   // ── Canvas sizing ──────────────────────────────────────────────────────────
 
-  final double nameBlockW = namePaddingH + namePainter.width + namePaddingH;
-  final double priceBlockW = pricePaddingH + pricePainter.width + pricePaddingH;
-  final double totalWidth = nameBlockW + priceBlockW;
+  final double nameBlockW = (namePaddingH + namePainter.width + namePaddingH)
+      .ceilToDouble();
+  final double priceBlockW =
+      (pricePaddingH + pricePainter.width + pricePaddingH).ceilToDouble();
+  double totalWidth = nameBlockW + priceBlockW;
+  // Ensure totalWidth is even to prevent half-pixel horizontal drifting
+  if (totalWidth % 2 != 0) {
+    totalWidth += 1;
+  }
 
   // Stem is centred on the card midpoint
   final double stemCentreX = totalWidth / 2;
-  // Dot centre sits at the very bottom of the canvas
+  // Dot centre sits at the vertical center of the canvas to avoid Mapbox offset scaling bugs.
+  // The dot radius is 5.0, so the dot occupies cardHeight + stemHeight to + dotRadius * 2.
   final double dotCentreX = stemCentreX;
   final double dotCentreY = cardHeight + stemHeight + dotRadius;
+  // Canvas height is doubled so dotCentreY is the exact midpoint
+  final double totalHeight = dotCentreY * 2;
 
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
+
+  // ── 0. Institutional Shadow (Strictly for Markers) ─────────────────────────
+
+  final shadowPaint = Paint()
+    ..color = Colors.black.withValues(alpha: 0.15)
+    ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+
+  // Shadow for the card
+  canvas.drawRect(Rect.fromLTWH(4, 4, totalWidth, cardHeight), shadowPaint);
+  // Shadow for the stem
+  canvas.drawLine(
+    Offset(stemCentreX + 2, cardHeight + 2),
+    Offset(stemCentreX + 2, cardHeight + stemHeight + 2),
+    shadowPaint..strokeWidth = stemWidth,
+  );
 
   // ── 1. White name section ──────────────────────────────────────────────────
 
@@ -78,7 +102,8 @@ Future<CalloutResult> createCalloutImage(
 
   // ── 2. Color price section ───────────────────────────────────────────────────
 
-  final Color accentColor = color ?? const Color(0xFFE53935); // default color
+  final Color accentColor =
+      color ?? CupertinoColors.systemGrey; // default to Apple Blue
   final Rect priceRect = Rect.fromLTWH(nameBlockW, 0, priceBlockW, cardHeight);
   canvas.drawRect(priceRect, Paint()..color = accentColor);
 

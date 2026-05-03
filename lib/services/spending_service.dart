@@ -14,6 +14,8 @@ class SpendingService extends ChangeNotifier {
   String _period = 'This Week';
   List<AppTransaction> _periodTransactions = [];
   List<AppTransaction> _mappedTransactions = [];
+  List<AppTransaction> _actionableTransactions = [];
+  String? _selectedTxId;
   bool _isLoading = false;
 
   // default icons that are more likely to be used. I know this implementation
@@ -48,6 +50,12 @@ class SpendingService extends ChangeNotifier {
   /// Only transactions with GPS — used to rebuild map annotations.
   List<AppTransaction> get mappedTransactions => _mappedTransactions;
 
+  /// Transactions that need mapping or categorization.
+  List<AppTransaction> get actionableTransactions => _actionableTransactions;
+
+  /// The transaction ID selected from the Messages screen to be categorized on the Map.
+  String? get selectedTxId => _selectedTxId;
+
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
     try {
@@ -79,6 +87,18 @@ class SpendingService extends ChangeNotifier {
 
   // ── Public API ─────────────────────────────────────────────────────────────
 
+  /// Set the selected transaction and notify listeners to trigger navigation/popups.
+  void selectTransaction(String id) {
+    _selectedTxId = id;
+    notifyListeners();
+  }
+
+  /// Clear the selected transaction after it has been handled.
+  void clearSelectedTransaction() {
+    _selectedTxId = null;
+    notifyListeners();
+  }
+
   /// Switch period and reload — called by DynamicIsland onPeriodSelected.
   Future<void> setPeriod(String period) async {
     _period = period;
@@ -97,11 +117,13 @@ class SpendingService extends ChangeNotifier {
       _repo.loadByPeriod(_period),
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
+      _repo.loadActionable(),
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
+    _actionableTransactions = results[3] as List<AppTransaction>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
 
     _isLoading = false;
@@ -121,15 +143,14 @@ class SpendingService extends ChangeNotifier {
     double longitude,
   ) async {
     await _repo.updateLocation(txId, latitude, longitude);
-    // Only reload the mapped list — no need to recompute totals
-    _mappedTransactions = await _repo.loadMapped();
-    notifyListeners();
+    // Refresh to ensure all lists (mapped, actionable) are updated and listeners notified
+    await refresh();
   }
 
   /// Update the category of an existing transaction then refresh state.
   Future<void> updateCategory(String txId, String category) async {
     await _repo.updateCategory(txId, category);
-    // Refresh to update UI with new category
+    // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
   }
 

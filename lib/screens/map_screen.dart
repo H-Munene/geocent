@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
@@ -11,14 +14,13 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/call_out_result.dart';
-import '../models/category_item.dart';
 import '../models/map_place.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
-import '../widgets/category_sheet.dart';
+import '../widgets/category_dropdown_widget.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -35,6 +37,8 @@ class _MapScreenState extends State<MapScreen>
   late Animation<double> _bounceScale;
 
   mp.PointAnnotationManager? _annotationManager;
+  mp.CircleAnnotationManager? _dotManager;
+  final Map<String, MapPlace> _annotationToPlaceMap = {};
   bool _isAnimating = false;
   List<MapPlace> _places = [];
   mp.MapboxMap? mapboxMapController;
@@ -46,164 +50,6 @@ class _MapScreenState extends State<MapScreen>
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
-
-  final List<CategoryItem> _availableIcons = [
-    CategoryItem(
-      name: 'Home',
-      icon: HugeIcons.strokeRoundedHome01,
-      color: CupertinoColors.systemIndigo,
-    ),
-    CategoryItem(
-      name: 'Shopping',
-      icon: HugeIcons.strokeRoundedShoppingCart01,
-      color: CupertinoColors.systemGreen,
-    ),
-    CategoryItem(
-      name: 'Dining',
-      icon: HugeIcons.strokeRoundedRestaurant01,
-      color: CupertinoColors.systemOrange,
-    ),
-    CategoryItem(
-      name: 'Transport',
-      icon: HugeIcons.strokeRoundedCar01,
-      color: CupertinoColors.systemBlue,
-    ),
-    CategoryItem(
-      name: 'Health',
-      icon: HugeIcons.strokeRoundedHospital01,
-      color: CupertinoColors.systemRed,
-    ),
-    CategoryItem(
-      name: 'Bills',
-      icon: HugeIcons.strokeRoundedIdea01,
-      color: CupertinoColors.systemYellow,
-    ),
-    CategoryItem(
-      name: 'Travel',
-      icon: HugeIcons.strokeRoundedAirplane01,
-      color: CupertinoColors.systemTeal,
-    ),
-    CategoryItem(
-      name: 'Entertainment',
-      icon: HugeIcons.strokeRoundedTicket01,
-      color: CupertinoColors.systemPurple,
-    ),
-    CategoryItem(
-      name: 'Education',
-      icon: HugeIcons.strokeRoundedBook01,
-      color: CupertinoColors.systemBrown,
-    ),
-    CategoryItem(
-      name: 'Music',
-      icon: HugeIcons.strokeRoundedMusicNote01,
-      color: CupertinoColors.systemPink,
-    ),
-    CategoryItem(
-      name: 'Fitness',
-      icon: HugeIcons.strokeRoundedDumbbell01,
-      color: CupertinoColors.activeBlue,
-    ),
-    CategoryItem(
-      name: 'Work',
-      icon: HugeIcons.strokeRoundedBriefcase01,
-      color: CupertinoColors.activeGreen,
-    ),
-    CategoryItem(
-      name: 'Hobby',
-      icon: HugeIcons.strokeRoundedCamera01,
-      color: CupertinoColors.systemCyan,
-    ),
-    CategoryItem(
-      name: 'Pizza',
-      icon: HugeIcons.strokeRoundedPizza01,
-      color: CupertinoColors.systemOrange,
-    ),
-    CategoryItem(
-      name: 'Bus',
-      icon: HugeIcons.strokeRoundedBus01,
-      color: CupertinoColors.systemYellow,
-    ),
-    CategoryItem(
-      name: 'Bicycle',
-      icon: HugeIcons.strokeRoundedBicycle,
-      color: CupertinoColors.systemGreen,
-    ),
-    CategoryItem(
-      name: 'Groceries',
-      icon: HugeIcons.strokeRoundedApple01,
-      color: CupertinoColors.systemRed,
-    ),
-    CategoryItem(
-      name: 'Sports',
-      icon: HugeIcons.strokeRoundedBasketball01,
-      color: CupertinoColors.systemOrange,
-    ),
-    CategoryItem(
-      name: 'Nightlife',
-      icon: HugeIcons.strokeRoundedMoon01,
-      color: CupertinoColors.systemIndigo,
-    ),
-    CategoryItem(
-      name: 'Favorite',
-      icon: HugeIcons.strokeRoundedStar,
-      color: CupertinoColors.systemYellow,
-    ),
-    CategoryItem(
-      name: 'Clothing',
-      icon: HugeIcons.strokeRoundedTShirt,
-      color: CupertinoColors.systemBlue,
-    ),
-    CategoryItem(
-      name: 'Audio',
-      icon: HugeIcons.strokeRoundedHeadphones,
-      color: CupertinoColors.systemPink,
-    ),
-    CategoryItem(
-      name: 'Security',
-      icon: HugeIcons.strokeRoundedKey01,
-      color: CupertinoColors.systemGrey2,
-    ),
-    CategoryItem(
-      name: 'Tech',
-      icon: HugeIcons.strokeRoundedLaptop,
-      color: CupertinoColors.systemBlue,
-    ),
-    CategoryItem(
-      name: 'Cloud',
-      icon: HugeIcons.strokeRoundedCloud,
-      color: CupertinoColors.systemGreen,
-    ),
-    CategoryItem(
-      name: 'Passport',
-      icon: HugeIcons.strokeRoundedPassport,
-      color: CupertinoColors.systemTeal,
-    ),
-    CategoryItem(
-      name: 'Weather',
-      icon: HugeIcons.strokeRoundedUmbrella,
-      color: CupertinoColors.systemBlue,
-    ),
-    CategoryItem(
-      name: 'Finance',
-      icon: HugeIcons.strokeRoundedWallet01,
-      color: CupertinoColors.systemBrown,
-    ),
-    CategoryItem(
-      name: 'Gaming',
-      icon: HugeIcons.strokeRoundedGameController01,
-      color: CupertinoColors.systemPurple,
-    ),
-    CategoryItem(
-      name: 'Tools',
-      icon: HugeIcons.strokeRoundedPencil,
-      color: CupertinoColors.systemGrey,
-    ),
-    CategoryItem(
-      name: 'Phone',
-      icon: HugeIcons.strokeRoundedSmartPhone01,
-      color: CupertinoColors.systemMint,
-    ),
-  ];
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -248,6 +94,79 @@ class _MapScreenState extends State<MapScreen>
         context.read<SpendingService>().refresh();
       }
     });
+
+    // Add listener for selected transaction from Messages screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SpendingService>().addListener(_handleSelectedTransaction);
+    });
+  }
+
+  void _handleSelectedTransaction() async {
+    final spending = context.read<SpendingService>();
+    final txId = spending.selectedTxId;
+    if (txId == null || mapboxMapController == null) return;
+
+    // Find the transaction in either mapped or period transactions
+    final allTxs = [
+      ...spending.mappedTransactions,
+      ...spending.periodTransactions,
+    ];
+    final txIndex = allTxs.indexWhere((t) => t.id == txId);
+    if (txIndex == -1) {
+      spending.clearSelectedTransaction();
+      return;
+    }
+    final tx = allTxs[txIndex];
+
+    if (tx.latitude == null || tx.longitude == null) {
+      spending.clearSelectedTransaction();
+      return;
+    }
+
+    final place = MapPlace(
+      id: tx.id,
+      name: tx.merchant,
+      price: tx.formattedAmount,
+      latitude: tx.latitude!,
+      longitude: tx.longitude!,
+      rawMessage: tx.rawMessage,
+      category: tx.category,
+    );
+
+    // Fly to the location
+    await mapboxMapController?.flyTo(
+      mp.CameraOptions(
+        zoom: 17,
+        center: mp.Point(
+          coordinates: mp.Position(place.longitude, place.latitude),
+        ),
+      ),
+      mp.MapAnimationOptions(duration: 1000),
+    );
+
+    // Wait for camera animation to finish
+    await Future.delayed(const Duration(milliseconds: 1100));
+
+    if (!mounted) return;
+
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(
+      mp.Point(coordinates: mp.Position(place.longitude, place.latitude)),
+    );
+
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = place;
+        _popupPosition = screenCoord;
+      });
+
+      // Clear the selection so it doesn't trigger again on every rebuild
+      spending.clearSelectedTransaction();
+
+      // Show popup in next frame after Positioned has moved the anchor
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _popupKey.currentState?.show();
+      });
+    }
   }
 
   void _triggerIslandAutoExpand() {
@@ -280,6 +199,7 @@ class _MapScreenState extends State<MapScreen>
     // Remove listener to prevent memory leaks
     final spending = Provider.of<SpendingService>(context, listen: false);
     spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
   }
@@ -354,7 +274,10 @@ class _MapScreenState extends State<MapScreen>
               children: [
                 CupertinoButton(
                   padding: EdgeInsets.zero,
-                  onPressed: _flyToUserLocation,
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _flyToUserLocation();
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: const BoxDecoration(
@@ -362,15 +285,15 @@ class _MapScreenState extends State<MapScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 10,
+                          color: Color(0x26000000),
+                          blurRadius: 12,
                           offset: Offset(0, 4),
                         ),
                       ],
                     ),
                     child: const Icon(
                       CupertinoIcons.location_fill,
-                      color: CupertinoColors.black,
+                      color: Color(0xFF1D1D1F),
                     ),
                   ),
                 ),
@@ -378,18 +301,23 @@ class _MapScreenState extends State<MapScreen>
                 if (_places.isNotEmpty)
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: _isAnimating ? null : _animateAnnotations,
+                    onPressed: _isAnimating
+                        ? null
+                        : () {
+                            HapticFeedback.mediumImpact();
+                            _animateAnnotations();
+                          },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _isAnimating
-                            ? CupertinoColors.systemGrey
-                            : CupertinoColors.black,
+                            ? CupertinoColors.systemGrey3
+                            : const Color(0xFF1D1D1F),
                         shape: BoxShape.circle,
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 10,
+                            color: Color(0x26000000),
+                            blurRadius: 12,
                             offset: Offset(0, 4),
                           ),
                         ],
@@ -411,195 +339,111 @@ class _MapScreenState extends State<MapScreen>
             Positioned(
               left: _popupPosition!.x,
               top: _popupPosition!.y,
-              child: CustomPopup(
-                key: _popupKey,
-                contentPadding: EdgeInsets.zero,
-                content: DefaultTextStyle(
-                  style: GoogleFonts.spaceGrotesk(
-                    color: CupertinoColors.label,
-                    decoration: TextDecoration.none,
-                  ),
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final cat = context
-                                .read<SpendingService>()
-                                .getCategoryByName(_selectedPlace?.category);
-                            return CustomPopup(
-                              barrierColor: CupertinoColors.transparent,
-                              contentPadding: EdgeInsets.zero,
-                              content: _buildCategoryDropdown(
-                                context,
-                                _selectedPlace!,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: cat == null
-                                      ? CupertinoColors.systemGrey5
-                                      : cat.color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (cat != null) ...[
-                                      HugeIcon(
-                                        icon: cat.icon,
-                                        color: cat.color,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    Text(
-                                      _selectedPlace?.category ??
-                                          'Set Category',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: cat == null
-                                            ? CupertinoColors.systemGrey
-                                            : cat.color,
-                                      ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: CustomPopup(
+                    key: _popupKey,
+                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    contentPadding: EdgeInsets.zero,
+                    content: DefaultTextStyle(
+                      style: GoogleFonts.spaceGrotesk(
+                        color: Colors.black,
+                        decoration: TextDecoration.none,
+                      ),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final cat = context
+                                    .read<SpendingService>()
+                                    .getCategoryByName(
+                                      _selectedPlace?.category,
+                                    );
+                                return CustomPopup(
+                                  barrierColor: CupertinoColors.transparent,
+                                  contentPadding: EdgeInsets.zero,
+                                  content: CategoryDropdownWidget(
+                                    transactionId: _selectedPlace!.id,
+                                    currentCategory: _selectedPlace!.category,
+                                    onCategorySelected: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.popUntil(
+                                        context,
+                                        (route) => route.isFirst,
+                                      );
+                                    },
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
                                     ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        Container(
-                          height: 1,
-                          color: CupertinoColors.systemGrey5,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _selectedPlace?.rawMessage ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                child: const SizedBox.shrink(),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCategoryDropdown(BuildContext context, MapPlace place) {
-    final spending = context.read<SpendingService>();
-    final categories = spending.categories;
-
-    return Container(
-      width: 240,
-      decoration: BoxDecoration(
-        color: CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: CupertinoColors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 300),
-            child: ListView.builder(
-              shrinkWrap: true,
-              padding: EdgeInsets.zero,
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = place.category == cat.name;
-                return GestureDetector(
-                  onTap: () {
-                    spending.updateCategory(place.id, cat.name);
-                    // Navigator.pop(context); // Close the popup
-                    Navigator.popUntil(context, (route) => route.isFirst);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    color: isSelected
-                        ? CupertinoColors.systemGrey6
-                        : CupertinoColors.white,
-                    child: Row(
-                      children: [
-                        HugeIcon(icon: cat.icon, color: cat.color, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            cat.name,
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 14,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: const Color(0xFF1A1A1A),
+                                    decoration: BoxDecoration(
+                                      color: cat == null
+                                          ? CupertinoColors.systemGrey5
+                                          : cat.color.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (cat != null) ...[
+                                          HugeIcon(
+                                            icon: cat.icon,
+                                            color: cat.color,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        Text(
+                                          _selectedPlace?.category ??
+                                              'Set Category',
+                                          style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: cat == null
+                                                ? CupertinoColors.systemGrey
+                                                : cat.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
-                          ),
+                            const SizedBox(height: 12),
+                            Container(
+                              height: 1,
+                              color: Colors.black.withValues(alpha: 0.1),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedPlace?.rawMessage ?? '',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 14,
+                                height: 1.5,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
+                    child: const SizedBox.shrink(),
                   ),
-                );
-              },
-            ),
-          ),
-          Container(height: 1, color: CupertinoColors.systemGrey5),
-          CupertinoButton(
-            padding: EdgeInsets.zero,
-            onPressed: () {
-              Navigator.pop(context);
-              _showCreateCategorySheet(place);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              width: double.infinity,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '+ Create New',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: CupertinoColors.systemBlue,
                 ),
               ),
             ),
-          ),
         ],
       ),
-    );
-  }
-
-  void _showCreateCategorySheet(MapPlace place) {
-    showCupertinoSheet(
-      context: context,
-      builder: (context) =>
-          CreateCategorySheet(place: place, availableIcons: _availableIcons),
     );
   }
 
@@ -668,40 +512,122 @@ class _MapScreenState extends State<MapScreen>
     final locationPermission = await Permission.location.status;
     if (locationPermission != PermissionStatus.granted) return;
 
+    // Center map on user's last known position immediately to avoid New York
+    try {
+      final lastPos = await gl.Geolocator.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        controller.setCamera(
+          mp.CameraOptions(
+            zoom: 17,
+            center: mp.Point(
+              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+            ),
+          ),
+        );
+      }
+      // Trigger a fresh location fetch for high accuracy
+      gl.Geolocator.getCurrentPosition(
+        locationSettings: const gl.LocationSettings(
+          accuracy: gl.LocationAccuracy.high,
+        ),
+      ).then((pos) {
+        if (mounted) {
+          controller.flyTo(
+            mp.CameraOptions(
+              zoom: 17,
+              center: mp.Point(
+                coordinates: mp.Position(pos.longitude, pos.latitude),
+              ),
+            ),
+            mp.MapAnimationOptions(duration: 1000),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[MapScreen] Initial location fetch failed: $e');
+    }
+
     mapboxMapController?.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
+    // 1. Initialize Managers
+    // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
+    _dotManager = await mapboxMapController?.annotations
+        .createCircleAnnotationManager();
     _annotationManager = await mapboxMapController?.annotations
         .createPointAnnotationManager();
 
-    // Handle marker taps using modern API
+    // 2. Configure Callout Collision & Native Opacity Expressions
+    if (_annotationManager != null) {
+      await _annotationManager!.setIconAllowOverlap(false);
+      await _annotationManager!.setIconIgnorePlacement(false);
+      await _annotationManager!.setTextAllowOverlap(false);
+      await _annotationManager!.setTextIgnorePlacement(false);
+
+      // Detailed Callouts: Visible only >= 13.0
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'icon-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          13.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'text-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          13.0,
+          1.0,
+        ],
+      );
+    }
+
+    // 3. Configure Dot Native Opacity Expressions
+    if (_dotManager != null) {
+      // Dots: Hidden < 11.0, Visible >= 11.0
+      // By staying visible, they act as a fallback when the Callout above them is hidden by collision.
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-stroke-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+
+      // Shared tap events for dots
+      _dotManager!.tapEvents(
+        onTap: (annotation) =>
+            _onMarkerTapped(annotation.id, annotation.geometry),
+      );
+    }
+
+    // Handle marker taps for full callouts
     _annotationManager?.tapEvents(
-      onTap: (annotation) async {
-        final place = _places.firstWhere(
-          (p) =>
-              (p.longitude - annotation.geometry.coordinates.lng).abs() <
-                  0.0001 &&
-              (p.latitude - annotation.geometry.coordinates.lat).abs() < 0.0001,
-          orElse: () => _places.first,
-        );
-
-        final screenCoord = await mapboxMapController?.pixelForCoordinate(
-          annotation.geometry,
-        );
-
-        if (screenCoord != null && mounted) {
-          setState(() {
-            _selectedPlace = place;
-            _popupPosition = screenCoord;
-          });
-
-          // Show popup in next frame after Positioned has moved the anchor
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _popupKey.currentState?.show();
-          });
-        }
-      },
+      onTap: (annotation) =>
+          _onMarkerTapped(annotation.id, annotation.geometry),
     );
 
     if (!mounted) return;
@@ -709,13 +635,26 @@ class _MapScreenState extends State<MapScreen>
     _smsService = SmsService(repo: TransactionRepository(), spending: spending);
     await _smsService!.init();
 
-    // The build method will handle syncing _places and rendering annotations
-    // via its reactivity to SpendingService.
-    // However, we need to trigger the first set of annotations manually
-    // or rely on the build method's reactivity if we wrap annotation creation.
-    // Let's add a listener to spending service to refresh annotations.
     spending.addListener(_refreshAnnotations);
     _refreshAnnotations();
+  }
+
+  void _onMarkerTapped(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
+
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
+
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = place;
+        _popupPosition = screenCoord;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _popupKey.currentState?.show();
+      });
+    }
   }
 
   void _refreshAnnotations() async {
@@ -745,8 +684,6 @@ class _MapScreenState extends State<MapScreen>
         )
         .toList();
 
-    await _annotationManager?.deleteAll();
-
     // If a newer refresh has started, abort this outdated one.
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
 
@@ -754,12 +691,12 @@ class _MapScreenState extends State<MapScreen>
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
+    if (_annotationManager == null || _dotManager == null) return;
     final spending = context.read<SpendingService>();
 
-    // Generate all callout images in parallel to speed up the process
-    final List<Future<mp.PointAnnotationOptions>> futures = places.map((
-      place,
-    ) async {
+    // Generate callout options and dot options in parallel
+    final List<Future<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>>
+    futures = places.map((place) async {
       final cat = spending.getCategoryByName(place.category);
       final CalloutResult callout = await createCalloutImage(
         place.name,
@@ -767,22 +704,65 @@ class _MapScreenState extends State<MapScreen>
         color: cat?.color,
       );
 
-      return mp.PointAnnotationOptions(
+      final geometry = mp.Point(
+        coordinates: mp.Position(place.longitude, place.latitude),
+      );
+      final sortKey = _getSortKey(place.price);
+
+      final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
         iconSize: 1.5,
-        iconOpacity: 1.0,
-        geometry: mp.Point(
-          coordinates: mp.Position(place.longitude, place.latitude),
-        ),
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
+        symbolSortKey: sortKey,
+        geometry: geometry,
       );
+
+      final circleOptions = mp.CircleAnnotationOptions(
+        geometry: geometry,
+        circleColor:
+            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
+        circleRadius: 1.575,
+        circleStrokeWidth: 1.0,
+        circleStrokeColor: CupertinoColors.white.toARGB32(),
+        circleSortKey: sortKey,
+      );
+
+      return (pointOptions, circleOptions);
     }).toList();
 
-    final List<mp.PointAnnotationOptions> optionsList = await Future.wait(
-      futures,
-    );
+    final List<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>
+    results = await Future.wait(futures);
 
-    // Batch create all annotations in a single platform call
-    await _annotationManager?.createMulti(optionsList);
+    final pointOptionsList = results.map((r) => r.$1).toList();
+    final circleOptionsList = results.map((r) => r.$2).toList();
+
+    // Perform instantaneous swap on both layers
+    await _annotationManager?.deleteAll();
+    await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
+
+    final pointAnnotations = await _annotationManager?.createMulti(
+      pointOptionsList,
+    );
+    final circleAnnotations = await _dotManager?.createMulti(circleOptionsList);
+
+    if (pointAnnotations != null) {
+      for (int i = 0; i < pointAnnotations.length; i++) {
+        final ann = pointAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
+    if (circleAnnotations != null) {
+      for (int i = 0; i < circleAnnotations.length; i++) {
+        final ann = circleAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
@@ -791,6 +771,9 @@ class _MapScreenState extends State<MapScreen>
     if (_isAnimating) return;
     setState(() => _isAnimating = true);
     await _annotationManager?.deleteAll();
+    await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
+
     for (final place in _places) {
       if (!_isAnimating) break;
       await _addAnnotationForPlace(place);
@@ -802,7 +785,7 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _addAnnotationForPlace(MapPlace place) async {
     await mapboxMapController?.flyTo(
       mp.CameraOptions(
-        zoom: 11.7,
+        zoom: 13.5, // Fly in closer to reveal the callout immediately
         center: mp.Point(
           coordinates: mp.Position(place.longitude, place.latitude),
         ),
@@ -819,30 +802,45 @@ class _MapScreenState extends State<MapScreen>
       color: cat?.color,
     );
 
-    final mp.PointAnnotation? calloutAnnotation = await _annotationManager
-        ?.create(
-          mp.PointAnnotationOptions(
-            image: callout.image,
-            iconSize: 1.5,
-            iconOpacity: 0.0,
-            geometry: mp.Point(
-              coordinates: mp.Position(place.longitude, place.latitude),
-            ),
-          ),
-        );
+    final geometry = mp.Point(
+      coordinates: mp.Position(place.longitude, place.latitude),
+    );
+    final sortKey = _getSortKey(place.price);
 
-    await _fadeInAnnotations(calloutAnnotation);
+    final pointAnn = await _annotationManager?.create(
+      mp.PointAnnotationOptions(
+        image: callout.image,
+        iconSize: 1.5,
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
+        symbolSortKey: sortKey,
+        geometry: geometry,
+      ),
+    );
+
+    final circleAnn = await _dotManager?.create(
+      mp.CircleAnnotationOptions(
+        geometry: geometry,
+        circleColor:
+            cat?.color.toARGB32() ?? CupertinoColors.systemGrey.toARGB32(),
+        circleRadius: 1.575,
+        circleStrokeWidth: 1.0,
+        circleStrokeColor: CupertinoColors.white.toARGB32(),
+        circleSortKey: sortKey,
+      ),
+    );
+
+    if (pointAnn != null) {
+      _annotationToPlaceMap[pointAnn.id] = place;
+    }
+    if (circleAnn != null) {
+      _annotationToPlaceMap[circleAnn.id] = place;
+    }
   }
 
-  Future<void> _fadeInAnnotations(mp.PointAnnotation? callout) async {
-    for (int i = 1; i <= 25; i++) {
-      final double opacity = i / 25;
-      if (callout != null) {
-        callout.iconOpacity = opacity;
-        await _annotationManager?.update(callout);
-      }
-      await Future.delayed(const Duration(milliseconds: 16));
-    }
+  double _getSortKey(String price) {
+    final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(clean) ?? 0.0;
   }
 
   void _showLimitSettings(SpendingService spending) {

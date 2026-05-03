@@ -130,7 +130,7 @@ class SmsService {
         pos = await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 5), // Reduced timeout for foreground
+            timeLimit: Duration(seconds: 20),
           ),
         );
       }
