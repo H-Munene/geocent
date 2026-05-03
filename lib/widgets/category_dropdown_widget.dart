@@ -34,9 +34,9 @@ class CategoryDropdownWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: CupertinoColors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: CupertinoColors.black.withValues(alpha: 0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -60,8 +60,6 @@ class CategoryDropdownWidget extends StatelessWidget {
                       if (onCategorySelected != null) {
                         onCategorySelected!();
                       } else {
-                        // ********change made here
-
                         // Navigator.pop(context);
                         Navigator.popUntil(context, (route) => route.isFirst);
                       }
@@ -87,7 +85,7 @@ class CategoryDropdownWidget extends StatelessWidget {
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.w400,
-                                color: const Color(0xFF1A1A1A),
+                                color: const Color(0xFF1D1D1F),
                               ),
                             ),
                           ),
@@ -125,7 +123,7 @@ class CategoryDropdownWidget extends StatelessWidget {
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: CupertinoColors.systemBlue,
+                    color: const Color(0xFF0071E3),
                   ),
                 ),
               ),

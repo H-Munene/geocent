@@ -92,7 +92,7 @@ const Map<int, CategoryItem> availableIcons = {
   23: CategoryItem(
     name: 'Phone Bill',
     icon: HugeIcons.strokeRoundedCall,
-    color: CupertinoColors.systemOrange,
+    color: Color.fromARGB(255, 54, 234, 132),
   ),
 
   // ─── FINANCE & WORK ────────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ const Map<int, CategoryItem> availableIcons = {
   25: CategoryItem(
     name: 'Savings',
     icon: HugeIcons.strokeRoundedPiggyBank,
-    color: CupertinoColors.activeGreen,
+    color: Color.fromARGB(255, 76, 163, 39),
   ),
   3: CategoryItem(
     name: 'Investments',
@@ -136,17 +136,17 @@ const Map<int, CategoryItem> availableIcons = {
   20: CategoryItem(
     name: 'Electronics',
     icon: HugeIcons.strokeRoundedComputerPhoneSync,
-    color: CupertinoColors.systemGrey,
+    color: Color.fromARGB(255, 194, 51, 115),
   ),
   17: CategoryItem(
     name: 'Laundry',
     icon: HugeIcons.strokeRoundedShirt01,
-    color: CupertinoColors.systemGrey,
+    color: Color.fromARGB(255, 226, 215, 70),
   ),
   41: CategoryItem(
     name: 'Repairs',
     icon: HugeIcons.strokeRoundedWrench01,
-    color: CupertinoColors.systemGrey,
+    color: Color.fromARGB(255, 131, 254, 160),
   ),
 
   // ─── HEALTH, FAMILY & PERSONAL CARE ────────────────────────────────────────

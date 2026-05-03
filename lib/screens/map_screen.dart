@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
@@ -34,6 +37,8 @@ class _MapScreenState extends State<MapScreen>
   late Animation<double> _bounceScale;
 
   mp.PointAnnotationManager? _annotationManager;
+  mp.CircleAnnotationManager? _dotManager;
+  final Map<String, MapPlace> _annotationToPlaceMap = {};
   bool _isAnimating = false;
   List<MapPlace> _places = [];
   mp.MapboxMap? mapboxMapController;
@@ -269,7 +274,10 @@ class _MapScreenState extends State<MapScreen>
               children: [
                 CupertinoButton(
                   padding: EdgeInsets.zero,
-                  onPressed: _flyToUserLocation,
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _flyToUserLocation();
+                  },
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: const BoxDecoration(
@@ -277,15 +285,15 @@ class _MapScreenState extends State<MapScreen>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0x33000000),
-                          blurRadius: 10,
+                          color: Color(0x26000000),
+                          blurRadius: 12,
                           offset: Offset(0, 4),
                         ),
                       ],
                     ),
                     child: const Icon(
                       CupertinoIcons.location_fill,
-                      color: CupertinoColors.black,
+                      color: Color(0xFF1D1D1F),
                     ),
                   ),
                 ),
@@ -293,18 +301,23 @@ class _MapScreenState extends State<MapScreen>
                 if (_places.isNotEmpty)
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: _isAnimating ? null : _animateAnnotations,
+                    onPressed: _isAnimating
+                        ? null
+                        : () {
+                            HapticFeedback.mediumImpact();
+                            _animateAnnotations();
+                          },
                     child: Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: _isAnimating
-                            ? CupertinoColors.systemGrey
-                            : CupertinoColors.black,
+                            ? CupertinoColors.systemGrey3
+                            : const Color(0xFF1D1D1F),
                         shape: BoxShape.circle,
                         boxShadow: const [
                           BoxShadow(
-                            color: Color(0x33000000),
-                            blurRadius: 10,
+                            color: Color(0x26000000),
+                            blurRadius: 12,
                             offset: Offset(0, 4),
                           ),
                         ],
@@ -326,91 +339,107 @@ class _MapScreenState extends State<MapScreen>
             Positioned(
               left: _popupPosition!.x,
               top: _popupPosition!.y,
-              child: CustomPopup(
-                key: _popupKey,
-                contentPadding: EdgeInsets.zero,
-                content: DefaultTextStyle(
-                  style: GoogleFonts.spaceGrotesk(
-                    color: CupertinoColors.label,
-                    decoration: TextDecoration.none,
-                  ),
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Builder(
-                          builder: (context) {
-                            final cat = context
-                                .read<SpendingService>()
-                                .getCategoryByName(_selectedPlace?.category);
-                            return CustomPopup(
-                              barrierColor: CupertinoColors.transparent,
-                              contentPadding: EdgeInsets.zero,
-                              content: CategoryDropdownWidget(
-                                transactionId: _selectedPlace!.id,
-                                currentCategory: _selectedPlace!.category,
-                              ),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: cat == null
-                                      ? CupertinoColors.systemGrey5
-                                      : cat.color.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (cat != null) ...[
-                                      HugeIcon(
-                                        icon: cat.icon,
-                                        color: cat.color,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                    ],
-                                    Text(
-                                      _selectedPlace?.category ??
-                                          'Set Category',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                        color: cat == null
-                                            ? CupertinoColors.systemGrey
-                                            : cat.color,
-                                      ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: CustomPopup(
+                    key: _popupKey,
+                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    contentPadding: EdgeInsets.zero,
+                    content: DefaultTextStyle(
+                      style: GoogleFonts.spaceGrotesk(
+                        color: Colors.black,
+                        decoration: TextDecoration.none,
+                      ),
+                      child: Container(
+                        constraints: const BoxConstraints(maxWidth: 300),
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Builder(
+                              builder: (context) {
+                                final cat = context
+                                    .read<SpendingService>()
+                                    .getCategoryByName(
+                                      _selectedPlace?.category,
+                                    );
+                                return CustomPopup(
+                                  barrierColor: CupertinoColors.transparent,
+                                  contentPadding: EdgeInsets.zero,
+                                  content: CategoryDropdownWidget(
+                                    transactionId: _selectedPlace!.id,
+                                    currentCategory: _selectedPlace!.category,
+                                    onCategorySelected: () {
+                                      HapticFeedback.lightImpact();
+                                      Navigator.popUntil(
+                                        context,
+                                        (route) => route.isFirst,
+                                      );
+                                    },
+                                  ),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
                                     ),
-                                  ],
-                                ),
+                                    decoration: BoxDecoration(
+                                      color: cat == null
+                                          ? CupertinoColors.systemGrey5
+                                          : cat.color.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        if (cat != null) ...[
+                                          HugeIcon(
+                                            icon: cat.icon,
+                                            color: cat.color,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 8),
+                                        ],
+                                        Text(
+                                          _selectedPlace?.category ??
+                                              'Set Category',
+                                          style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: cat == null
+                                                ? CupertinoColors.systemGrey
+                                                : cat.color,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              height: 1,
+                              color: Colors.black.withValues(alpha: 0.1),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedPlace?.rawMessage ?? '',
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 14,
+                                height: 1.5,
+                                color: Colors.black,
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 12),
-                        Container(
-                          height: 1,
-                          color: CupertinoColors.systemGrey5,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _selectedPlace?.rawMessage ?? '',
-                          style: TextStyle(
-                            fontSize: 14,
-                            height: 1.5,
-                            color: CupertinoColors.label,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
+                    child: const SizedBox.shrink(),
                   ),
                 ),
-                child: const SizedBox.shrink(),
               ),
             ),
         ],
@@ -522,36 +551,83 @@ class _MapScreenState extends State<MapScreen>
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
+    // 1. Initialize Managers
+    // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
+    _dotManager = await mapboxMapController?.annotations
+        .createCircleAnnotationManager();
     _annotationManager = await mapboxMapController?.annotations
         .createPointAnnotationManager();
 
-    // Handle marker taps using modern API
+    // 2. Configure Callout Collision & Native Opacity Expressions
+    if (_annotationManager != null) {
+      await _annotationManager!.setIconAllowOverlap(false);
+      await _annotationManager!.setIconIgnorePlacement(false);
+      await _annotationManager!.setTextAllowOverlap(false);
+      await _annotationManager!.setTextIgnorePlacement(false);
+
+      // Detailed Callouts: Visible only >= 13.0
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'icon-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          13.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'text-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          13.0,
+          1.0,
+        ],
+      );
+    }
+
+    // 3. Configure Dot Native Opacity Expressions
+    if (_dotManager != null) {
+      // Dots: Hidden < 11.0, Visible >= 11.0
+      // By staying visible, they act as a fallback when the Callout above them is hidden by collision.
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-stroke-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+
+      // Shared tap events for dots
+      _dotManager!.tapEvents(
+        onTap: (annotation) =>
+            _onMarkerTapped(annotation.id, annotation.geometry),
+      );
+    }
+
+    // Handle marker taps for full callouts
     _annotationManager?.tapEvents(
-      onTap: (annotation) async {
-        final place = _places.firstWhere(
-          (p) =>
-              (p.longitude - annotation.geometry.coordinates.lng).abs() <
-                  0.0001 &&
-              (p.latitude - annotation.geometry.coordinates.lat).abs() < 0.0001,
-          orElse: () => _places.first,
-        );
-
-        final screenCoord = await mapboxMapController?.pixelForCoordinate(
-          annotation.geometry,
-        );
-
-        if (screenCoord != null && mounted) {
-          setState(() {
-            _selectedPlace = place;
-            _popupPosition = screenCoord;
-          });
-
-          // Show popup in next frame after Positioned has moved the anchor
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _popupKey.currentState?.show();
-          });
-        }
-      },
+      onTap: (annotation) =>
+          _onMarkerTapped(annotation.id, annotation.geometry),
     );
 
     if (!mounted) return;
@@ -559,13 +635,26 @@ class _MapScreenState extends State<MapScreen>
     _smsService = SmsService(repo: TransactionRepository(), spending: spending);
     await _smsService!.init();
 
-    // The build method will handle syncing _places and rendering annotations
-    // via its reactivity to SpendingService.
-    // However, we need to trigger the first set of annotations manually
-    // or rely on the build method's reactivity if we wrap annotation creation.
-    // Let's add a listener to spending service to refresh annotations.
     spending.addListener(_refreshAnnotations);
     _refreshAnnotations();
+  }
+
+  void _onMarkerTapped(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
+
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
+
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = place;
+        _popupPosition = screenCoord;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _popupKey.currentState?.show();
+      });
+    }
   }
 
   void _refreshAnnotations() async {
@@ -602,12 +691,12 @@ class _MapScreenState extends State<MapScreen>
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
+    if (_annotationManager == null || _dotManager == null) return;
     final spending = context.read<SpendingService>();
 
-    // Generate all callout images in parallel to speed up the process
-    final List<Future<mp.PointAnnotationOptions>> futures = places.map((
-      place,
-    ) async {
+    // Generate callout options and dot options in parallel
+    final List<Future<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>>
+    futures = places.map((place) async {
       final cat = spending.getCategoryByName(place.category);
       final CalloutResult callout = await createCalloutImage(
         place.name,
@@ -615,23 +704,65 @@ class _MapScreenState extends State<MapScreen>
         color: cat?.color,
       );
 
-      return mp.PointAnnotationOptions(
+      final geometry = mp.Point(
+        coordinates: mp.Position(place.longitude, place.latitude),
+      );
+      final sortKey = _getSortKey(place.price);
+
+      final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
         iconSize: 1.5,
-        iconOpacity: 1.0,
-        geometry: mp.Point(
-          coordinates: mp.Position(place.longitude, place.latitude),
-        ),
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
+        symbolSortKey: sortKey,
+        geometry: geometry,
       );
+
+      final circleOptions = mp.CircleAnnotationOptions(
+        geometry: geometry,
+        circleColor:
+            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
+        circleRadius: 1.575,
+        circleStrokeWidth: 1.0,
+        circleStrokeColor: CupertinoColors.white.toARGB32(),
+        circleSortKey: sortKey,
+      );
+
+      return (pointOptions, circleOptions);
     }).toList();
 
-    final List<mp.PointAnnotationOptions> optionsList = await Future.wait(
-      futures,
-    );
+    final List<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>
+    results = await Future.wait(futures);
 
-    // Perform an instantaneous swap to prevent flickering
+    final pointOptionsList = results.map((r) => r.$1).toList();
+    final circleOptionsList = results.map((r) => r.$2).toList();
+
+    // Perform instantaneous swap on both layers
     await _annotationManager?.deleteAll();
-    await _annotationManager?.createMulti(optionsList);
+    await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
+
+    final pointAnnotations = await _annotationManager?.createMulti(
+      pointOptionsList,
+    );
+    final circleAnnotations = await _dotManager?.createMulti(circleOptionsList);
+
+    if (pointAnnotations != null) {
+      for (int i = 0; i < pointAnnotations.length; i++) {
+        final ann = pointAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
+    if (circleAnnotations != null) {
+      for (int i = 0; i < circleAnnotations.length; i++) {
+        final ann = circleAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
@@ -640,6 +771,9 @@ class _MapScreenState extends State<MapScreen>
     if (_isAnimating) return;
     setState(() => _isAnimating = true);
     await _annotationManager?.deleteAll();
+    await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
+
     for (final place in _places) {
       if (!_isAnimating) break;
       await _addAnnotationForPlace(place);
@@ -651,7 +785,7 @@ class _MapScreenState extends State<MapScreen>
   Future<void> _addAnnotationForPlace(MapPlace place) async {
     await mapboxMapController?.flyTo(
       mp.CameraOptions(
-        zoom: 11.7,
+        zoom: 13.5, // Fly in closer to reveal the callout immediately
         center: mp.Point(
           coordinates: mp.Position(place.longitude, place.latitude),
         ),
@@ -668,30 +802,45 @@ class _MapScreenState extends State<MapScreen>
       color: cat?.color,
     );
 
-    final mp.PointAnnotation? calloutAnnotation = await _annotationManager
-        ?.create(
-          mp.PointAnnotationOptions(
-            image: callout.image,
-            iconSize: 1.5,
-            iconOpacity: 0.0,
-            geometry: mp.Point(
-              coordinates: mp.Position(place.longitude, place.latitude),
-            ),
-          ),
-        );
+    final geometry = mp.Point(
+      coordinates: mp.Position(place.longitude, place.latitude),
+    );
+    final sortKey = _getSortKey(place.price);
 
-    await _fadeInAnnotations(calloutAnnotation);
+    final pointAnn = await _annotationManager?.create(
+      mp.PointAnnotationOptions(
+        image: callout.image,
+        iconSize: 1.5,
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
+        symbolSortKey: sortKey,
+        geometry: geometry,
+      ),
+    );
+
+    final circleAnn = await _dotManager?.create(
+      mp.CircleAnnotationOptions(
+        geometry: geometry,
+        circleColor:
+            cat?.color.toARGB32() ?? CupertinoColors.systemGrey.toARGB32(),
+        circleRadius: 1.575,
+        circleStrokeWidth: 1.0,
+        circleStrokeColor: CupertinoColors.white.toARGB32(),
+        circleSortKey: sortKey,
+      ),
+    );
+
+    if (pointAnn != null) {
+      _annotationToPlaceMap[pointAnn.id] = place;
+    }
+    if (circleAnn != null) {
+      _annotationToPlaceMap[circleAnn.id] = place;
+    }
   }
 
-  Future<void> _fadeInAnnotations(mp.PointAnnotation? callout) async {
-    for (int i = 1; i <= 25; i++) {
-      final double opacity = i / 25;
-      if (callout != null) {
-        callout.iconOpacity = opacity;
-        await _annotationManager?.update(callout);
-      }
-      await Future.delayed(const Duration(milliseconds: 16));
-    }
+  double _getSortKey(String price) {
+    final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
+    return double.tryParse(clean) ?? 0.0;
   }
 
   void _showLimitSettings(SpendingService spending) {

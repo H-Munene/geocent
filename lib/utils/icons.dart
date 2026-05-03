@@ -12,7 +12,7 @@ String _unmapActive = '$assetsPath/unmapActive.svg';
 
 const double iconSize = 25;
 final cl = const Color(0xFF8E8E93);
-final cl2 = const Color(0xFF007AFF);
+final cl2 = const Color(0xFF0071E3); // Apple Blue
 
 SvgPicture pinActive = SvgPicture.asset(
   _pinActive,

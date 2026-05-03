@@ -35,6 +35,8 @@ class MainScreenState extends State<MainScreen> {
       tabBar: CupertinoTabBar(
         iconSize: 25,
         backgroundColor: CupertinoColors.white,
+        border: null,
+        activeColor: const Color(0xFF0071E3),
         items: [
           BottomNavigationBarItem(
             icon: pin,
@@ -59,21 +61,25 @@ class MainScreenState extends State<MainScreen> {
         ],
       ),
       tabBuilder: (context, index) {
-        return CupertinoTabView(
-          builder: (context) {
-            switch (index) {
-              case 0:
-                return const MapScreen();
-              case 1:
-                return const MessagesScreen();
-              case 2:
-                return const AnalyticsScreen();
-              case 3:
-                return const ProfileScreen();
-              default:
-                return const MapScreen();
-            }
-          },
+        return Stack(
+          children: [
+            CupertinoTabView(
+              builder: (context) {
+                switch (index) {
+                  case 0:
+                    return const MapScreen();
+                  case 1:
+                    return const MessagesScreen();
+                  case 2:
+                    return const AnalyticsScreen();
+                  case 3:
+                    return const ProfileScreen();
+                  default:
+                    return const MapScreen();
+                }
+              },
+            ),
+          ],
         );
       },
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,8 @@ import 'package:hugeicons/hugeicons.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
 import '../widgets/custom_toast.dart';
+
+import 'package:google_fonts/google_fonts.dart';
 
 class LocationPickerScreen extends StatefulWidget {
   final AppTransaction transaction;
@@ -102,11 +105,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text('Pick Location'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _onConfirm,
-          child: const Text('Confirm'),
+        backgroundColor: CupertinoColors.white.withValues(alpha: 0.7),
+        border: null,
+        middle: Text(
+          'Pick Location',
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
+            color: const Color(0xFF1D1D1F),
+          ),
         ),
       ),
       child: Stack(
@@ -135,24 +142,24 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: CupertinoColors.black.withValues(alpha: 0.2),
-                          blurRadius: 10,
+                          color: CupertinoColors.black.withValues(alpha: 0.15),
+                          blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
                       ],
                     ),
                     child: const HugeIcon(
                       icon: HugeIcons.strokeRoundedLocation01,
-                      color: CupertinoColors.activeBlue,
+                      color: Color(0xFF0071E3),
                       size: 32,
                     ),
                   ),
-                  const SizedBox(height: 40), // Offset to put the tip on center
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
-          // Crosshair for precision
+          // Precision Crosshair
           IgnorePointer(
             child: Center(
               child: Container(
@@ -161,7 +168,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: CupertinoColors.activeBlue.withValues(alpha: 0.5),
+                    color: const Color(0xFF0071E3).withValues(alpha: 0.4),
                     width: 1,
                   ),
                 ),
@@ -170,9 +177,45 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     width: 4,
                     height: 4,
                     decoration: const BoxDecoration(
-                      color: CupertinoColors.activeBlue,
+                      color: Color(0xFF0071E3),
                       shape: BoxShape.circle,
                     ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Primary CTA Button
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + 24,
+            left: 24,
+            right: 24,
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                _onConfirm();
+              },
+              child: Container(
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0071E3),
+                  borderRadius: BorderRadius.circular(980), // Full pill shape
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF0071E3).withValues(alpha: 0.3),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  'Confirm Location',
+                  style: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
