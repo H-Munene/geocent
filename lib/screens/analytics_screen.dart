@@ -6,12 +6,8 @@ class AnalyticsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Analytics'),
-      ),
-      child: Center(
-        child: Text('Analytics Content Removed'),
-      ),
+      navigationBar: CupertinoNavigationBar(middle: Text('Analytics')),
+      child: Center(child: Text('Analytics Content Removed')),
     );
   }
 }

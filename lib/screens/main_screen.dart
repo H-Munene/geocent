@@ -1,6 +1,4 @@
-import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
 import 'analytics_screen.dart';
@@ -36,7 +34,7 @@ class MainScreenState extends State<MainScreen> {
       controller: _tabController,
       tabBar: CupertinoTabBar(
         iconSize: 25,
-        backgroundColor: CupertinoColors.white.withValues(alpha: 0.7),
+        backgroundColor: CupertinoColors.white,
         border: null,
         activeColor: const Color(0xFF0071E3),
         items: [

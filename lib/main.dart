@@ -1,6 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -20,9 +22,21 @@ import 'services/sms_parser.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.white,
+      statusBarIconBrightness: Brightness.dark,
+      statusBarBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ),
+  );
+
   await setup();
   await getPermissions();
   await initializeBackgroundService();
+
   runApp(
     MultiProvider(
       providers: [
@@ -33,26 +47,61 @@ void main() async {
   );
 }
 
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return CupertinoApp(
+//       navigatorKey: rootNavigatorKey,
+//       title: 'SpendMap',
+//       theme: CupertinoThemeData(
+//         brightness: Brightness.light,
+//         primaryColor: const Color(0xFF0071E3),
+//         textTheme: CupertinoTextThemeData(
+//           textStyle: GoogleFonts.spaceGrotesk(
+//             color: const Color(0xFF1D1D1F),
+//             letterSpacing: -0.3,
+//             fontFeatures: [const FontFeature.tabularFigures()],
+//           ),
+//         ),
+//       ),
+//       home: const MainScreen(),
+//     );
+//   }
+// }
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
-      navigatorKey: rootNavigatorKey,
-      title: 'SpendMap',
-      theme: CupertinoThemeData(
-        brightness: Brightness.light,
-        primaryColor: const Color(0xFF0071E3),
-        textTheme: CupertinoTextThemeData(
-          textStyle: GoogleFonts.spaceGrotesk(
-            color: const Color(0xFF1D1D1F),
-            letterSpacing: -0.3,
-            fontFeatures: [const FontFeature.tabularFigures()],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // This re-applies the style on every frame — survives navigation,
+      // keyboard show/hide, and plugin resets.
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
+      ),
+      child: CupertinoApp(
+        navigatorKey: rootNavigatorKey,
+        title: 'SpendMap',
+        theme: CupertinoThemeData(
+          brightness: Brightness.light,
+          primaryColor: const Color(0xFF0071E3),
+          textTheme: CupertinoTextThemeData(
+            textStyle: GoogleFonts.spaceGrotesk(
+              color: const Color(0xFF1D1D1F),
+              letterSpacing: -0.3,
+              fontFeatures: [const FontFeature.tabularFigures()],
+            ),
           ),
         ),
+        home: const MainScreen(),
       ),
-      home: const MainScreen(),
     );
   }
 }

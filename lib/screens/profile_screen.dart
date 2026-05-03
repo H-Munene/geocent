@@ -6,12 +6,8 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text('Profile'),
-      ),
-      child: Center(
-        child: Text('Profile Content Removed'),
-      ),
+      navigationBar: CupertinoNavigationBar(middle: Text('Profile')),
+      child: Center(child: Text('Profile Content Removed')),
     );
   }
 }

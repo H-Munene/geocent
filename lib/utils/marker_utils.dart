@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,9 +21,6 @@ Future<CalloutResult> createCalloutImage(
   const double stemWidth = 2.0;
   const double stemHeight = 20.0;
   const double dotRadius = 5.0;
-
-  // Total canvas height = card + stem + dot diameter
-  const double totalHeight = cardHeight + stemHeight + dotRadius * 2;
 
   // ── Text painters ──────────────────────────────────────────────────────────
 
@@ -59,13 +57,20 @@ Future<CalloutResult> createCalloutImage(
       .ceilToDouble();
   final double priceBlockW =
       (pricePaddingH + pricePainter.width + pricePaddingH).ceilToDouble();
-  final double totalWidth = nameBlockW + priceBlockW;
+  double totalWidth = nameBlockW + priceBlockW;
+  // Ensure totalWidth is even to prevent half-pixel horizontal drifting
+  if (totalWidth % 2 != 0) {
+    totalWidth += 1;
+  }
 
   // Stem is centred on the card midpoint
   final double stemCentreX = totalWidth / 2;
-  // Dot centre sits at the very bottom of the canvas (radius 5.0, so centre is 5.0 from bottom)
+  // Dot centre sits at the vertical center of the canvas to avoid Mapbox offset scaling bugs.
+  // The dot radius is 5.0, so the dot occupies cardHeight + stemHeight to + dotRadius * 2.
   final double dotCentreX = stemCentreX;
   final double dotCentreY = cardHeight + stemHeight + dotRadius;
+  // Canvas height is doubled so dotCentreY is the exact midpoint
+  final double totalHeight = dotCentreY * 2;
 
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
@@ -98,7 +103,7 @@ Future<CalloutResult> createCalloutImage(
   // ── 2. Color price section ───────────────────────────────────────────────────
 
   final Color accentColor =
-      color ?? const Color(0xFF0071E3); // default to Apple Blue
+      color ?? CupertinoColors.systemGrey; // default to Apple Blue
   final Rect priceRect = Rect.fromLTWH(nameBlockW, 0, priceBlockW, cardHeight);
   canvas.drawRect(priceRect, Paint()..color = accentColor);
 

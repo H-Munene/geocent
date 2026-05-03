@@ -345,11 +345,11 @@ class _MapScreenState extends State<MapScreen>
                   filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: CustomPopup(
                     key: _popupKey,
-                    backgroundColor: Colors.black.withValues(alpha: 0.8),
+                    backgroundColor: Colors.white.withValues(alpha: 0.9),
                     contentPadding: EdgeInsets.zero,
                     content: DefaultTextStyle(
                       style: GoogleFonts.spaceGrotesk(
-                        color: Colors.white,
+                        color: Colors.black,
                         decoration: TextDecoration.none,
                       ),
                       child: Container(
@@ -374,7 +374,10 @@ class _MapScreenState extends State<MapScreen>
                                     currentCategory: _selectedPlace!.category,
                                     onCategorySelected: () {
                                       HapticFeedback.lightImpact();
-                                      Navigator.pop(context);
+                                      Navigator.popUntil(
+                                        context,
+                                        (route) => route.isFirst,
+                                      );
                                     },
                                   ),
                                   child: Container(
@@ -419,7 +422,7 @@ class _MapScreenState extends State<MapScreen>
                             const SizedBox(height: 12),
                             Container(
                               height: 1,
-                              color: Colors.white.withValues(alpha: 0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -427,7 +430,7 @@ class _MapScreenState extends State<MapScreen>
                               style: GoogleFonts.spaceGrotesk(
                                 fontSize: 14,
                                 height: 1.5,
-                                color: Colors.white,
+                                color: Colors.black,
                               ),
                             ),
                           ],
@@ -709,8 +712,8 @@ class _MapScreenState extends State<MapScreen>
       final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
         iconSize: 1.5,
-        iconAnchor: mp.IconAnchor.BOTTOM,
-        iconOffset: [0.0, 7.5],
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
         symbolSortKey: sortKey,
         geometry: geometry,
       );
@@ -719,7 +722,7 @@ class _MapScreenState extends State<MapScreen>
         geometry: geometry,
         circleColor:
             cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
-        circleRadius: 1.75,
+        circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
         circleSortKey: sortKey,
@@ -737,9 +740,29 @@ class _MapScreenState extends State<MapScreen>
     // Perform instantaneous swap on both layers
     await _annotationManager?.deleteAll();
     await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
 
-    await _annotationManager?.createMulti(pointOptionsList);
-    await _dotManager?.createMulti(circleOptionsList);
+    final pointAnnotations = await _annotationManager?.createMulti(
+      pointOptionsList,
+    );
+    final circleAnnotations = await _dotManager?.createMulti(circleOptionsList);
+
+    if (pointAnnotations != null) {
+      for (int i = 0; i < pointAnnotations.length; i++) {
+        final ann = pointAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
+    if (circleAnnotations != null) {
+      for (int i = 0; i < circleAnnotations.length; i++) {
+        final ann = circleAnnotations[i];
+        if (ann != null) {
+          _annotationToPlaceMap[ann.id] = places[i];
+        }
+      }
+    }
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
@@ -749,6 +772,7 @@ class _MapScreenState extends State<MapScreen>
     setState(() => _isAnimating = true);
     await _annotationManager?.deleteAll();
     await _dotManager?.deleteAll();
+    _annotationToPlaceMap.clear();
 
     for (final place in _places) {
       if (!_isAnimating) break;
@@ -783,28 +807,35 @@ class _MapScreenState extends State<MapScreen>
     );
     final sortKey = _getSortKey(place.price);
 
-    await _annotationManager?.create(
+    final pointAnn = await _annotationManager?.create(
       mp.PointAnnotationOptions(
         image: callout.image,
         iconSize: 1.5,
-        iconAnchor: mp.IconAnchor.BOTTOM,
-        iconOffset: [0.0, 7.5],
+        iconAnchor: mp.IconAnchor.CENTER,
+        iconOffset: [0.0, 0.0],
         symbolSortKey: sortKey,
         geometry: geometry,
       ),
     );
 
-    await _dotManager?.create(
+    final circleAnn = await _dotManager?.create(
       mp.CircleAnnotationOptions(
         geometry: geometry,
         circleColor:
-            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
-        circleRadius: 1.75,
+            cat?.color.toARGB32() ?? CupertinoColors.systemGrey.toARGB32(),
+        circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
         circleSortKey: sortKey,
       ),
     );
+
+    if (pointAnn != null) {
+      _annotationToPlaceMap[pointAnn.id] = place;
+    }
+    if (circleAnn != null) {
+      _annotationToPlaceMap[circleAnn.id] = place;
+    }
   }
 
   double _getSortKey(String price) {

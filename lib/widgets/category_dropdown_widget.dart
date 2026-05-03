@@ -60,8 +60,6 @@ class CategoryDropdownWidget extends StatelessWidget {
                       if (onCategorySelected != null) {
                         onCategorySelected!();
                       } else {
-                        // ********change made here
-
                         // Navigator.pop(context);
                         Navigator.popUntil(context, (route) => route.isFirst);
                       }
