@@ -14,12 +14,19 @@ class SpendingService extends ChangeNotifier {
   String _period = 'This Week';
   List<AppTransaction> _periodTransactions = [];
   List<AppTransaction> _mappedTransactions = [];
-  List<AppTransaction> _actionableTransactions = [];
+  final List<AppTransaction> _actionableTransactions = [];
   String? _selectedTxId;
   bool _isLoading = false;
 
-  // default icons that are more likely to be used. I know this implementation
-  // is not robust but whatever man
+  // Pagination & Filtering state
+  List<AppTransaction> _paginatedMessages = [];
+  String _currentFilter = 'all';
+  int _currentPage = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
+  // A set of frequently used default categories.
+  // This list provides immediate actionable options for the user.
   final List<CategoryItem> _defaultCategories = [
     availableIcons[2]!, // dining
     availableIcons[29]!, // snacks
@@ -52,6 +59,10 @@ class SpendingService extends ChangeNotifier {
 
   /// Transactions that need mapping or categorization.
   List<AppTransaction> get actionableTransactions => _actionableTransactions;
+
+  List<AppTransaction> get paginatedMessages => _paginatedMessages;
+  String get currentFilter => _currentFilter;
+  bool get hasMore => _hasMore;
 
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
@@ -117,17 +128,18 @@ class SpendingService extends ChangeNotifier {
       _repo.loadByPeriod(_period),
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
-      _repo.loadActionable(),
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
-    _actionableTransactions = results[3] as List<AppTransaction>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
 
     _isLoading = false;
     notifyListeners();
+
+    // Also refresh paginated messages to keep them in sync
+    await fetchMessages(refresh: true);
   }
 
   /// Save a freshly-parsed transaction then refresh totals.
@@ -154,11 +166,60 @@ class SpendingService extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> bulkUpdateCategory(List<String> ids, String category) async {
+    await _repo.updateCategories(ids, category);
+    await refresh();
+    await fetchMessages(refresh: true);
+  }
+
   /// Persist a new limit for the current period then refresh.
   Future<void> setLimit(String period, double amount) async {
     await _repo.setLimit(_toDbPeriod(period), amount);
     if (period == _period) {
       _limit = amount;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setFilter(String filter) async {
+    if (_currentFilter == filter) return;
+    _currentFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
+    await fetchMessages(refresh: true);
+  }
+
+  Future<void> fetchMessages({bool refresh = false}) async {
+    if (_isLoading) return;
+    if (!refresh && !_hasMore) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _currentPage = 0;
+      _paginatedMessages = [];
+      _hasMore = true;
+    }
+
+    try {
+      final newMessages = await _repo.loadFiltered(
+        filter: _currentFilter,
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+      );
+
+      if (newMessages.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _paginatedMessages.addAll(newMessages);
+      _currentPage++;
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to fetch messages: $e');
+    } finally {
+      _isLoading = false;
       notifyListeners();
     }
   }

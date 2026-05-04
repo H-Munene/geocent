@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
 import '../widgets/custom_toast.dart';
@@ -115,6 +114,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             color: const Color(0xFF1D1D1F),
           ),
         ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: Text('Confirm'),
+
+          onPressed: () {
+            HapticFeedback.mediumImpact();
+            _onConfirm();
+          },
+        ),
       ),
       child: Stack(
         children: [
@@ -129,36 +137,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               styleUri: mp.MapboxStyles.LIGHT,
               onMapCreated: _onMapCreated,
             ),
-          // Fixed Center Marker
-          IgnorePointer(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: CupertinoColors.black.withValues(alpha: 0.15),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const HugeIcon(
-                      icon: HugeIcons.strokeRoundedLocation01,
-                      color: Color(0xFF0071E3),
-                      size: 32,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
-            ),
-          ),
           // Precision Crosshair
           IgnorePointer(
             child: Center(
@@ -180,42 +158,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       color: Color(0xFF0071E3),
                       shape: BoxShape.circle,
                     ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Primary CTA Button
-          Positioned(
-            bottom: MediaQuery.of(context).padding.bottom + 24,
-            left: 24,
-            right: 24,
-            child: CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () {
-                HapticFeedback.mediumImpact();
-                _onConfirm();
-              },
-              child: Container(
-                height: 56,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0071E3),
-                  borderRadius: BorderRadius.circular(980), // Full pill shape
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF0071E3).withValues(alpha: 0.3),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  'Confirm Location',
-                  style: GoogleFonts.spaceGrotesk(
-                    color: CupertinoColors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

@@ -9,15 +9,17 @@ import 'category_sheet.dart';
 import 'custom_toast.dart';
 
 class CategoryDropdownWidget extends StatelessWidget {
-  final String transactionId;
+  final String? transactionId;
   final String? currentCategory;
   final VoidCallback? onCategorySelected;
+  final Function(String categoryName)? onCategorySelectedOverride;
 
   const CategoryDropdownWidget({
     super.key,
-    required this.transactionId,
+    this.transactionId,
     this.currentCategory,
     this.onCategorySelected,
+    this.onCategorySelectedOverride,
   });
 
   @override
@@ -56,7 +58,15 @@ class CategoryDropdownWidget extends StatelessWidget {
                   final isSelected = currentCategory == cat.name;
                   return GestureDetector(
                     onTap: () {
-                      spending.updateCategory(transactionId, cat.name);
+                      if (onCategorySelectedOverride != null) {
+                        onCategorySelectedOverride!(cat.name);
+                        return;
+                      }
+
+                      if (transactionId != null) {
+                        spending.updateCategory(transactionId!, cat.name);
+                      }
+
                       if (onCategorySelected != null) {
                         onCategorySelected!();
                       } else {
@@ -97,37 +107,38 @@ class CategoryDropdownWidget extends StatelessWidget {
               ),
             ),
             Container(height: 1, color: CupertinoColors.systemGrey5),
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
+            if (transactionId != null)
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  Navigator.popUntil(context, (route) => route.isFirst);
 
-                showCupertinoSheet(
-                  showDragHandle: true,
-                  context: context,
-                  builder: (context) => CreateCategorySheet(
-                    transactionId: transactionId,
-                    availableIcons: availableIconsList,
+                  showCupertinoSheet(
+                    showDragHandle: true,
+                    context: context,
+                    builder: (context) => CreateCategorySheet(
+                      transactionId: transactionId!,
+                      availableIcons: availableIconsList,
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
                   ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                width: double.infinity,
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  '+ Create New',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF0071E3),
+                  width: double.infinity,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '+ Create New',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0071E3),
+                    ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       ),

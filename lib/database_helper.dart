@@ -130,6 +130,7 @@ class DatabaseHelper {
     List<dynamic>? whereArgs,
     String? orderBy,
     int? limit,
+    int? offset,
   }) async {
     final Database db = await database;
     return db.query(
@@ -138,6 +139,7 @@ class DatabaseHelper {
       whereArgs: whereArgs,
       orderBy: orderBy,
       limit: limit,
+      offset: offset,
     );
   }
 
