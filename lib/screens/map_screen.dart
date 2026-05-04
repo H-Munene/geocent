@@ -22,6 +22,7 @@ import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/map_style_picker_modal.dart';
+import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -48,6 +49,7 @@ class _MapScreenState extends State<MapScreen>
 
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
+  bool _isMapUpdating = false;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
@@ -233,6 +235,13 @@ class _MapScreenState extends State<MapScreen>
       child: Stack(
         children: [
           mp.MapWidget(styleUri: _currentMapStyle, onMapCreated: onMapCreated),
+          if (spending.isLoading || _isMapUpdating)
+            const Center(
+              child: CupertinoActivityIndicator(
+                radius: 16,
+                color: CupertinoColors.activeBlue,
+              ),
+            ),
           Positioned(
             top: topPadding,
             left: 16,
@@ -677,12 +686,22 @@ class _MapScreenState extends State<MapScreen>
         onTap: (annotation) =>
             _onMarkerTapped(annotation.id, annotation.geometry),
       );
+      _dotManager!.longPressEvents(
+        onLongPress: (annotation) =>
+            _onMarkerLongPressed(annotation.id, annotation.geometry),
+      );
     }
 
     // Handle marker taps for full callouts
     _annotationManager?.tapEvents(
       onTap: (annotation) =>
           _onMarkerTapped(annotation.id, annotation.geometry),
+    );
+    _annotationManager?.longPressEvents(
+      onLongPress: (annotation) {
+        HapticFeedback.heavyImpact();
+        _onMarkerLongPressed(annotation.id, annotation.geometry);
+      },
     );
 
     if (!mounted) return;
@@ -712,12 +731,53 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
+  void _onMarkerLongPressed(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
+
+    HapticFeedback.heavyImpact();
+    final spending = context.read<SpendingService>();
+    final allTxs = [
+      ...spending.mappedTransactions,
+      ...spending.periodTransactions,
+    ];
+    final txIndex = allTxs.indexWhere((t) => t.id == place.id);
+
+    if (txIndex != -1 && mounted) {
+      // Close any open popups first
+      if (_selectedPlace != null) {
+        setState(() {
+          _selectedPlace = null;
+          _popupPosition = null;
+        });
+      }
+
+      Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute(
+          builder: (context) =>
+              LocationPickerScreen(transaction: allTxs[txIndex]),
+        ),
+      );
+    }
+  }
+
   void _refreshAnnotations() async {
     if (_annotationManager == null) return;
 
     final spending = context.read<SpendingService>();
-    // Skip updates during the loading phase to avoid redundant/stale redrawing
-    if (spending.isLoading) return;
+
+    // If spending service is loading, ensure we show our local indicator
+    if (spending.isLoading) {
+      if (!_isMapUpdating) {
+        setState(() => _isMapUpdating = true);
+      }
+      return;
+    }
+
+    // Start local update phase
+    if (!_isMapUpdating) {
+      setState(() => _isMapUpdating = true);
+    }
 
     // Versioning prevents rapid consecutive refreshes from
     // clobbering each other (race conditions).
@@ -743,6 +803,11 @@ class _MapScreenState extends State<MapScreen>
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
 
     await _addAllAnnotations(newPlaces);
+
+    // Finalize update phase
+    if (currentVersion == _annotationUpdateVersion && mounted) {
+      setState(() => _isMapUpdating = false);
+    }
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {

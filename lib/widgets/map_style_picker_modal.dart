@@ -45,7 +45,7 @@ class _MapStylePickerModalState extends State<MapStylePickerModal> {
               children: [
                 const SizedBox(width: 32), // Balance for center alignment
                 Text(
-                  'Map Type',
+                  'Map Style',
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -84,7 +84,7 @@ class _MapStylePickerModalState extends State<MapStylePickerModal> {
                 Expanded(
                   child: _buildStyleOption(
                     'Satellite',
-                    mp.MapboxStyles.SATELLITE,
+                    mp.MapboxStyles.STANDARD_SATELLITE,
                     img.satelliteMapStyle,
                   ),
                 ),
