@@ -170,6 +170,7 @@ Future<void> _processIncomingSms(
       flutterLocalNotificationsPlugin,
       tx.merchant,
       tx.formattedAmount,
+      tx.id,
     );
 
     try {
@@ -198,6 +199,7 @@ void _showTransactionNotification(
   FlutterLocalNotificationsPlugin plugin,
   String merchant,
   String amount,
+  String txId,
 ) {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
@@ -212,7 +214,7 @@ void _showTransactionNotification(
     android: androidPlatformChannelSpecifics,
   );
   plugin.show(
-    id: DateTime.now().millisecond,
+    id: txId.hashCode,
     title: 'New Expense Tracked',
     body: '$amount spent at $merchant',
     notificationDetails: platformChannelSpecifics,
@@ -221,18 +223,22 @@ void _showTransactionNotification(
 
 Future<void> setup() async {
   await dotenv.load(fileName: '.env');
-  final String mapBoxToken = dotenv.env['MAPBOX_ACCESS_TOKEN']!;
-  mb.MapboxOptions.setAccessToken(mapBoxToken);
+  final String? mapBoxToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+  if (mapBoxToken != null) {
+    mb.MapboxOptions.setAccessToken(mapBoxToken);
+  } else {
+    debugPrint('WARNING: MAPBOX_ACCESS_TOKEN not found in .env');
+  }
 }
 
 Future<void> getPermissions() async {
   final statuses = await [
-    Permission.location,
+    Permission.locationWhenInUse,
     Permission.sms,
     Permission.notification,
   ].request();
 
-  if (statuses[Permission.location] == PermissionStatus.granted) {
+  if (statuses[Permission.locationWhenInUse] == PermissionStatus.granted) {
     await Permission.locationAlways.request();
   }
 }

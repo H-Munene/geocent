@@ -134,7 +134,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 center: mp.Point(coordinates: _initialPosition!),
                 zoom: 15,
               ),
-              styleUri: mp.MapboxStyles.LIGHT,
+              styleUri: mp.MapboxStyles.STANDARD,
               onMapCreated: _onMapCreated,
             ),
           // Precision Crosshair

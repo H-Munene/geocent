@@ -84,15 +84,15 @@ class UnmappedMessageTile extends StatelessWidget {
                             color: needsMapping
                                 ? Colors.grey[100]
                                 : isSelected
-                                    ? const Color(0xFF0071E3)
-                                    : Colors.grey[200],
+                                ? const Color(0xFF0071E3)
+                                : Colors.grey[200],
                             shape: BoxShape.circle,
                             border: Border.all(
                               color: needsMapping
                                   ? Colors.grey[300]!
                                   : isSelected
-                                      ? const Color(0xFF0071E3)
-                                      : Colors.grey[400]!,
+                                  ? const Color(0xFF0071E3)
+                                  : Colors.grey[400]!,
                               width: 2,
                             ),
                           ),
@@ -103,12 +103,12 @@ class UnmappedMessageTile extends StatelessWidget {
                                   size: 16,
                                 )
                               : isSelected
-                                  ? const Icon(
-                                      CupertinoIcons.checkmark,
-                                      color: Colors.white,
-                                      size: 20,
-                                    )
-                                  : null,
+                              ? const Icon(
+                                  CupertinoIcons.checkmark,
+                                  color: Colors.white,
+                                  size: 20,
+                                )
+                              : null,
                         )
                       : Container(
                           key: const ValueKey('avatar'),
