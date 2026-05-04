@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
-import 'package:hugeicons/hugeicons.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
 import '../widgets/custom_toast.dart';

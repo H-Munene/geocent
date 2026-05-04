@@ -207,7 +207,8 @@ class TransactionRepository {
     if (filter == 'mapping') {
       where = '${DatabaseHelper.colLatitude} IS NULL';
     } else if (filter == 'categorization') {
-      where = '${DatabaseHelper.colCategory} IS NULL';
+      where =
+          '${DatabaseHelper.colCategory} IS NULL AND ${DatabaseHelper.colLatitude} IS NOT NULL';
     } else {
       // 'all' actionable
       where =

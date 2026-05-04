@@ -14,7 +14,7 @@ class SpendingService extends ChangeNotifier {
   String _period = 'This Week';
   List<AppTransaction> _periodTransactions = [];
   List<AppTransaction> _mappedTransactions = [];
-  List<AppTransaction> _actionableTransactions = [];
+  final List<AppTransaction> _actionableTransactions = [];
   String? _selectedTxId;
   bool _isLoading = false;
 
@@ -128,18 +128,16 @@ class SpendingService extends ChangeNotifier {
       _repo.loadByPeriod(_period),
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
-      _repo.loadActionable(),
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
-    _actionableTransactions = results[3] as List<AppTransaction>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
 
     _isLoading = false;
     notifyListeners();
-    
+
     // Also refresh paginated messages to keep them in sync
     await fetchMessages(refresh: true);
   }

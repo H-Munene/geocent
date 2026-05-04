@@ -16,7 +16,7 @@ class MessagesScreen extends StatefulWidget {
 class _MessagesScreenState extends State<MessagesScreen> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  final List<AppTransaction> _displayList = [];
+  final List<dynamic> _displayList = [];
   String _activeFilter = 'all';
 
   @override
@@ -49,26 +49,75 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   void _syncList(List<AppTransaction> newMessages) {
-    if (newMessages.length < _displayList.length ||
-        (newMessages.isNotEmpty &&
+    if (!mounted) return;
+    final List<dynamic> flatListWithHeaders = _groupWithHeaders(newMessages);
+
+    if (flatListWithHeaders.length < _displayList.length ||
+        (flatListWithHeaders.isNotEmpty &&
             _displayList.isNotEmpty &&
-            newMessages.first.id != _displayList.first.id)) {
-      // Full refresh needed
+            _getItemId(flatListWithHeaders.first) !=
+                _getItemId(_displayList.first))) {
       _clearList();
       Future.delayed(const Duration(milliseconds: 300), () {
-        for (int i = 0; i < newMessages.length; i++) {
-          _displayList.add(newMessages[i]);
+        if (!mounted) return;
+        for (int i = 0; i < flatListWithHeaders.length; i++) {
+          _displayList.add(flatListWithHeaders[i]);
           _listKey.currentState?.insertItem(i);
         }
       });
       return;
     }
 
-    // Basic sync for pagination (appending)
-    for (int i = _displayList.length; i < newMessages.length; i++) {
-      _displayList.add(newMessages[i]);
+    for (int i = _displayList.length; i < flatListWithHeaders.length; i++) {
+      _displayList.add(flatListWithHeaders[i]);
       _listKey.currentState?.insertItem(i);
     }
+  }
+
+  String _getItemId(dynamic item) {
+    if (item is String) return item;
+    if (item is AppTransaction) return item.id;
+    return '';
+  }
+
+  List<dynamic> _groupWithHeaders(List<AppTransaction> transactions) {
+    final List<dynamic> result = [];
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+
+    final List<AppTransaction> todayItems = [];
+    final List<AppTransaction> yesterdayItems = [];
+    final List<AppTransaction> olderItems = [];
+
+    for (var tx in transactions) {
+      final txDate = DateTime(
+        tx.timestamp.year,
+        tx.timestamp.month,
+        tx.timestamp.day,
+      );
+      if (txDate == today) {
+        todayItems.add(tx);
+      } else if (txDate == yesterday) {
+        yesterdayItems.add(tx);
+      } else {
+        olderItems.add(tx);
+      }
+    }
+
+    if (todayItems.isNotEmpty) {
+      result.add('Today');
+      result.addAll(todayItems);
+    }
+    if (yesterdayItems.isNotEmpty) {
+      result.add('Yesterday');
+      result.addAll(yesterdayItems);
+    }
+    if (olderItems.isNotEmpty) {
+      result.add('Older');
+      result.addAll(olderItems);
+    }
+    return result;
   }
 
   void _clearList() {
@@ -76,7 +125,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
       final removedItem = _displayList.removeAt(i);
       _listKey.currentState?.removeItem(
         i,
-        (context, animation) => _buildItem(removedItem, animation, i == 0),
+        (context, animation) => _buildItem(removedItem, animation, false),
         duration: const Duration(milliseconds: 200),
       );
     }
@@ -96,10 +145,18 @@ class _MessagesScreenState extends State<MessagesScreen> {
   }
 
   Widget _buildItem(
-    AppTransaction tx,
+    dynamic item,
     Animation<double> animation,
-    bool isLast,
+    bool isLastInGroup,
   ) {
+    if (item is String) {
+      return FadeTransition(
+        opacity: animation,
+        child: _SectionHeader(title: item),
+      );
+    }
+
+    final tx = item as AppTransaction;
     return SlideTransition(
       position: animation.drive(
         Tween<Offset>(
@@ -111,7 +168,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         opacity: animation,
         child: UnmappedMessageTile(
           transaction: tx,
-          showDivider: !isLast,
+          showDivider: !isLastInGroup,
         ),
       ),
     );
@@ -122,9 +179,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final spendingService = context.watch<SpendingService>();
     final messages = spendingService.paginatedMessages;
 
-    // Sync if service updated (e.g. pagination loaded more)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (messages.length > _displayList.length) {
+      if (!mounted) return;
+      final grouped = _groupWithHeaders(messages);
+      if (grouped.length != _displayList.length) {
         _syncList(messages);
       }
     });
@@ -149,7 +207,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
             Expanded(
               child: Stack(
                 children: [
-                  if (_displayList.isEmpty && !spendingService.isLoading)
+                  if (messages.isEmpty && !spendingService.isLoading)
                     Center(
                       child: Text(
                         'No messages found',
@@ -165,11 +223,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     initialItemCount: _displayList.length,
                     itemBuilder: (context, index, animation) {
                       if (index >= _displayList.length) return const SizedBox();
-                      return _buildItem(
-                        _displayList[index],
-                        animation,
-                        index == _displayList.length - 1,
-                      );
+                      final item = _displayList[index];
+                      bool isLastInGroup = true;
+                      if (index + 1 < _displayList.length) {
+                        isLastInGroup = _displayList[index + 1] is String;
+                      }
+                      return _buildItem(item, animation, isLastInGroup);
                     },
                   ),
                   if (spendingService.isLoading && _displayList.isEmpty)

@@ -23,6 +23,24 @@ class UnmappedMessageTile extends StatelessWidget {
     return '${(diff.inDays / 7).floor()}w ago';
   }
 
+  Color _getAvatarColor(String merchant) {
+    final colors = [
+      const Color(0xFF007AFF), // iOS Blue
+      const Color(0xFF34C759), // iOS Green
+      const Color(0xFFFF9500), // iOS Orange
+      const Color(0xFFAF52DE), // iOS Purple
+      const Color(0xFFFF2D55), // iOS Pink
+      const Color(0xFF5856D6), // iOS Indigo
+      const Color(0xFF00C7BE), // iOS Teal
+      const Color(0xFF30B0C7), // iOS Cyan
+    ];
+    // Simple hash to ensure same merchant always gets same color
+    final int hash = merchant
+        .split('')
+        .fold(0, (prev, char) => prev + char.codeUnitAt(0));
+    return colors[hash % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool needsMapping = transaction.latitude == null;
@@ -30,24 +48,62 @@ class UnmappedMessageTile extends StatelessWidget {
         ? 'Needs mapping'
         : 'Needs categorization';
     final String timeAgo = _getTimeAgo(transaction.timestamp);
+    final String initial = transaction.merchant.isNotEmpty
+        ? transaction.merchant[0].toUpperCase()
+        : '?';
 
     Widget content = Column(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Leading Avatar
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: _getAvatarColor(transaction.merchant),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initial,
+                    style: GoogleFonts.spaceGrotesk(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Middle Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      transaction.merchant,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF1A1A1A),
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          transaction.merchant,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF1A1A1A),
+                          ),
+                        ),
+                        Text(
+                          transaction.formattedAmount,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1A1A1A),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -73,21 +129,13 @@ class UnmappedMessageTile extends StatelessWidget {
                   ],
                 ),
               ),
-              Text(
-                transaction.formattedAmount,
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF1A1A1A),
-                ),
-              ),
             ],
           ),
         ),
         if (showDivider)
           Padding(
-            padding: const EdgeInsets.only(left: 16),
-            child: Divider(height: 1, thickness: 1, color: Colors.grey[200]),
+            padding: const EdgeInsets.only(left: 68), // 16 + 40 + 12
+            child: Divider(height: 1, thickness: 0.5, color: Colors.grey[200]),
           ),
       ],
     );
@@ -95,8 +143,7 @@ class UnmappedMessageTile extends StatelessWidget {
     if (needsMapping) {
       return GestureDetector(
         onTap: () {
-          Navigator.push(
-            context,
+          Navigator.of(context, rootNavigator: true).push(
             CupertinoPageRoute(
               builder: (context) =>
                   LocationPickerScreen(transaction: transaction),
