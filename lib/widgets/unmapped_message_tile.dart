@@ -81,24 +81,34 @@ class UnmappedMessageTile extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF0071E3)
-                                : Colors.grey[200],
+                            color: needsMapping
+                                ? Colors.grey[100]
+                                : isSelected
+                                    ? const Color(0xFF0071E3)
+                                    : Colors.grey[200],
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected
-                                  ? const Color(0xFF0071E3)
-                                  : Colors.grey[400]!,
+                              color: needsMapping
+                                  ? Colors.grey[300]!
+                                  : isSelected
+                                      ? const Color(0xFF0071E3)
+                                      : Colors.grey[400]!,
                               width: 2,
                             ),
                           ),
-                          child: isSelected
+                          child: needsMapping
                               ? const Icon(
-                                  CupertinoIcons.checkmark,
-                                  color: Colors.white,
-                                  size: 20,
+                                  CupertinoIcons.clear_thick,
+                                  color: CupertinoColors.systemRed,
+                                  size: 16,
                                 )
-                              : null,
+                              : isSelected
+                                  ? const Icon(
+                                      CupertinoIcons.checkmark,
+                                      color: Colors.white,
+                                      size: 20,
+                                    )
+                                  : null,
                         )
                       : Container(
                           key: const ValueKey('avatar'),
