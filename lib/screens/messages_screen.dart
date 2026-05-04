@@ -1,9 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
+import '../widgets/category_dropdown_widget.dart';
+import '../widgets/custom_toast.dart';
 import '../widgets/unmapped_message_tile.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final List<dynamic> _displayList = [];
   String _activeFilter = 'all';
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -135,6 +139,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (_activeFilter == filter) return;
     setState(() {
       _activeFilter = filter;
+      _selectedIds.clear();
     });
 
     _clearList();
@@ -142,6 +147,80 @@ class _MessagesScreenState extends State<MessagesScreen> {
     final service = context.read<SpendingService>();
     await service.setFilter(filter);
     _syncList(service.paginatedMessages);
+  }
+
+  void _toggleSelection(String id) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _onBulkCategorize() {
+    showCupertinoDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => Center(
+        child: DefaultTextStyle(
+          style: GoogleFonts.spaceGrotesk(
+            color: CupertinoColors.label,
+            decoration: TextDecoration.none,
+          ),
+          child: CategoryDropdownWidget(
+            onCategorySelectedOverride: (categoryName) {
+              _confirmBulkCategorization(categoryName);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _confirmBulkCategorization(String categoryName) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Bulk Categorize'),
+        content: Text(
+          'Assign "$categoryName" to ${_selectedIds.length} messages?',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('Confirm'),
+            onPressed: () async {
+              final service = context.read<SpendingService>();
+              final selectedCount = _selectedIds.length;
+              final idsToUpdate = _selectedIds.toList();
+
+              // Pop confirm dialog and category dialog
+              Navigator.pop(context);
+              Navigator.pop(context);
+
+              try {
+                await service.bulkUpdateCategory(idsToUpdate, categoryName);
+                setState(() {
+                  _selectedIds.clear();
+                });
+                showCustomToast(
+                  'Successfully categorized $selectedCount messages',
+                );
+              } catch (e) {
+                showCustomToast('Failed to categorize messages');
+              }
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildItem(
@@ -169,6 +248,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: UnmappedMessageTile(
           transaction: tx,
           showDivider: !isLastInGroup,
+          isSelectionMode: _selectedIds.isNotEmpty,
+          isSelected: _selectedIds.contains(tx.id),
+          onSelectToggle: () => _toggleSelection(tx.id),
         ),
       ),
     );
@@ -187,63 +269,90 @@ class _MessagesScreenState extends State<MessagesScreen> {
       }
     });
 
-    return CupertinoPageScaffold(
-      backgroundColor: Colors.white,
-      navigationBar: CupertinoNavigationBar(
-        backgroundColor: Colors.white.withValues(alpha: 0.8),
-        border: null,
-        middle: Text(
-          'Messages',
-          style: GoogleFonts.spaceGrotesk(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+    return PopScope(
+      canPop: _selectedIds.isEmpty,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _selectedIds.isNotEmpty) {
+          setState(() {
+            _selectedIds.clear();
+          });
+        }
+      },
+      child: CupertinoPageScaffold(
+        backgroundColor: Colors.white,
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: Colors.white.withValues(alpha: 0.8),
+          border: null,
+          middle: Text(
+            'Messages',
+            style: GoogleFonts.spaceGrotesk(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+            ),
           ),
+          trailing: _selectedIds.isNotEmpty
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _onBulkCategorize,
+                  child: Text(
+                    'Bulk Categorize',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                )
+              : null,
         ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            _buildFilterBar(),
-            Expanded(
-              child: Stack(
-                children: [
-                  if (messages.isEmpty && !spendingService.isLoading)
-                    Center(
-                      child: Text(
-                        'No messages found',
-                        style: GoogleFonts.spaceGrotesk(
-                          color: CupertinoColors.systemGrey,
-                          fontSize: 16,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildFilterBar(),
+              Expanded(
+                child: Stack(
+                  children: [
+                    if (messages.isEmpty && !spendingService.isLoading)
+                      Center(
+                        child: Text(
+                          'No messages found',
+                          style: GoogleFonts.spaceGrotesk(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
+                    AnimatedList(
+                      key: _listKey,
+                      controller: _scrollController,
+                      initialItemCount: _displayList.length,
+                      itemBuilder: (context, index, animation) {
+                        if (index >= _displayList.length) {
+                          return const SizedBox();
+                        }
+                        final item = _displayList[index];
+                        bool isLastInGroup = true;
+                        if (index + 1 < _displayList.length) {
+                          isLastInGroup = _displayList[index + 1] is String;
+                        }
+                        return _buildItem(item, animation, isLastInGroup);
+                      },
                     ),
-                  AnimatedList(
-                    key: _listKey,
-                    controller: _scrollController,
-                    initialItemCount: _displayList.length,
-                    itemBuilder: (context, index, animation) {
-                      if (index >= _displayList.length) return const SizedBox();
-                      final item = _displayList[index];
-                      bool isLastInGroup = true;
-                      if (index + 1 < _displayList.length) {
-                        isLastInGroup = _displayList[index + 1] is String;
-                      }
-                      return _buildItem(item, animation, isLastInGroup);
-                    },
-                  ),
-                  if (spendingService.isLoading && _displayList.isEmpty)
-                    const Center(child: CupertinoActivityIndicator()),
-                  if (spendingService.isLoading && _displayList.isNotEmpty)
-                    Positioned(
-                      bottom: 20,
-                      left: 0,
-                      right: 0,
-                      child: const Center(child: CupertinoActivityIndicator()),
-                    ),
-                ],
+                    if (spendingService.isLoading && _displayList.isEmpty)
+                      const Center(child: CupertinoActivityIndicator()),
+                    if (spendingService.isLoading && _displayList.isNotEmpty)
+                      Positioned(
+                        bottom: 20,
+                        left: 0,
+                        right: 0,
+                        child: const Center(
+                          child: CupertinoActivityIndicator(),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -47,29 +47,6 @@ void main() async {
   );
 }
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return CupertinoApp(
-//       navigatorKey: rootNavigatorKey,
-//       title: 'SpendMap',
-//       theme: CupertinoThemeData(
-//         brightness: Brightness.light,
-//         primaryColor: const Color(0xFF0071E3),
-//         textTheme: CupertinoTextThemeData(
-//           textStyle: GoogleFonts.spaceGrotesk(
-//             color: const Color(0xFF1D1D1F),
-//             letterSpacing: -0.3,
-//             fontFeatures: [const FontFeature.tabularFigures()],
-//           ),
-//         ),
-//       ),
-//       home: const MainScreen(),
-//     );
-//   }
-// }
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -134,6 +111,7 @@ Future<void> initializeBackgroundService() async {
       initialNotificationTitle: 'SpendMap Active',
       initialNotificationContent: 'Tracking expenses in the background',
       foregroundServiceNotificationId: 888,
+      foregroundServiceTypes: [AndroidForegroundType.location],
     ),
     iosConfiguration: IosConfiguration(autoStart: false),
   );

@@ -25,8 +25,8 @@ class SpendingService extends ChangeNotifier {
   bool _hasMore = true;
   final int _pageSize = 20;
 
-  // default icons that are more likely to be used. I know this implementation
-  // is not robust but whatever man
+  // A set of frequently used default categories.
+  // This list provides immediate actionable options for the user.
   final List<CategoryItem> _defaultCategories = [
     availableIcons[2]!, // dining
     availableIcons[29]!, // snacks
@@ -164,6 +164,12 @@ class SpendingService extends ChangeNotifier {
     await _repo.updateCategory(txId, category);
     // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
+  }
+
+  Future<void> bulkUpdateCategory(List<String> ids, String category) async {
+    await _repo.updateCategories(ids, category);
+    await refresh();
+    await fetchMessages(refresh: true);
   }
 
   /// Persist a new limit for the current period then refresh.

@@ -8,11 +8,17 @@ import 'category_dropdown_widget.dart';
 class UnmappedMessageTile extends StatelessWidget {
   final AppTransaction transaction;
   final bool showDivider;
+  final bool isSelectionMode;
+  final bool isSelected;
+  final VoidCallback? onSelectToggle;
 
   const UnmappedMessageTile({
     super.key,
     required this.transaction,
     required this.showDivider,
+    this.isSelectionMode = false,
+    this.isSelected = false,
+    this.onSelectToggle,
   });
 
   String _getTimeAgo(DateTime dateTime) {
@@ -59,23 +65,60 @@ class UnmappedMessageTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Leading Avatar
-              Container(
+              // Leading Avatar / Checkbox
+              SizedBox(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: _getAvatarColor(transaction.merchant),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Text(
-                    initial,
-                    style: GoogleFonts.spaceGrotesk(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                        return ScaleTransition(scale: animation, child: child);
+                      },
+                  child: isSelectionMode
+                      ? Container(
+                          key: const ValueKey('checkbox'),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF0071E3)
+                                : Colors.grey[200],
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected
+                                  ? const Color(0xFF0071E3)
+                                  : Colors.grey[400]!,
+                              width: 2,
+                            ),
+                          ),
+                          child: isSelected
+                              ? const Icon(
+                                  CupertinoIcons.checkmark,
+                                  color: Colors.white,
+                                  size: 20,
+                                )
+                              : null,
+                        )
+                      : Container(
+                          key: const ValueKey('avatar'),
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: _getAvatarColor(transaction.merchant),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: GoogleFonts.spaceGrotesk(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -140,6 +183,18 @@ class UnmappedMessageTile extends StatelessWidget {
       ],
     );
 
+    if (isSelectionMode) {
+      return GestureDetector(
+        onTap: () {
+          if (!needsMapping && onSelectToggle != null) {
+            onSelectToggle!();
+          }
+        },
+        behavior: HitTestBehavior.opaque,
+        child: content,
+      );
+    }
+
     if (needsMapping) {
       return GestureDetector(
         onTap: () {
@@ -155,6 +210,11 @@ class UnmappedMessageTile extends StatelessWidget {
       );
     } else {
       return GestureDetector(
+        onLongPress: () {
+          if (onSelectToggle != null) {
+            onSelectToggle!();
+          }
+        },
         onTap: () {
           showCupertinoDialog(
             context: context,

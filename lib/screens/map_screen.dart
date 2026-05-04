@@ -231,7 +231,7 @@ class _MapScreenState extends State<MapScreen>
       child: Stack(
         children: [
           mp.MapWidget(
-            styleUri: mp.MapboxStyles.LIGHT,
+            styleUri: mp.MapboxStyles.STANDARD,
             onMapCreated: onMapCreated,
           ),
           Positioned(
