@@ -19,7 +19,6 @@ import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
-import '../widgets/dynamic_island.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/map_style_picker_modal.dart';
 import 'location_picker_screen.dart';
@@ -50,6 +49,9 @@ class _MapScreenState extends State<MapScreen>
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
   bool _isMapUpdating = false;
+
+  String _searchQuery = '';
+  String? _selectedCategory;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
@@ -246,33 +248,124 @@ class _MapScreenState extends State<MapScreen>
             top: topPadding,
             left: 16,
             right: 16,
-            child: DynamicIsland(
-              spent: spending.spent,
-              limit: spending.limit,
-              amountsVisible: _amountsVisible,
-              islandExpanded: _islandExpanded,
-              selectedPeriod: spending.period,
-              bounceScale: _bounceScale,
-              onTapCircle: () {
-                setState(() => _amountsVisible = true);
-                _bounceController.value = 0.0;
-              },
-              onTapClose: () {
-                setState(() {
-                  _amountsVisible = false;
-                  _islandExpanded = false;
-                });
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (mounted) _bounceController.forward(from: 0.0);
-                });
-              },
-              onToggleExpand: () =>
-                  setState(() => _islandExpanded = !_islandExpanded),
-              onTapEditLimit: () => _showLimitSettings(spending),
-              onPeriodSelected: (period) =>
-                  context.read<SpendingService>().setPeriod(period),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: CupertinoColors.black.withValues(alpha: 0.1),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: CupertinoSearchTextField(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                    placeholder: 'Search transactions...',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 15,
+                      color: const Color(0xFF1D1D1F),
+                    ),
+                    backgroundColor: CupertinoColors.white.withValues(
+                      alpha: 0.9,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: spending.categories.map((cat) {
+                      final isSelected = _selectedCategory == cat.name;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            HapticFeedback.lightImpact();
+                            setState(() {
+                              if (_selectedCategory == cat.name) {
+                                _selectedCategory = null;
+                              } else {
+                                _selectedCategory = cat.name;
+                              }
+                            });
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? cat.color
+                                  : CupertinoColors.white.withValues(
+                                      alpha: 0.9,
+                                    ),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? cat.color
+                                    : CupertinoColors.systemGrey5,
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: CupertinoColors.black.withValues(
+                                    alpha: 0.05,
+                                  ),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                HugeIcon(
+                                  icon: cat.icon,
+                                  color: isSelected
+                                      ? CupertinoColors.white
+                                      : CupertinoColors.black,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  cat.name,
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 13,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? CupertinoColors.white
+                                        : CupertinoColors.black,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
           ),
+
           // FABs moved into the stack as Positioned widgets
           Positioned(
             bottom: 32,
@@ -961,45 +1054,5 @@ class _MapScreenState extends State<MapScreen>
   double _getSortKey(String price) {
     final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
     return double.tryParse(clean) ?? 0.0;
-  }
-
-  void _showLimitSettings(SpendingService spending) {
-    final controller = TextEditingController(
-      text: spending.limit.toStringAsFixed(0),
-    );
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Set ${spending.period} Limit'),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 12),
-              child: Text('Ksh '),
-            ),
-            placeholder: 'Limit Amount',
-            style: GoogleFonts.spaceGrotesk(),
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0.0;
-              spending.setLimit(spending.period, amount);
-              Navigator.pop(context);
-            },
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
-    );
   }
 }
