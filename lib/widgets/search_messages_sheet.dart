@@ -50,8 +50,75 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
     return colors[hash % colors.length];
   }
 
+  Widget _buildHighlightedText(
+    String text,
+    String query,
+    TextStyle baseStyle,
+    TextStyle highlightStyle,
+  ) {
+    if (query.isEmpty) return Text(text, style: baseStyle);
+
+    final normalizedText = text.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final normalizedQuery = query.toLowerCase().replaceAll(
+      RegExp(r'[-\s]'),
+      '',
+    );
+
+    if (!normalizedText.contains(normalizedQuery)) {
+      return Text(text, style: baseStyle);
+    }
+
+    // This is a simplified "fuzzy" highlighter that finds the start of the match
+    // ignoring spaces/hyphens in the query.
+    final List<TextSpan> spans = [];
+    int normIndex = 0;
+
+    // Find the start index in the original text
+    int? matchStart;
+    int? matchEnd;
+
+    final startIndex = normalizedText.indexOf(normalizedQuery);
+    final endIndex = startIndex + normalizedQuery.length;
+
+    for (int i = 0; i < text.length; i++) {
+      final char = text[i];
+      if (char == ' ' || char == '-') {
+        // Skip
+      } else {
+        if (normIndex == startIndex) matchStart = i;
+        normIndex++;
+        if (normIndex == endIndex) {
+          matchEnd = i + 1;
+          break;
+        }
+      }
+    }
+
+    if (matchStart != null && matchEnd != null) {
+      spans.add(TextSpan(text: text.substring(0, matchStart)));
+      spans.add(
+        TextSpan(
+          text: text.substring(matchStart, matchEnd),
+          style: highlightStyle,
+        ),
+      );
+      spans.add(TextSpan(text: text.substring(matchEnd)));
+    } else {
+      return Text(text, style: baseStyle);
+    }
+
+    return RichText(
+      text: TextSpan(style: baseStyle, children: spans),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final highlightStyle = GoogleFonts.spaceGrotesk(
+      fontWeight: FontWeight.w700,
+      backgroundColor: const Color(0xFF0071E3).withValues(alpha: 0.1),
+      color: const Color(0xFF0071E3),
+    );
     return DraggableScrollableSheet(
       controller: _sheetController,
       initialChildSize: 0.8,
@@ -152,8 +219,9 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
 
                           return Column(
                             children: [
-                              GestureDetector(
-                                onTap: () {
+                              CupertinoButton(
+                                padding: EdgeInsets.zero,
+                                onPressed: () {
                                   if (needsMapping) {
                                     showCustomToast(
                                       'Message has not yet been mapped',
@@ -167,7 +235,6 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                     widget.onMessageSelected(tx);
                                   }
                                 },
-                                behavior: HitTestBehavior.opaque,
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 200),
                                   color: isSelected
@@ -212,17 +279,18 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Expanded(
-                                                  child: Text(
+                                                  child: _buildHighlightedText(
                                                     tx.merchant,
-                                                    style:
-                                                        GoogleFonts.spaceGrotesk(
-                                                          fontSize: 16,
-                                                          fontWeight:
-                                                              FontWeight.w500,
-                                                          color: const Color(
-                                                            0xFF1A1A1A,
-                                                          ),
-                                                        ),
+                                                    widget.query,
+                                                    GoogleFonts.spaceGrotesk(
+                                                      fontSize: 16,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                      color: const Color(
+                                                        0xFF1A1A1A,
+                                                      ),
+                                                    ),
+                                                    highlightStyle,
                                                   ),
                                                 ),
                                                 const SizedBox(width: 8),
@@ -250,16 +318,16 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                               ),
                                             ),
                                             const SizedBox(height: 4),
-                                            Text(
+                                            _buildHighlightedText(
                                               tx.rawMessage,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: GoogleFonts.spaceGrotesk(
+                                              widget.query,
+                                              GoogleFonts.spaceGrotesk(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w400,
                                                 color: Colors.grey[500],
                                                 height: 1.4,
                                               ),
+                                              highlightStyle,
                                             ),
                                           ],
                                         ),

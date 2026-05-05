@@ -47,6 +47,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isSearching = false;
 
   String? _selectedCategory;
+  String? _selectedTxId;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
@@ -137,7 +138,11 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = tx.id;
       });
+
+      // Boost priority of the selected annotation so it wins collision
+      await _updateAnnotationPriority();
 
       // Clear the selection so it doesn't trigger again on every rebuild
       spending.clearSelectedTransaction();
@@ -146,6 +151,23 @@ class _MapScreenState extends State<MapScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _popupKey.currentState?.show();
       });
+    }
+  }
+
+  Future<void> _updateAnnotationPriority() async {
+    if (_annotationManager == null || _selectedTxId == null) return;
+
+    final allAnnotations = await _annotationManager!.getAnnotations();
+    for (final ann in allAnnotations) {
+      final place = _annotationToPlaceMap[ann.id];
+      if (place == null) continue;
+
+      final double newSortKey = _getSortKey(place);
+
+      if (ann.symbolSortKey != newSortKey) {
+        ann.symbolSortKey = newSortKey;
+        await _annotationManager!.update(ann);
+      }
     }
   }
 
@@ -475,7 +497,8 @@ class _MapScreenState extends State<MapScreen> {
                   filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: CustomPopup(
                     key: _popupKey,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    // *** TODO verify 
+                    backgroundColor: Colors.white,
                     contentPadding: EdgeInsets.zero,
                     content: DefaultTextStyle(
                       style: GoogleFonts.spaceGrotesk(
@@ -819,7 +842,11 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = place.id;
       });
+
+      // Boost priority of the tapped marker
+      await _updateAnnotationPriority();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _popupKey.currentState?.show();
@@ -923,7 +950,7 @@ class _MapScreenState extends State<MapScreen> {
       final geometry = mp.Point(
         coordinates: mp.Position(place.longitude, place.latitude),
       );
-      final sortKey = _getSortKey(place.price);
+      final sortKey = _getSortKey(place);
 
       final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
@@ -1021,7 +1048,7 @@ class _MapScreenState extends State<MapScreen> {
     final geometry = mp.Point(
       coordinates: mp.Position(place.longitude, place.latitude),
     );
-    final sortKey = _getSortKey(place.price);
+    final sortKey = _getSortKey(place);
 
     final pointAnn = await _annotationManager?.create(
       mp.PointAnnotationOptions(
@@ -1054,8 +1081,9 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  double _getSortKey(String price) {
-    final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
+  double _getSortKey(MapPlace place) {
+    if (place.id == _selectedTxId) return -1000000.0;
+    final clean = place.price.replaceAll(RegExp(r'[^0-9.]'), '');
     return double.tryParse(clean) ?? 0.0;
   }
 }
