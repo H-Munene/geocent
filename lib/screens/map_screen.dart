@@ -21,6 +21,7 @@ import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/map_style_picker_modal.dart';
+import '../widgets/search_messages_sheet.dart';
 import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -30,13 +31,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen>
-    with SingleTickerProviderStateMixin {
-  bool _islandExpanded = false;
-  bool _amountsVisible = false;
-  late AnimationController _bounceController;
-  late Animation<double> _bounceScale;
-
+class _MapScreenState extends State<MapScreen> {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
@@ -49,8 +44,8 @@ class _MapScreenState extends State<MapScreen>
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
   bool _isMapUpdating = false;
+  bool _isSearching = false;
 
-  String _searchQuery = '';
   String? _selectedCategory;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
@@ -64,32 +59,11 @@ class _MapScreenState extends State<MapScreen>
   void initState() {
     super.initState();
     _positionTracking();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _bounceScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1.0,
-          end: 0.95,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 0.95,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 70,
-      ),
-    ]).animate(_bounceController);
 
-    // Listen for background service events to trigger Dynamic Island
+    // Listen for background service events
     _bgServiceSub = FlutterBackgroundService().on('transaction_saved').listen((
       _,
     ) {
-      _triggerIslandAutoExpand();
       if (mounted) {
         context.read<SpendingService>().refresh();
       }
@@ -175,28 +149,8 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _triggerIslandAutoExpand() {
-    if (!mounted) return;
-    setState(() {
-      _amountsVisible = true;
-      _islandExpanded = true;
-    });
-
-    // Fold back up after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _amountsVisible = false;
-          _islandExpanded = false;
-        });
-        _bounceController.forward(from: 0.0);
-      }
-    });
-  }
-
   @override
   void dispose() {
-    _bounceController.dispose();
     userPositionStream?.cancel();
     _bgServiceSub?.cancel();
     mapboxMapController?.dispose();
@@ -262,10 +216,42 @@ class _MapScreenState extends State<MapScreen>
                     ],
                   ),
                   child: CupertinoSearchTextField(
-                    onChanged: (value) {
-                      setState(() {
-                        _searchQuery = value;
-                      });
+                    suffixIcon: _isSearching
+                        ? const Icon(CupertinoIcons.clear_thick_circled)
+                        : const Icon(CupertinoIcons.search),
+                    suffixMode: OverlayVisibilityMode.editing,
+                    onSubmitted: (value) async {
+                      if (value.trim().isEmpty) return;
+
+                      setState(() => _isSearching = true);
+
+                      try {
+                        final spendingService = context.read<SpendingService>();
+                        final results = await spendingService.searchMessages(
+                          value,
+                        );
+
+                        if (!context.mounted) return;
+
+                        FocusScope.of(context).unfocus();
+
+                        showCupertinoSheet(
+                          context: context,
+                          builder: (context) => SearchMessagesSheet(
+                            results: results,
+                            query: value,
+                            onMessageSelected: (tx) {
+                              spendingService.selectTransaction(tx.id);
+                            },
+                          ),
+                        );
+                      } catch (e) {
+                        debugPrint('Search error: $e');
+                      } finally {
+                        if (mounted) {
+                          setState(() => _isSearching = false);
+                        }
+                      }
                     },
                     placeholder: 'Search transactions...',
                     style: GoogleFonts.spaceGrotesk(
@@ -282,6 +268,23 @@ class _MapScreenState extends State<MapScreen>
                     ),
                   ),
                 ),
+                if (_isSearching)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 8, left: 12),
+                    child: Row(
+                      children: [
+                        CupertinoActivityIndicator(radius: 8),
+                        SizedBox(width: 8),
+                        Text(
+                          'Searching...',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: CupertinoColors.systemGrey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 const SizedBox(height: 12),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,

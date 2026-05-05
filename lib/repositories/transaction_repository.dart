@@ -1,5 +1,4 @@
 import 'package:mapbox_tut/database_helper.dart';
-import 'package:sqflite/sqflite.dart';
 
 import '../models/app_transaction.dart';
 
@@ -148,6 +147,18 @@ class TransactionRepository {
     return (rows.first[DatabaseHelper.colLimitAmount] as num).toDouble();
   }
 
+  Future<List<AppTransaction>> searchTransactions(String query) async {
+    final sanitizedQuery = query.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where:
+          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ?',
+      whereArgs: ['%$query%', '%$sanitizedQuery%', '%$query%', '%$query%'],
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<Map<String, double>> getAllLimits() async {
     final rows = await _db.rawQuery(DatabaseHelper.tableSpendingLimits);
     return {
@@ -158,15 +169,15 @@ class TransactionRepository {
   }
 
   Future<void> setLimit(String period, double amount) async {
-    final db = await _db.database;
-    await db.insert(
+    await _db.rawUpdate(
       DatabaseHelper.tableSpendingLimits,
       {
         DatabaseHelper.colPeriod: period.toLowerCase(),
         DatabaseHelper.colLimitAmount: amount,
         DatabaseHelper.colUpdatedAt: DateTime.now().toIso8601String(),
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      '${DatabaseHelper.colPeriod} = ?',
+      [period.toLowerCase()],
     );
   }
 }

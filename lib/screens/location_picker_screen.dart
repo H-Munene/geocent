@@ -162,7 +162,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
         ),
         trailing: _isSaving
-            ? const CupertinoActivityIndicator()
+            ? CupertinoActivityIndicator(color: CupertinoColors.activeBlue)
             : CupertinoButton(
                 padding: EdgeInsets.zero,
                 child: Text(
@@ -170,7 +170,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   style: GoogleFonts.spaceGrotesk(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
-                    color: const Color(0xFF1D1D1F),
+                    color: CupertinoColors.systemBlue,
                   ),
                 ),
                 onPressed: () {
