@@ -1,24 +1,3 @@
-// // lib/models/transaction.dart
-// class AppTransaction {
-//   final int? id;
-//   final String merchant;
-//   final double amount;
-//   final DateTime timestamp;
-//   final double latitude;
-//   final double longitude;
-
-//   AppTransaction({
-//     this.id,
-//     required this.merchant,
-//     required this.amount,
-//     required this.timestamp,
-//     required this.latitude,
-//     required this.longitude,
-//   });
-// }
-
-// lib/models/app_transaction.dart
-
 enum TransactionSource { mpesa, equity }
 
 enum TransactionType { sent, payment, received, unknown }

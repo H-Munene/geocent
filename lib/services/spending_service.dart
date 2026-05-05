@@ -69,11 +69,7 @@ class SpendingService extends ChangeNotifier {
 
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
-    try {
-      return _defaultCategories.firstWhere((c) => c.name == name);
-    } catch (_) {
-      return null;
-    }
+    return availableIcons.values.where((c) => c.name == name).firstOrNull;
   }
 
   /// 0.0 → 1.0, clamped so the UI never breaks at >100 %.

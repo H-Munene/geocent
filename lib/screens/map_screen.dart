@@ -21,6 +21,8 @@ import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/dynamic_island.dart';
 import '../widgets/category_dropdown_widget.dart';
+import '../widgets/map_style_picker_modal.dart';
+import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -46,6 +48,8 @@ class _MapScreenState extends State<MapScreen>
   StreamSubscription? _bgServiceSub;
 
   int _annotationUpdateVersion = 0;
+  String _currentMapStyle = mp.MapboxStyles.STANDARD;
+  bool _isMapUpdating = false;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
@@ -230,10 +234,14 @@ class _MapScreenState extends State<MapScreen>
     return CupertinoPageScaffold(
       child: Stack(
         children: [
-          mp.MapWidget(
-            styleUri: mp.MapboxStyles.STANDARD,
-            onMapCreated: onMapCreated,
-          ),
+          mp.MapWidget(styleUri: _currentMapStyle, onMapCreated: onMapCreated),
+          if (spending.isLoading || _isMapUpdating)
+            const Center(
+              child: CupertinoActivityIndicator(
+                radius: 16,
+                color: CupertinoColors.activeBlue,
+              ),
+            ),
           Positioned(
             top: topPadding,
             left: 16,
@@ -272,6 +280,32 @@ class _MapScreenState extends State<MapScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _showMapStylePicker();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      color: CupertinoColors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color(0x26000000),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.square_stack_3d_up,
+                      color: Color(0xFF1D1D1F),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 CupertinoButton(
                   padding: EdgeInsets.zero,
                   onPressed: () {
@@ -504,59 +538,29 @@ class _MapScreenState extends State<MapScreen>
         });
   }
 
-  // ── Map ────────────────────────────────────────────────────────────────────
-
-  Future<void> onMapCreated(mp.MapboxMap controller) async {
-    setState(() => mapboxMapController = controller);
-
-    final locationPermission = await Permission.location.status;
-    if (locationPermission != PermissionStatus.granted) return;
-
-    // Center map on user's last known position immediately to avoid New York
-    try {
-      final lastPos = await gl.Geolocator.getLastKnownPosition();
-      if (lastPos != null && mounted) {
-        controller.setCamera(
-          mp.CameraOptions(
-            zoom: 17,
-            center: mp.Point(
-              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
-            ),
-          ),
-        );
-      }
-      // Trigger a fresh location fetch for high accuracy
-      gl.Geolocator.getCurrentPosition(
-        locationSettings: const gl.LocationSettings(
-          accuracy: gl.LocationAccuracy.high,
-        ),
-      ).then((pos) {
-        if (mounted) {
-          controller.flyTo(
-            mp.CameraOptions(
-              zoom: 17,
-              center: mp.Point(
-                coordinates: mp.Position(pos.longitude, pos.latitude),
-              ),
-            ),
-            mp.MapAnimationOptions(duration: 1000),
-          );
-        }
-      });
-    } catch (e) {
-      debugPrint('[MapScreen] Initial location fetch failed: $e');
-    }
-
-    mapboxMapController?.location.updateSettings(
-      mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
+  void _showMapStylePicker() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => MapStylePickerModal(
+        currentStyle: _currentMapStyle,
+        onStyleChanged: (newStyle) async {
+          if (newStyle == _currentMapStyle) return;
+          setState(() => _currentMapStyle = newStyle);
+          await mapboxMapController?.loadStyleURI(newStyle);
+          // Wait for style to load before re-applying layer properties
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _applyStyleLayerExpressions();
+              _refreshAnnotations();
+            }
+          });
+        },
+      ),
     );
+  }
 
-    // 1. Initialize Managers
-    // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
-    _dotManager = await mapboxMapController?.annotations
-        .createCircleAnnotationManager();
-    _annotationManager = await mapboxMapController?.annotations
-        .createPointAnnotationManager();
+  Future<void> _applyStyleLayerExpressions() async {
+    if (mapboxMapController == null) return;
 
     // 2. Configure Callout Collision & Native Opacity Expressions
     if (_annotationManager != null) {
@@ -616,11 +620,75 @@ class _MapScreenState extends State<MapScreen>
           1.0,
         ],
       );
+    }
+  }
 
+  // ── Map ────────────────────────────────────────────────────────────────────
+
+  Future<void> onMapCreated(mp.MapboxMap controller) async {
+    setState(() => mapboxMapController = controller);
+
+    final locationPermission = await Permission.location.status;
+    if (locationPermission != PermissionStatus.granted) return;
+
+    // Center map on user's last known position immediately to avoid New York
+    try {
+      final lastPos = await gl.Geolocator.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        controller.setCamera(
+          mp.CameraOptions(
+            zoom: 17,
+            center: mp.Point(
+              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+            ),
+          ),
+        );
+      }
+      // Trigger a fresh location fetch for high accuracy
+      gl.Geolocator.getCurrentPosition(
+        locationSettings: const gl.LocationSettings(
+          accuracy: gl.LocationAccuracy.high,
+        ),
+      ).then((pos) {
+        if (mounted) {
+          controller.flyTo(
+            mp.CameraOptions(
+              zoom: 17,
+              center: mp.Point(
+                coordinates: mp.Position(pos.longitude, pos.latitude),
+              ),
+            ),
+            mp.MapAnimationOptions(duration: 1000),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[MapScreen] Initial location fetch failed: $e');
+    }
+
+    mapboxMapController?.location.updateSettings(
+      mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
+    );
+
+    // 1. Initialize Managers
+    // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
+    _dotManager = await mapboxMapController?.annotations
+        .createCircleAnnotationManager();
+    _annotationManager = await mapboxMapController?.annotations
+        .createPointAnnotationManager();
+
+    await _applyStyleLayerExpressions();
+
+    // 3. Configure Dot Native Opacity Expressions (continued)
+    if (_dotManager != null) {
       // Shared tap events for dots
       _dotManager!.tapEvents(
         onTap: (annotation) =>
             _onMarkerTapped(annotation.id, annotation.geometry),
+      );
+      _dotManager!.longPressEvents(
+        onLongPress: (annotation) =>
+            _onMarkerLongPressed(annotation.id, annotation.geometry),
       );
     }
 
@@ -628,6 +696,12 @@ class _MapScreenState extends State<MapScreen>
     _annotationManager?.tapEvents(
       onTap: (annotation) =>
           _onMarkerTapped(annotation.id, annotation.geometry),
+    );
+    _annotationManager?.longPressEvents(
+      onLongPress: (annotation) {
+        HapticFeedback.heavyImpact();
+        _onMarkerLongPressed(annotation.id, annotation.geometry);
+      },
     );
 
     if (!mounted) return;
@@ -657,12 +731,53 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
+  void _onMarkerLongPressed(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
+
+    HapticFeedback.heavyImpact();
+    final spending = context.read<SpendingService>();
+    final allTxs = [
+      ...spending.mappedTransactions,
+      ...spending.periodTransactions,
+    ];
+    final txIndex = allTxs.indexWhere((t) => t.id == place.id);
+
+    if (txIndex != -1 && mounted) {
+      // Close any open popups first
+      if (_selectedPlace != null) {
+        setState(() {
+          _selectedPlace = null;
+          _popupPosition = null;
+        });
+      }
+
+      Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute(
+          builder: (context) =>
+              LocationPickerScreen(transaction: allTxs[txIndex]),
+        ),
+      );
+    }
+  }
+
   void _refreshAnnotations() async {
     if (_annotationManager == null) return;
 
     final spending = context.read<SpendingService>();
-    // Skip updates during the loading phase to avoid redundant/stale redrawing
-    if (spending.isLoading) return;
+
+    // If spending service is loading, ensure we show our local indicator
+    if (spending.isLoading) {
+      if (!_isMapUpdating) {
+        setState(() => _isMapUpdating = true);
+      }
+      return;
+    }
+
+    // Start local update phase
+    if (!_isMapUpdating) {
+      setState(() => _isMapUpdating = true);
+    }
 
     // Versioning prevents rapid consecutive refreshes from
     // clobbering each other (race conditions).
@@ -688,6 +803,11 @@ class _MapScreenState extends State<MapScreen>
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
 
     await _addAllAnnotations(newPlaces);
+
+    // Finalize update phase
+    if (currentVersion == _annotationUpdateVersion && mounted) {
+      setState(() => _isMapUpdating = false);
+    }
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
