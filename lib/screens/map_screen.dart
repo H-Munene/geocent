@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_popup/flutter_popup.dart';
 
 import 'package:hugeicons/hugeicons.dart';
@@ -19,7 +20,9 @@ import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
+import '../widgets/animated_spending_analytics.dart';
 import '../widgets/category_dropdown_widget.dart';
+import '../widgets/category_messages_sheet.dart';
 import '../widgets/map_style_picker_modal.dart';
 import '../widgets/search_messages_sheet.dart';
 import 'location_picker_screen.dart';
@@ -46,6 +49,10 @@ class _MapScreenState extends State<MapScreen> {
   bool _isMapUpdating = false;
   bool _isSearching = false;
 
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _showAnalytics = true;
+
   String? _selectedCategory;
   String? _selectedTxId;
 
@@ -59,7 +66,11 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _loadMapStyle();
     _positionTracking();
+
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+    _searchController.addListener(_onSearchTextChanged);
 
     // Listen for background service events
     _bgServiceSub = FlutterBackgroundService().on('transaction_saved').listen((
@@ -80,6 +91,55 @@ class _MapScreenState extends State<MapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SpendingService>().addListener(_handleSelectedTransaction);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchController.removeListener(_onSearchTextChanged);
+    _searchFocusNode.dispose();
+    _searchController.dispose();
+
+    userPositionStream?.cancel();
+    _bgServiceSub?.cancel();
+    mapboxMapController?.dispose();
+    _smsService?.dispose();
+
+    // Remove listener to prevent memory leaks
+    final spending = Provider.of<SpendingService>(context, listen: false);
+    spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_handleSelectedTransaction);
+
+    super.dispose();
+  }
+
+  void _onSearchFocusChanged() {
+    setState(() {
+      _showAnalytics =
+          !_searchFocusNode.hasFocus && _searchController.text.isEmpty;
+    });
+  }
+
+  void _onSearchTextChanged() {
+    setState(() {
+      _showAnalytics =
+          !_searchFocusNode.hasFocus && _searchController.text.isEmpty;
+    });
+  }
+
+  Future<void> _loadMapStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedStyle = prefs.getString('map_style');
+    if (savedStyle != null && mounted) {
+      setState(() {
+        _currentMapStyle = savedStyle;
+      });
+    }
+  }
+
+  Future<void> _saveMapStyle(String styleUri) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('map_style', styleUri);
   }
 
   void _handleSelectedTransaction() async {
@@ -171,21 +231,6 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    userPositionStream?.cancel();
-    _bgServiceSub?.cancel();
-    mapboxMapController?.dispose();
-    _smsService?.dispose();
-
-    // Remove listener to prevent memory leaks
-    final spending = Provider.of<SpendingService>(context, listen: false);
-    spending.removeListener(_refreshAnnotations);
-    spending.removeListener(_handleSelectedTransaction);
-
-    super.dispose();
-  }
-
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -237,57 +282,72 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                     ],
                   ),
-                  child: CupertinoSearchTextField(
-                    suffixIcon: _isSearching
-                        ? const Icon(CupertinoIcons.clear_thick_circled)
-                        : const Icon(CupertinoIcons.search),
-                    suffixMode: OverlayVisibilityMode.editing,
-                    onSubmitted: (value) async {
-                      if (value.trim().isEmpty) return;
+                  child: Stack(
+                    alignment: Alignment.centerRight,
+                    children: [
+                      CupertinoSearchTextField(
+                        controller: _searchController,
+                        focusNode: _searchFocusNode,
+                        suffixIcon: _isSearching
+                            ? const Icon(CupertinoIcons.clear_thick_circled)
+                            : const Icon(CupertinoIcons.search),
+                        suffixMode: OverlayVisibilityMode.editing,
+                        onSubmitted: (value) async {
+                          if (value.trim().isEmpty) return;
 
-                      setState(() => _isSearching = true);
+                          setState(() => _isSearching = true);
 
-                      try {
-                        final spendingService = context.read<SpendingService>();
-                        final results = await spendingService.searchMessages(
-                          value,
-                        );
+                          try {
+                            final spendingService = context
+                                .read<SpendingService>();
+                            final results = await spendingService
+                                .searchMessages(value);
 
-                        if (!context.mounted) return;
+                            if (!context.mounted) return;
 
-                        FocusScope.of(context).unfocus();
+                            FocusScope.of(context).unfocus();
 
-                        showCupertinoSheet(
-                          context: context,
-                          builder: (context) => SearchMessagesSheet(
-                            results: results,
-                            query: value,
-                            onMessageSelected: (tx) {
-                              spendingService.selectTransaction(tx.id);
-                            },
+                            showCupertinoSheet(
+                              context: context,
+                              builder: (context) => SearchMessagesSheet(
+                                results: results,
+                                query: value,
+                                onMessageSelected: (tx) {
+                                  spendingService.selectTransaction(tx.id);
+                                },
+                              ),
+                            );
+                          } catch (e) {
+                            debugPrint('Search error: $e');
+                          } finally {
+                            if (mounted) {
+                              setState(() => _isSearching = false);
+                            }
+                          }
+                        },
+                        placeholder: 'Search transactions...',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 15,
+                          color: const Color(0xFF1D1D1F),
+                        ),
+                        backgroundColor: CupertinoColors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
+                      Positioned(
+                        right: 44, // Adjusted to be before the search icon
+                        child: IgnorePointer(
+                          child: AnimatedOpacity(
+                            opacity: _showAnalytics ? 1.0 : 0.0,
+                            duration: const Duration(milliseconds: 300),
+                            child: const AnimatedSpendingAnalytics(),
                           ),
-                        );
-                      } catch (e) {
-                        debugPrint('Search error: $e');
-                      } finally {
-                        if (mounted) {
-                          setState(() => _isSearching = false);
-                        }
-                      }
-                    },
-                    placeholder: 'Search transactions...',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 15,
-                      color: const Color(0xFF1D1D1F),
-                    ),
-                    backgroundColor: CupertinoColors.white.withValues(
-                      alpha: 0.9,
-                    ),
-                    borderRadius: BorderRadius.circular(14),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (_isSearching)
@@ -317,7 +377,7 @@ class _MapScreenState extends State<MapScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: GestureDetector(
-                          onTap: () {
+                          onTap: () async {
                             HapticFeedback.lightImpact();
                             setState(() {
                               if (_selectedCategory == cat.name) {
@@ -326,6 +386,25 @@ class _MapScreenState extends State<MapScreen> {
                                 _selectedCategory = cat.name;
                               }
                             });
+
+                            // If we just selected a category, show the sheet with its messages
+                            if (_selectedCategory != null) {
+                              final results = await spending
+                                  .getMessagesByCategory(cat.name);
+
+                              if (!context.mounted) return;
+
+                              showCupertinoSheet(
+                                context: context,
+                                builder: (context) => CategoryMessagesSheet(
+                                  results: results,
+                                  categoryName: cat.name,
+                                  onMessageSelected: (tx) {
+                                    spending.selectTransaction(tx.id);
+                                  },
+                                ),
+                              );
+                            }
                           },
                           child: AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
@@ -497,7 +576,6 @@ class _MapScreenState extends State<MapScreen> {
                   filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: CustomPopup(
                     key: _popupKey,
-                    // *** TODO verify 
                     backgroundColor: Colors.white,
                     contentPadding: EdgeInsets.zero,
                     content: DefaultTextStyle(
@@ -665,6 +743,7 @@ class _MapScreenState extends State<MapScreen> {
         onStyleChanged: (newStyle) async {
           if (newStyle == _currentMapStyle) return;
           setState(() => _currentMapStyle = newStyle);
+          await _saveMapStyle(newStyle);
           await mapboxMapController?.loadStyleURI(newStyle);
           // Wait for style to load before re-applying layer properties
           Future.delayed(const Duration(milliseconds: 500), () {

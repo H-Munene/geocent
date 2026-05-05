@@ -159,6 +159,16 @@ class TransactionRepository {
     return rows.map(AppTransaction.fromMap).toList();
   }
 
+  Future<List<AppTransaction>> loadByCategory(String category) async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where: '${DatabaseHelper.colCategory} = ?',
+      whereArgs: [category],
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<Map<String, double>> getAllLimits() async {
     final rows = await _db.rawQuery(DatabaseHelper.tableSpendingLimits);
     return {

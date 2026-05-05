@@ -117,6 +117,10 @@ class SpendingService extends ChangeNotifier {
     return await _repo.searchTransactions(query);
   }
 
+  Future<List<AppTransaction>> getMessagesByCategory(String category) async {
+    return await _repo.loadByCategory(category);
+  }
+
   /// Reload spent totals, limit, and mapped transactions from DB.
   Future<void> refresh() async {
     _isLoading = true;
