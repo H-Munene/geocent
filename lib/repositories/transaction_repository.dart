@@ -1,9 +1,32 @@
 import 'package:mapbox_tut/database_helper.dart';
+import 'package:mapbox_tut/models/category_analytics.dart';
 
 import '../models/app_transaction.dart';
 
 class TransactionRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
+
+  Future<List<CategoryAnalytics>> getCategoryComparison() async {
+    final db = await _db.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          ${DatabaseHelper.colCategory} as category,
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as today_total,
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', '-1 day', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as yesterday_total
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colCategory} IS NOT NULL
+      GROUP BY ${DatabaseHelper.colCategory}
+      HAVING today_total > 0 OR yesterday_total > 0
+    ''');
+
+    return maps.map((m) {
+      return CategoryAnalytics(
+        category: m['category'] as String,
+        todayTotal: (m['today_total'] as num).toDouble(),
+        yesterdayTotal: (m['yesterday_total'] as num).toDouble(),
+      );
+    }).toList();
+  }
 
   Future<void> save(AppTransaction tx) async {
     await _db.rawInsert(DatabaseHelper.tableTransactions, tx.toMap());

@@ -338,7 +338,7 @@ class _MapScreenState extends State<MapScreen> {
                         ),
                       ),
                       Positioned(
-                        right: 44, // Adjusted to be before the search icon
+                        right: 35, // Adjusted to be before the search icon
                         child: IgnorePointer(
                           child: AnimatedOpacity(
                             opacity: _showAnalytics ? 1.0 : 0.0,

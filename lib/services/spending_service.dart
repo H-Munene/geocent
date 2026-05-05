@@ -1,5 +1,6 @@
 // lib/services/spending_service.dart
 import 'package:flutter/cupertino.dart';
+import 'package:mapbox_tut/models/category_analytics.dart';
 import 'package:mapbox_tut/utils/categories.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
@@ -14,6 +15,7 @@ class SpendingService extends ChangeNotifier {
   String _period = 'This Week';
   List<AppTransaction> _periodTransactions = [];
   List<AppTransaction> _mappedTransactions = [];
+  List<CategoryAnalytics> _categoryComparison = [];
   final List<AppTransaction> _actionableTransactions = [];
   String? _selectedTxId;
   bool _isLoading = false;
@@ -52,6 +54,7 @@ class SpendingService extends ChangeNotifier {
   String get period => _period;
   bool get isLoading => _isLoading;
   List<AppTransaction> get periodTransactions => _periodTransactions;
+  List<CategoryAnalytics> get categoryComparison => _categoryComparison;
   List<CategoryItem> get categories => List.unmodifiable(_defaultCategories);
 
   /// Only transactions with GPS — used to rebuild map annotations.
@@ -133,11 +136,13 @@ class SpendingService extends ChangeNotifier {
       _repo.loadByPeriod(_period),
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
+      _repo.getCategoryComparison(),
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
+    _categoryComparison = results[3] as List<CategoryAnalytics>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
 
     _isLoading = false;

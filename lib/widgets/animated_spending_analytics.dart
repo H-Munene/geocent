@@ -1,13 +1,9 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-class AnalyticsData {
-  final String category;
-  final String amount;
-  final bool isNegative;
-  AnalyticsData(this.category, this.amount, this.isNegative);
-}
+import 'package:provider/provider.dart';
+import '../services/spending_service.dart';
+import '../models/category_analytics.dart';
 
 class AnimatedSpendingAnalytics extends StatefulWidget {
   const AnimatedSpendingAnalytics({super.key});
@@ -18,17 +14,6 @@ class AnimatedSpendingAnalytics extends StatefulWidget {
 }
 
 class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
-  final List<AnalyticsData> _analytics = [
-    AnalyticsData('Shopping', '+KES 500', false),
-    AnalyticsData('Dining', '-KES 1,200', true),
-    AnalyticsData('Transport', '-KES 300', true),
-    AnalyticsData('Utilities', '+KES 4,500', false),
-    AnalyticsData('Entertainment', '-KES 2,100', true),
-    AnalyticsData('Supermarket Groceries', '-KES 8,500', true),
-    AnalyticsData('Coffee Break', '-KES 450', true),
-    AnalyticsData('Monthly Rent Payment', '+KES 45,000', false),
-  ];
-
   int _currentIndex = 0;
   Timer? _timer;
 
@@ -41,9 +26,12 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
-        setState(() {
-          _currentIndex = (_currentIndex + 1) % _analytics.length;
-        });
+        final analytics = context.read<SpendingService>().categoryComparison;
+        if (analytics.isNotEmpty) {
+          setState(() {
+            _currentIndex = (_currentIndex + 1) % analytics.length;
+          });
+        }
       }
     });
   }
@@ -56,10 +44,27 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
 
   @override
   Widget build(BuildContext context) {
-    final data = _analytics[_currentIndex];
+    final List<CategoryAnalytics> analytics = context
+        .watch<SpendingService>()
+        .categoryComparison;
+
+    if (analytics.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    // Safety check in case the list shrunk while index stayed high
+    if (_currentIndex >= analytics.length) {
+      _currentIndex = 0;
+    }
+
+    final data = analytics[_currentIndex];
+    // Green if spending less than yesterday (negative difference)
+    // Red if spending more than yesterday (positive difference)
     final color = data.isNegative
         ? CupertinoColors.systemGreen
-        : CupertinoColors.systemRed;
+        : data.isPositive
+        ? CupertinoColors.systemRed
+        : CupertinoColors.systemGrey;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 600),
@@ -83,15 +88,15 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
         );
       },
       child: SizedBox(
-        key: ValueKey<int>(_currentIndex),
-        width: 160, // Sufficient width for the analytics
+        key: ValueKey<String>('${data.category}_${data.formattedDifference}'),
+        width: 160,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Flexible(
               child: Text(
-                data.category,
+                data.trimmedCategory,
                 textAlign: TextAlign.right,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -104,7 +109,7 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
             ),
             const SizedBox(width: 4),
             Text(
-              data.amount,
+              data.formattedDifference,
               style: GoogleFonts.spaceGrotesk(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
