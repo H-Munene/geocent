@@ -165,7 +165,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             ? const CupertinoActivityIndicator()
             : CupertinoButton(
                 padding: EdgeInsets.zero,
-                child: const Text('Confirm'),
+                child: Text(
+                  'Confirm',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: const Color(0xFF1D1D1F),
+                  ),
+                ),
                 onPressed: () {
                   HapticFeedback.mediumImpact();
                   _onConfirm();
