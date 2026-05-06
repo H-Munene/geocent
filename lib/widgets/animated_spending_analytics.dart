@@ -107,7 +107,7 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
                     color: color,
                     size: iconSize,
                   ),
-
+            const SizedBox(height: 2),
             Flexible(
               child: Text(
                 data.trimmedCategory,

@@ -1,7 +1,9 @@
 // lib/services/spending_service.dart
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:mapbox_tut/models/category_analytics.dart';
 import 'package:mapbox_tut/utils/categories.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
 import '../repositories/transaction_repository.dart';
@@ -34,7 +36,7 @@ class SpendingService extends ChangeNotifier {
     availableIcons[29]!, // snacks
     availableIcons[35]!, // public transport
     availableIcons[1]!, // shopping
-    availableIcons[6]!, // taxi
+    availableIcons[34]!, // taxi
     availableIcons[37]!, // social
     availableIcons[10]!, // entertainment
     availableIcons[17]!, // laundry
@@ -72,6 +74,12 @@ class SpendingService extends ChangeNotifier {
 
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
+    // Check in-memory actively used categories first (includes custom ones)
+    final fromMemory = _defaultCategories
+        .where((c) => c.name == name)
+        .firstOrNull;
+    if (fromMemory != null) return fromMemory;
+    // Fallback to all available icons
     return availableIcons.values.where((c) => c.name == name).firstOrNull;
   }
 
@@ -92,7 +100,66 @@ class SpendingService extends ChangeNotifier {
 
   /// Call once from home.dart initState (or in the provider's create callback).
   Future<void> init() async {
+    await _loadCustomCategories();
     await refresh();
+  }
+
+  // ── Custom Categories Persistence ──────────────────────────────────────────
+
+  Future<void> _loadCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customCatsStr = prefs.getString('custom_categories');
+      if (customCatsStr != null) {
+        final List<dynamic> decoded = jsonDecode(customCatsStr);
+        for (final item in decoded) {
+          final String name = item['name'];
+          final int baseId = item['baseId'];
+
+          if (availableIcons.containsKey(baseId) &&
+              !_defaultCategories.any((c) => c.name == name)) {
+            final baseCat = availableIcons[baseId]!;
+            _defaultCategories.add(
+              CategoryItem(
+                name: name,
+                icon: baseCat.icon,
+                color: baseCat.color,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to load custom categories: $e');
+    }
+  }
+
+  Future<void> _saveCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Filter out the built-in default ones to only save custom ones
+      final builtInNames = availableIcons.values.map((c) => c.name).toSet();
+      final customCategories = _defaultCategories
+          .where((c) => !builtInNames.contains(c.name))
+          .toList();
+
+      final List<Map<String, dynamic>> toSave = customCategories.map((cat) {
+        // Find baseId
+        int baseId = 2; // Default to dining
+        for (final entry in availableIcons.entries) {
+          if (entry.value.icon == cat.icon) {
+            baseId = entry.key;
+            break;
+          }
+        }
+        return {'name': cat.name, 'baseId': baseId};
+      }).toList();
+
+      await prefs.setString('custom_categories', jsonEncode(toSave));
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to save custom categories: $e');
+    }
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -237,6 +304,7 @@ class SpendingService extends ChangeNotifier {
   void addCategory(CategoryItem category) {
     if (!_defaultCategories.any((c) => c.name == category.name)) {
       _defaultCategories.add(category);
+      _saveCustomCategories();
       notifyListeners();
     }
   }
