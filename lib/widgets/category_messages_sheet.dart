@@ -1,7 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
+import '../services/spending_service.dart';
+import '../utils/categories.dart';
 import 'custom_toast.dart';
 
 class CategoryMessagesSheet extends StatefulWidget {
@@ -100,13 +104,13 @@ class _CategoryMessagesSheetState extends State<CategoryMessagesSheet> {
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: const BoxDecoration(
-                          color: CupertinoColors.systemGrey5,
+                          color: CupertinoColors.white,
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
                           CupertinoIcons.clear,
                           size: 20,
-                          color: CupertinoColors.systemGrey,
+                          color: CupertinoColors.black,
                         ),
                       ),
                     ),
@@ -186,23 +190,46 @@ class _CategoryMessagesSheetState extends State<CategoryMessagesSheet> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: _getAvatarColor(tx.merchant),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            initial,
-                                            style: GoogleFonts.spaceGrotesk(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w600,
+                                      Builder(
+                                        builder: (context) {
+                                          final categoryItem = context
+                                              .read<SpendingService>()
+                                              .getCategoryByName(tx.category);
+
+                                          final hasValidCategory =
+                                              categoryItem != null;
+
+                                          return Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: hasValidCategory
+                                                  ? categoryItem.color
+                                                  : _getAvatarColor(
+                                                      tx.merchant,
+                                                    ),
+                                              shape: BoxShape.circle,
                                             ),
-                                          ),
-                                        ),
+                                            child: Center(
+                                              child: hasValidCategory
+                                                  ? HugeIcon(
+                                                      icon: categoryItem.icon,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    )
+                                                  : Text(
+                                                      initial,
+                                                      style:
+                                                          GoogleFonts.spaceGrotesk(
+                                                            color: Colors.white,
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(

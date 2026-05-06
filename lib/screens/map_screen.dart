@@ -1084,7 +1084,7 @@ class _MapScreenState extends State<MapScreen> {
       final circleOptions = mp.CircleAnnotationOptions(
         geometry: geometry,
         circleColor:
-            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
+            cat?.color.toARGB32() ?? const ui.Color(0xFF0071E3).toARGB32(),
         circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
