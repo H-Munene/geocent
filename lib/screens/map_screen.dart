@@ -134,6 +134,24 @@ class _MapScreenState extends State<MapScreen> {
       setState(() {
         _currentMapStyle = savedStyle;
       });
+
+      // If controller is already ready, load the style now
+      if (mapboxMapController != null) {
+        await mapboxMapController!.loadStyleURI(savedStyle);
+        // Style load takes a moment, expressions need re-applying
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _applyStyleLayerExpressions();
+            _refreshAnnotations();
+          }
+        });
+      }
+    }
+  }
+
+  void _handleMapTap(mp.MapContentGestureContext context) {
+    if (_searchFocusNode.hasFocus) {
+      _searchFocusNode.unfocus();
     }
   }
 
@@ -255,297 +273,258 @@ class _MapScreenState extends State<MapScreen> {
         .toList();
 
     return CupertinoPageScaffold(
-      child: Stack(
-        children: [
-          mp.MapWidget(styleUri: _currentMapStyle, onMapCreated: onMapCreated),
-          if (spending.isLoading || _isMapUpdating)
-            const Center(
-              child: CupertinoActivityIndicator(
-                radius: 16,
-                color: CupertinoColors.activeBlue,
-              ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          if (_searchFocusNode.hasFocus) {
+            _searchFocusNode.unfocus();
+          }
+        },
+        child: Stack(
+          children: [
+            mp.MapWidget(
+              styleUri: _currentMapStyle,
+              onMapCreated: onMapCreated,
+              onTapListener: _handleMapTap,
             ),
-          Positioned(
-            top: topPadding,
-            left: 16,
-            right: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: CupertinoColors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.centerRight,
-                    children: [
-                      CupertinoSearchTextField(
-                        controller: _searchController,
-                        focusNode: _searchFocusNode,
-                        suffixIcon: _isSearching
-                            ? const Icon(CupertinoIcons.clear_thick_circled)
-                            : const Icon(CupertinoIcons.search),
-                        suffixMode: OverlayVisibilityMode.editing,
-                        onSubmitted: (value) async {
-                          if (value.trim().isEmpty) return;
-
-                          setState(() => _isSearching = true);
-
-                          try {
-                            final spendingService = context
-                                .read<SpendingService>();
-                            final results = await spendingService
-                                .searchMessages(value);
-
-                            if (!context.mounted) return;
-
-                            FocusScope.of(context).unfocus();
-
-                            showCupertinoSheet(
-                              context: context,
-                              builder: (context) => SearchMessagesSheet(
-                                results: results,
-                                query: value,
-                                onMessageSelected: (tx) {
-                                  spendingService.selectTransaction(tx.id);
-                                },
-                              ),
-                            );
-                          } catch (e) {
-                            debugPrint('Search error: $e');
-                          } finally {
-                            if (mounted) {
-                              setState(() => _isSearching = false);
+            if (spending.isLoading || _isMapUpdating)
+              const Center(
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: CupertinoColors.activeBlue,
+                ),
+              ),
+            Positioned(
+              top: topPadding,
+              left: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: CupertinoColors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.centerRight,
+                      children: [
+                        TapRegion(
+                          onTapOutside: (event) {
+                            if (_searchFocusNode.hasFocus) {
+                              _searchFocusNode.unfocus();
                             }
-                          }
-                        },
-                        placeholder: 'Search transactions...',
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 15,
-                          color: const Color(0xFF1D1D1F),
-                        ),
-                        backgroundColor: CupertinoColors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
-                      Positioned(
-                        right: 35, // Adjusted to be before the search icon
-                        child: IgnorePointer(
-                          child: AnimatedOpacity(
-                            opacity: _showAnalytics ? 1.0 : 0.0,
-                            duration: const Duration(milliseconds: 300),
-                            child: const AnimatedSpendingAnalytics(),
+                          },
+                          child: CupertinoSearchTextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            suffixIcon: _isSearching
+                                ? const Icon(CupertinoIcons.clear_thick_circled)
+                                : const Icon(CupertinoIcons.search),
+                            suffixMode: OverlayVisibilityMode.editing,
+                            onSubmitted: (value) async {
+                              if (value.trim().isEmpty) return;
+
+                              setState(() => _isSearching = true);
+
+                              try {
+                                final spendingService = context
+                                    .read<SpendingService>();
+                                final results = await spendingService
+                                    .searchMessages(value);
+
+                                if (!context.mounted) return;
+
+                                FocusScope.of(context).unfocus();
+
+                                showCupertinoSheet(
+                                  context: context,
+                                  builder: (context) => SearchMessagesSheet(
+                                    results: results,
+                                    query: value,
+                                    onMessageSelected: (tx) {
+                                      spendingService.selectTransaction(tx.id);
+                                    },
+                                  ),
+                                );
+                              } catch (e) {
+                                debugPrint('Search error: $e');
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isSearching = false);
+                                }
+                              }
+                            },
+                            placeholder: 'Search transactions...',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 15,
+                              color: const Color(0xFF1D1D1F),
+                            ),
+                            backgroundColor: CupertinoColors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_isSearching)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8, left: 12),
-                    child: Row(
-                      children: [
-                        CupertinoActivityIndicator(radius: 8),
-                        SizedBox(width: 8),
-                        Text(
-                          'Searching...',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: CupertinoColors.systemGrey,
+                        Positioned(
+                          right: 30, // Adjusted to be before the search icon
+                          child: IgnorePointer(
+                            child: AnimatedOpacity(
+                              opacity: _showAnalytics ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 300),
+                              child: const AnimatedSpendingAnalytics(),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: spending.categories.map((cat) {
-                      final isSelected = _selectedCategory == cat.name;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () async {
-                            HapticFeedback.lightImpact();
-                            setState(() {
-                              if (_selectedCategory == cat.name) {
-                                _selectedCategory = null;
-                              } else {
-                                _selectedCategory = cat.name;
-                              }
-                            });
-
-                            // If we just selected a category, show the sheet with its messages
-                            if (_selectedCategory != null) {
-                              final results = await spending
-                                  .getMessagesByCategory(cat.name);
-
-                              if (!context.mounted) return;
-
-                              showCupertinoSheet(
-                                context: context,
-                                builder: (context) => CategoryMessagesSheet(
-                                  results: results,
-                                  categoryName: cat.name,
-                                  onMessageSelected: (tx) {
-                                    spending.selectTransaction(tx.id);
-                                  },
-                                ),
-                              );
-                            }
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
+                  if (_isSearching)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8, left: 12),
+                      child: Row(
+                        children: [
+                          CupertinoActivityIndicator(radius: 8),
+                          SizedBox(width: 8),
+                          Text(
+                            'Searching...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: CupertinoColors.systemGrey,
                             ),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? cat.color
-                                  : CupertinoColors.white.withValues(
-                                      alpha: 0.9,
-                                    ),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: spending.categories.map((cat) {
+                        final isSelected = _selectedCategory == cat.name;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                if (_selectedCategory == cat.name) {
+                                  _selectedCategory = null;
+                                } else {
+                                  _selectedCategory = cat.name;
+                                }
+                              });
+
+                              // If we just selected a category, show the sheet with its messages
+                              if (_selectedCategory != null) {
+                                final results = await spending
+                                    .getMessagesByCategory(cat.name);
+
+                                if (!context.mounted) return;
+
+                                showCupertinoSheet(
+                                  context: context,
+                                  builder: (context) => CategoryMessagesSheet(
+                                    results: results,
+                                    categoryName: cat.name,
+                                    onMessageSelected: (tx) {
+                                      spending.selectTransaction(tx.id);
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
                                 color: isSelected
                                     ? cat.color
-                                    : CupertinoColors.systemGrey5,
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: CupertinoColors.black.withValues(
-                                    alpha: 0.05,
-                                  ),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                HugeIcon(
-                                  icon: cat.icon,
+                                    : CupertinoColors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
                                   color: isSelected
-                                      ? CupertinoColors.white
-                                      : CupertinoColors.black,
-                                  size: 16,
+                                      ? cat.color
+                                      : CupertinoColors.systemGrey5,
+                                  width: 1,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  cat.name,
-                                  style: GoogleFonts.spaceGrotesk(
-                                    fontSize: 13,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: CupertinoColors.black.withValues(
+                                      alpha: 0.05,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  HugeIcon(
+                                    icon: cat.icon,
                                     color: isSelected
                                         ? CupertinoColors.white
                                         : CupertinoColors.black,
+                                    size: 16,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    cat.name,
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? CupertinoColors.white
+                                          : CupertinoColors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // FABs moved into the stack as Positioned widgets
-          Positioned(
-            bottom: 32,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    _showMapStylePicker();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.square_stack_3d_up,
-                      color: Color(0xFF1D1D1F),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    _flyToUserLocation();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.location_fill,
-                      color: Color(0xFF1D1D1F),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (_places.isNotEmpty)
+            // FABs moved into the stack as Positioned widgets
+            Positioned(
+              bottom: 32,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: _isAnimating
-                        ? null
-                        : () {
-                            HapticFeedback.mediumImpact();
-                            _animateAnnotations();
-                          },
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      _showMapStylePicker();
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isAnimating
-                            ? CupertinoColors.systemGrey3
-                            : const Color(0xFF1D1D1F),
+                      decoration: const BoxDecoration(
+                        color: CupertinoColors.white,
                         shape: BoxShape.circle,
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
                             color: Color(0x26000000),
                             blurRadius: 12,
@@ -553,127 +532,185 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                         ],
                       ),
-                      child: _isAnimating
-                          ? const CupertinoActivityIndicator(
-                              color: CupertinoColors.white,
-                            )
-                          : const Icon(
-                              CupertinoIcons.play_fill,
-                              color: CupertinoColors.white,
-                            ),
+                      child: const Icon(
+                        CupertinoIcons.square_stack_3d_up,
+                        color: Color(0xFF1D1D1F),
+                      ),
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (_popupPosition != null)
-            Positioned(
-              left: _popupPosition!.x,
-              top: _popupPosition!.y,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: CustomPopup(
-                    key: _popupKey,
-                    backgroundColor: Colors.white,
-                    contentPadding: EdgeInsets.zero,
-                    content: DefaultTextStyle(
-                      style: GoogleFonts.spaceGrotesk(
-                        color: Colors.black,
-                        decoration: TextDecoration.none,
+                  const SizedBox(height: 12),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      _flyToUserLocation();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: CupertinoColors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x26000000),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
+                      child: const Icon(
+                        CupertinoIcons.location_fill,
+                        color: Color(0xFF1D1D1F),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_places.isNotEmpty)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _isAnimating
+                          ? null
+                          : () {
+                              HapticFeedback.mediumImpact();
+                              _animateAnnotations();
+                            },
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 300),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Builder(
-                              builder: (context) {
-                                final cat = context
-                                    .read<SpendingService>()
-                                    .getCategoryByName(
-                                      _selectedPlace?.category,
-                                    );
-                                return CustomPopup(
-                                  barrierColor: CupertinoColors.transparent,
-                                  contentPadding: EdgeInsets.zero,
-                                  content: CategoryDropdownWidget(
-                                    transactionId: _selectedPlace!.id,
-                                    currentCategory: _selectedPlace!.category,
-                                    onCategorySelected: () {
-                                      HapticFeedback.lightImpact();
-                                      Navigator.popUntil(
-                                        context,
-                                        (route) => route.isFirst,
-                                      );
-                                    },
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: cat == null
-                                          ? CupertinoColors.systemGrey5
-                                          : cat.color.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (cat != null) ...[
-                                          HugeIcon(
-                                            icon: cat.icon,
-                                            color: cat.color,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _selectedPlace?.category ??
-                                              'Set Category',
-                                          style: GoogleFonts.spaceGrotesk(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: cat == null
-                                                ? CupertinoColors.systemGrey
-                                                : cat.color,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              height: 1,
-                              color: Colors.black.withValues(alpha: 0.1),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _selectedPlace?.rawMessage ?? '',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 14,
-                                height: 1.5,
-                                color: Colors.black,
-                              ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _isAnimating
+                              ? CupertinoColors.systemGrey3
+                              : const Color(0xFF1D1D1F),
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
+                        child: _isAnimating
+                            ? const CupertinoActivityIndicator(
+                                color: CupertinoColors.white,
+                              )
+                            : const Icon(
+                                CupertinoIcons.play_fill,
+                                color: CupertinoColors.white,
+                              ),
                       ),
                     ),
-                    child: const SizedBox.shrink(),
+                ],
+              ),
+            ),
+            if (_popupPosition != null)
+              Positioned(
+                left: _popupPosition!.x,
+                top: _popupPosition!.y,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: CustomPopup(
+                      key: _popupKey,
+                      backgroundColor: Colors.white,
+                      contentPadding: EdgeInsets.zero,
+                      content: DefaultTextStyle(
+                        style: GoogleFonts.spaceGrotesk(
+                          color: Colors.black,
+                          decoration: TextDecoration.none,
+                        ),
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 300),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final cat = context
+                                      .read<SpendingService>()
+                                      .getCategoryByName(
+                                        _selectedPlace?.category,
+                                      );
+                                  return CustomPopup(
+                                    barrierColor: CupertinoColors.transparent,
+                                    contentPadding: EdgeInsets.zero,
+                                    content: CategoryDropdownWidget(
+                                      transactionId: _selectedPlace!.id,
+                                      currentCategory: _selectedPlace!.category,
+                                      onCategorySelected: () {
+                                        HapticFeedback.lightImpact();
+                                        Navigator.popUntil(
+                                          context,
+                                          (route) => route.isFirst,
+                                        );
+                                      },
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: cat == null
+                                            ? CupertinoColors.systemGrey5
+                                            : cat.color.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (cat != null) ...[
+                                            HugeIcon(
+                                              icon: cat.icon,
+                                              color: cat.color,
+                                              size: 16,
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Text(
+                                            _selectedPlace?.category ??
+                                                'Set Category',
+                                            style: GoogleFonts.spaceGrotesk(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: cat == null
+                                                  ? CupertinoColors.systemGrey
+                                                  : cat.color,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                height: 1,
+                                color: Colors.black.withValues(alpha: 0.1),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _selectedPlace?.rawMessage ?? '',
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      child: const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -826,6 +863,11 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> onMapCreated(mp.MapboxMap controller) async {
     setState(() => mapboxMapController = controller);
 
+    // Ensure the persisted style is loaded if it's not the default
+    if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
+      await controller.loadStyleURI(_currentMapStyle);
+    }
+
     final locationPermission = await Permission.location.status;
     if (locationPermission != PermissionStatus.granted) return;
 
@@ -864,15 +906,14 @@ class _MapScreenState extends State<MapScreen> {
       debugPrint('[MapScreen] Initial location fetch failed: $e');
     }
 
-    mapboxMapController?.location.updateSettings(
+    controller.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
     // 1. Initialize Managers
     // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
-    _dotManager = await mapboxMapController?.annotations
-        .createCircleAnnotationManager();
-    _annotationManager = await mapboxMapController?.annotations
+    _dotManager = await controller.annotations.createCircleAnnotationManager();
+    _annotationManager = await controller.annotations
         .createPointAnnotationManager();
 
     await _applyStyleLayerExpressions();

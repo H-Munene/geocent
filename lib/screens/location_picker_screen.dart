@@ -75,12 +75,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _mapboxMap = controller;
 
     // Enable user location indicator (blue dot)
-    _mapboxMap?.location.updateSettings(
+    controller.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
     if (_initialPosition != null) {
-      _mapboxMap?.setCamera(
+      controller.setCamera(
         mp.CameraOptions(
           center: mp.Point(coordinates: _initialPosition!),
           zoom: 15,

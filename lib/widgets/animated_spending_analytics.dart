@@ -66,6 +66,8 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
         ? CupertinoColors.systemRed
         : CupertinoColors.systemGrey;
 
+    const double iconSize = 12;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 600),
       transitionBuilder: (Widget child, Animation<double> animation) {
@@ -94,6 +96,18 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
+            data.isNegative
+                ? Icon(
+                    CupertinoIcons.arrowtriangle_down_fill,
+                    color: color,
+                    size: iconSize,
+                  )
+                : Icon(
+                    CupertinoIcons.arrowtriangle_up_fill,
+                    color: color,
+                    size: iconSize,
+                  ),
+
             Flexible(
               child: Text(
                 data.trimmedCategory,
