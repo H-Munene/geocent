@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
-import 'package:mapbox_tut/models/app_transaction.dart';
-import 'package:mapbox_tut/screens/location_picker_screen.dart';
-import 'package:mapbox_tut/services/spending_service.dart';
-import 'package:mapbox_tut/utils/categories.dart';
+import 'package:geocent/models/app_transaction.dart';
+import 'package:geocent/screens/location_picker_screen.dart';
+import 'package:geocent/services/spending_service.dart';
 import 'category_dropdown_widget.dart';
 
 class UnmappedMessageTile extends StatelessWidget {

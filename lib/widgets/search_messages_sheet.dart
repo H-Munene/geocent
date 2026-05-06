@@ -5,7 +5,6 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
-import '../utils/categories.dart';
 import 'custom_toast.dart';
 
 class SearchMessagesSheet extends StatefulWidget {

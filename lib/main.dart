@@ -5,10 +5,10 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
-import 'package:mapbox_tut/screens/main_screen.dart';
-import 'package:mapbox_tut/services/background_executor.dart';
-import 'package:mapbox_tut/services/spending_service.dart';
-import 'package:mapbox_tut/widgets/custom_toast.dart';
+import 'package:geocent/screens/main_screen.dart';
+import 'package:geocent/services/background_executor.dart';
+import 'package:geocent/services/spending_service.dart';
+import 'package:geocent/widgets/custom_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -58,7 +58,7 @@ class MyApp extends StatelessWidget {
       ),
       child: CupertinoApp(
         navigatorKey: rootNavigatorKey,
-        title: 'SpendMap',
+        title: 'Geocent',
         theme: CupertinoThemeData(
           brightness: Brightness.light,
           primaryColor: const Color(0xFF0071E3),
@@ -83,8 +83,8 @@ Future<void> initializeBackgroundService() async {
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'spendmap_foreground',
-    'SpendMap Background Service',
+    'geocent_foreground',
+    'Geocent Background Service',
     description: 'Running in the background to track expenses',
     importance: Importance.low, // Lower importance so it doesn't pop up
   );
@@ -100,8 +100,8 @@ Future<void> initializeBackgroundService() async {
       onStart: onBackgroundServiceStart,
       autoStart: true,
       isForegroundMode: true,
-      notificationChannelId: 'spendmap_foreground',
-      initialNotificationTitle: 'SpendMap Active',
+      notificationChannelId: 'geocent_foreground',
+      initialNotificationTitle: 'Geocent Active',
       initialNotificationContent: 'Tracking expenses in the background',
       foregroundServiceNotificationId: 888,
       foregroundServiceTypes: [AndroidForegroundType.location],

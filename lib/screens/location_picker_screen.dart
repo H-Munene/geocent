@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:geolocator/geolocator.dart';
-import 'package:mapbox_tut/utils/icons.dart';
+import 'package:geocent/utils/icons.dart';
 import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';

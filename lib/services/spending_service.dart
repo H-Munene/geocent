@@ -1,8 +1,8 @@
 // lib/services/spending_service.dart
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
-import 'package:mapbox_tut/models/category_analytics.dart';
-import 'package:mapbox_tut/utils/categories.dart';
+import 'package:geocent/models/category_analytics.dart';
+import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';

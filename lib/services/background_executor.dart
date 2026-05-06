@@ -102,7 +102,7 @@ void _showTransactionNotification(
 ) {
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
-        'spendmap_tx',
+        'geocent_tx',
         'Transactions',
         channelDescription: 'New transaction alerts',
         importance: Importance.max,

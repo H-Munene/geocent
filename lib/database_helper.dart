@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class DatabaseHelper {
-  static const String _dbName = 'spendmap.db';
+  static const String _dbName = 'geocent.db';
   static const int _dbVersion = 2;
 
   // Table & column constants

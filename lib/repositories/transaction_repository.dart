@@ -1,5 +1,5 @@
-import 'package:mapbox_tut/database_helper.dart';
-import 'package:mapbox_tut/models/category_analytics.dart';
+import 'package:geocent/database_helper.dart';
+import 'package:geocent/models/category_analytics.dart';
 
 import '../models/app_transaction.dart';
 

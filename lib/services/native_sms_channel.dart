@@ -2,7 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:mapbox_tut/models/sms_message.dart';
+import 'package:geocent/models/sms_message.dart';
 
 /// Dart-side wrapper for the native SMS MethodChannel.
 ///
@@ -12,7 +12,7 @@ class NativeSmsChannel {
   NativeSmsChannel._();
   static final NativeSmsChannel instance = NativeSmsChannel._();
 
-  static const _channel = MethodChannel('com.spendmap/sms');
+  static const _channel = MethodChannel('app.geocent/sms');
 
   // StreamController that re-emits every SMS the native side pushes
   final _controller = StreamController<SmsMessage>.broadcast();

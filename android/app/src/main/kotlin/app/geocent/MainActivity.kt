@@ -1,4 +1,4 @@
-package com.example.mapbox_tut
+package app.geocent
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

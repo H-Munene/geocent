@@ -1,5 +1,5 @@
 
-package com.example.mapbox_tut
+package app.geocent
 
 import android.os.Handler
 import android.os.Looper
@@ -28,7 +28,7 @@ class SmsPlugin : FlutterPlugin {
     }
 
     companion object {
-        const val CHANNEL_NAME = "com.spendmap/sms" // Updated to match your Dart code
+        const val CHANNEL_NAME = "app.geocent/sms" // Updated to match your Dart code
         
         // Holds references to both the UI Engine and the Background Service Engine
         private val activeChannels = mutableListOf<MethodChannel>()

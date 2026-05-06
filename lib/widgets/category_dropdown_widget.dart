@@ -1,9 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:mapbox_tut/models/category_item.dart';
-import 'package:mapbox_tut/services/spending_service.dart';
-import 'package:mapbox_tut/utils/categories.dart';
+import 'package:geocent/models/category_item.dart';
+import 'package:geocent/services/spending_service.dart';
+import 'package:geocent/utils/categories.dart';
 import 'package:provider/provider.dart';
 import 'category_sheet.dart';
 import 'custom_toast.dart';
