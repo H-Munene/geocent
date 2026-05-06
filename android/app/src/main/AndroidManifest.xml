@@ -11,9 +11,11 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application
-        android:label="mapbox_tut"
+        android:label="Geocent"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="location|dataSync"

@@ -88,4 +88,32 @@ class AppTransaction {
     longitude: lng,
     category: category,
   );
+
+  AppTransaction copyWith({
+    String? id,
+    double? amount,
+    String? merchant,
+    String? rawMessage,
+    DateTime? timestamp,
+    double? balanceAfter,
+    TransactionSource? source,
+    TransactionType? type,
+    double? latitude,
+    double? longitude,
+    String? category,
+  }) {
+    return AppTransaction(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      merchant: merchant ?? this.merchant,
+      rawMessage: rawMessage ?? this.rawMessage,
+      timestamp: timestamp ?? this.timestamp,
+      balanceAfter: balanceAfter ?? this.balanceAfter,
+      source: source ?? this.source,
+      type: type ?? this.type,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      category: category ?? this.category,
+    );
+  }
 }

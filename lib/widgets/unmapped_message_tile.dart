@@ -1,8 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:mapbox_tut/models/app_transaction.dart';
-import 'package:mapbox_tut/screens/location_picker_screen.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
+import 'package:geocent/models/app_transaction.dart';
+import 'package:geocent/screens/location_picker_screen.dart';
+import 'package:geocent/services/spending_service.dart';
 import 'category_dropdown_widget.dart';
 
 class UnmappedMessageTile extends StatelessWidget {
@@ -110,24 +113,42 @@ class UnmappedMessageTile extends StatelessWidget {
                                 )
                               : null,
                         )
-                      : Container(
-                          key: const ValueKey('avatar'),
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: _getAvatarColor(transaction.merchant),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: GoogleFonts.spaceGrotesk(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                      : Builder(
+                          builder: (context) {
+                            final categoryItem = context
+                                .read<SpendingService>()
+                                .getCategoryByName(transaction.category);
+
+                            final hasValidCategory = categoryItem != null;
+
+                            return Container(
+                              key: const ValueKey('avatar'),
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: hasValidCategory
+                                    ? categoryItem.color
+                                    : _getAvatarColor(transaction.merchant),
+                                shape: BoxShape.circle,
                               ),
-                            ),
-                          ),
+                              child: Center(
+                                child: hasValidCategory
+                                    ? HugeIcon(
+                                        icon: categoryItem.icon,
+                                        color: Colors.white,
+                                        size: 20,
+                                      )
+                                    : Text(
+                                        initial,
+                                        style: GoogleFonts.spaceGrotesk(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                              ),
+                            );
+                          },
                         ),
                 ),
               ),
@@ -139,15 +160,19 @@ class UnmappedMessageTile extends StatelessWidget {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          transaction.merchant,
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1A1A1A),
+                        Expanded(
+                          child: Text(
+                            transaction.merchant,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF1A1A1A),
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
                         Text(
                           transaction.formattedAmount,
                           style: GoogleFonts.spaceGrotesk(

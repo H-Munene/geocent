@@ -1,7 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
+import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
+import '../services/spending_service.dart';
 import 'custom_toast.dart';
 
 class SearchMessagesSheet extends StatefulWidget {
@@ -250,23 +253,46 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        decoration: BoxDecoration(
-                                          color: _getAvatarColor(tx.merchant),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Center(
-                                          child: Text(
-                                            initial,
-                                            style: GoogleFonts.spaceGrotesk(
-                                              color: Colors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w600,
+                                      Builder(
+                                        builder: (context) {
+                                          final categoryItem = context
+                                              .read<SpendingService>()
+                                              .getCategoryByName(tx.category);
+
+                                          final hasValidCategory =
+                                              categoryItem != null;
+
+                                          return Container(
+                                            width: 40,
+                                            height: 40,
+                                            decoration: BoxDecoration(
+                                              color: hasValidCategory
+                                                  ? categoryItem.color
+                                                  : _getAvatarColor(
+                                                      tx.merchant,
+                                                    ),
+                                              shape: BoxShape.circle,
                                             ),
-                                          ),
-                                        ),
+                                            child: Center(
+                                              child: hasValidCategory
+                                                  ? HugeIcon(
+                                                      icon: categoryItem.icon,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    )
+                                                  : Text(
+                                                      initial,
+                                                      style:
+                                                          GoogleFonts.spaceGrotesk(
+                                                            color: Colors.white,
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                          ),
+                                                    ),
+                                            ),
+                                          );
+                                        },
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(

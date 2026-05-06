@@ -58,13 +58,13 @@ class _MapStylePickerModalState extends State<MapStylePickerModal> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: const BoxDecoration(
-                      color: CupertinoColors.systemGrey5,
+                      color: CupertinoColors.white,
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       CupertinoIcons.clear,
                       size: 20,
-                      color: CupertinoColors.systemGrey,
+                      color: CupertinoColors.black,
                     ),
                   ),
                 ),

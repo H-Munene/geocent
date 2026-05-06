@@ -3,8 +3,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class DatabaseHelper {
-  static const String _dbName = 'spendmap.db';
-  static const int _dbVersion = 2;
+  static const String _dbName = 'geocent.db';
+  static const int _dbVersion = 3;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -24,6 +24,10 @@ class DatabaseHelper {
   static const String colPeriod = 'period'; // 'daily' | 'weekly' | 'monthly'
   static const String colLimitAmount = 'limit_amount';
   static const String colUpdatedAt = 'updated_at';
+
+  static const String tableMerchantCategories = 'merchant_categories';
+  static const String colMerchantName = 'merchant_name';
+  static const String colCategoryName = 'category_name';
 
   // Singleton
   DatabaseHelper._();
@@ -92,6 +96,15 @@ class DatabaseHelper {
         $colUpdatedAt    TEXT NOT NULL
       )
     ''');
+
+    // ── Merchant Categories ──────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableMerchantCategories (
+        $colMerchantName TEXT PRIMARY KEY,
+        $colCategoryName TEXT NOT NULL,
+        $colUpdatedAt    TEXT NOT NULL
+      )
+    ''');
   }
 
   // Extend schema here in future versions without wiping data
@@ -100,6 +113,15 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE $tableTransactions ADD COLUMN $colCategory TEXT',
       );
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE $tableMerchantCategories (
+          $colMerchantName TEXT PRIMARY KEY,
+          $colCategoryName TEXT NOT NULL,
+          $colUpdatedAt    TEXT NOT NULL
+        )
+      ''');
     }
   }
 
