@@ -48,6 +48,7 @@ dependencies:
   flutter_popup: ^3.3.9
   hugeicons: ^1.1.6
   flutter_svg: ^2.2.4
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

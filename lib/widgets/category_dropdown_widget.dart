@@ -24,7 +24,7 @@ class CategoryDropdownWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final spending = context.read<SpendingService>();
+    final spending = context.watch<SpendingService>();
     final categories = spending.categories;
     final List<CategoryItem> availableIconsList = availableIcons.values
         .toList();

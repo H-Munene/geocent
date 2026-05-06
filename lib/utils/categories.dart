@@ -11,14 +11,14 @@ const Map<int, CategoryItem> availableIcons = {
   ),
   16: CategoryItem(
     name: 'Groceries',
-    icon: HugeIcons.strokeRoundedApple01,
+    icon: HugeIcons.strokeRoundedGrapes,
     color: CupertinoColors.destructiveRed,
   ),
-  21: CategoryItem(
-    name: 'Fruits',
-    icon: HugeIcons.strokeRoundedApple01,
-    color: CupertinoColors.activeGreen,
-  ),
+  // 21: CategoryItem(
+  //   name: 'Fruits',
+  //   icon: HugeIcons.strokeRoundedApple01,
+  //   color: CupertinoColors.activeGreen,
+  // ),
   27: CategoryItem(
     name: 'Coffee',
     icon: HugeIcons.strokeRoundedCoffee02,
@@ -36,11 +36,11 @@ const Map<int, CategoryItem> availableIcons = {
   ),
 
   // ─── TRANSPORT & TRAVEL ────────────────────────────────────────────────────
-  6: CategoryItem(
-    name: 'Taxi',
-    icon: HugeIcons.strokeRoundedCar01,
-    color: CupertinoColors.systemBlue,
-  ),
+  // 6: CategoryItem(
+  //   name: 'Taxi',
+  //   icon: HugeIcons.strokeRoundedCar01,
+  //   color: CupertinoColors.systemBlue,
+  // ),
   34: CategoryItem(
     name: 'Taxi',
     icon: HugeIcons.strokeRoundedTaxi,
@@ -113,7 +113,7 @@ const Map<int, CategoryItem> availableIcons = {
   ),
   40: CategoryItem(
     name: 'Money',
-    icon: HugeIcons.strokeRoundedMoney01,
+    icon: HugeIcons.strokeRoundedMoneyBag02,
     color: CupertinoColors.systemYellow,
   ),
   14: CategoryItem(

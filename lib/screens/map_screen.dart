@@ -8,6 +8,7 @@ import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_popup/flutter_popup.dart';
 
 import 'package:hugeicons/hugeicons.dart';
@@ -19,9 +20,11 @@ import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../utils/marker_utils.dart';
-import '../widgets/dynamic_island.dart';
+import '../widgets/animated_spending_analytics.dart';
 import '../widgets/category_dropdown_widget.dart';
+import '../widgets/category_messages_sheet.dart';
 import '../widgets/map_style_picker_modal.dart';
+import '../widgets/search_messages_sheet.dart';
 import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -31,13 +34,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen>
-    with SingleTickerProviderStateMixin {
-  bool _islandExpanded = false;
-  bool _amountsVisible = false;
-  late AnimationController _bounceController;
-  late Animation<double> _bounceScale;
-
+class _MapScreenState extends State<MapScreen> {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
@@ -50,6 +47,14 @@ class _MapScreenState extends State<MapScreen>
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
   bool _isMapUpdating = false;
+  bool _isSearching = false;
+
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _showAnalytics = true;
+
+  String? _selectedCategory;
+  String? _selectedTxId;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
@@ -61,33 +66,16 @@ class _MapScreenState extends State<MapScreen>
   @override
   void initState() {
     super.initState();
+    _loadMapStyle();
     _positionTracking();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _bounceScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1.0,
-          end: 0.95,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 0.95,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 70,
-      ),
-    ]).animate(_bounceController);
 
-    // Listen for background service events to trigger Dynamic Island
+    _searchFocusNode.addListener(_onSearchFocusChanged);
+    _searchController.addListener(_onSearchTextChanged);
+
+    // Listen for background service events
     _bgServiceSub = FlutterBackgroundService().on('transaction_saved').listen((
       _,
     ) {
-      _triggerIslandAutoExpand();
       if (mounted) {
         context.read<SpendingService>().refresh();
       }
@@ -103,6 +91,73 @@ class _MapScreenState extends State<MapScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SpendingService>().addListener(_handleSelectedTransaction);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchController.removeListener(_onSearchTextChanged);
+    _searchFocusNode.dispose();
+    _searchController.dispose();
+
+    userPositionStream?.cancel();
+    _bgServiceSub?.cancel();
+    mapboxMapController?.dispose();
+    _smsService?.dispose();
+
+    // Remove listener to prevent memory leaks
+    final spending = Provider.of<SpendingService>(context, listen: false);
+    spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_handleSelectedTransaction);
+
+    super.dispose();
+  }
+
+  void _onSearchFocusChanged() {
+    setState(() {
+      _showAnalytics =
+          !_searchFocusNode.hasFocus && _searchController.text.isEmpty;
+    });
+  }
+
+  void _onSearchTextChanged() {
+    setState(() {
+      _showAnalytics =
+          !_searchFocusNode.hasFocus && _searchController.text.isEmpty;
+    });
+  }
+
+  Future<void> _loadMapStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedStyle = prefs.getString('map_style');
+    if (savedStyle != null && mounted) {
+      setState(() {
+        _currentMapStyle = savedStyle;
+      });
+
+      // If controller is already ready, load the style now
+      if (mapboxMapController != null) {
+        await mapboxMapController!.loadStyleURI(savedStyle);
+        // Style load takes a moment, expressions need re-applying
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _applyStyleLayerExpressions();
+            _refreshAnnotations();
+          }
+        });
+      }
+    }
+  }
+
+  void _handleMapTap(mp.MapContentGestureContext context) {
+    if (_searchFocusNode.hasFocus) {
+      _searchFocusNode.unfocus();
+    }
+  }
+
+  Future<void> _saveMapStyle(String styleUri) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('map_style', styleUri);
   }
 
   void _handleSelectedTransaction() async {
@@ -161,7 +216,11 @@ class _MapScreenState extends State<MapScreen>
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = tx.id;
       });
+
+      // Boost priority of the selected annotation so it wins collision
+      await _updateAnnotationPriority();
 
       // Clear the selection so it doesn't trigger again on every rebuild
       spending.clearSelectedTransaction();
@@ -173,39 +232,21 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _triggerIslandAutoExpand() {
-    if (!mounted) return;
-    setState(() {
-      _amountsVisible = true;
-      _islandExpanded = true;
-    });
+  Future<void> _updateAnnotationPriority() async {
+    if (_annotationManager == null || _selectedTxId == null) return;
 
-    // Fold back up after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _amountsVisible = false;
-          _islandExpanded = false;
-        });
-        _bounceController.forward(from: 0.0);
+    final allAnnotations = await _annotationManager!.getAnnotations();
+    for (final ann in allAnnotations) {
+      final place = _annotationToPlaceMap[ann.id];
+      if (place == null) continue;
+
+      final double newSortKey = _getSortKey(place);
+
+      if (ann.symbolSortKey != newSortKey) {
+        ann.symbolSortKey = newSortKey;
+        await _annotationManager!.update(ann);
       }
-    });
-  }
-
-  @override
-  void dispose() {
-    _bounceController.dispose();
-    userPositionStream?.cancel();
-    _bgServiceSub?.cancel();
-    mapboxMapController?.dispose();
-    _smsService?.dispose();
-
-    // Remove listener to prevent memory leaks
-    final spending = Provider.of<SpendingService>(context, listen: false);
-    spending.removeListener(_refreshAnnotations);
-    spending.removeListener(_handleSelectedTransaction);
-
-    super.dispose();
+    }
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -232,123 +273,258 @@ class _MapScreenState extends State<MapScreen>
         .toList();
 
     return CupertinoPageScaffold(
-      child: Stack(
-        children: [
-          mp.MapWidget(styleUri: _currentMapStyle, onMapCreated: onMapCreated),
-          if (spending.isLoading || _isMapUpdating)
-            const Center(
-              child: CupertinoActivityIndicator(
-                radius: 16,
-                color: CupertinoColors.activeBlue,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () {
+          if (_searchFocusNode.hasFocus) {
+            _searchFocusNode.unfocus();
+          }
+        },
+        child: Stack(
+          children: [
+            mp.MapWidget(
+              styleUri: _currentMapStyle,
+              onMapCreated: onMapCreated,
+              onTapListener: _handleMapTap,
+            ),
+            if (spending.isLoading || _isMapUpdating)
+              const Center(
+                child: CupertinoActivityIndicator(
+                  radius: 16,
+                  color: CupertinoColors.activeBlue,
+                ),
+              ),
+            Positioned(
+              top: topPadding,
+              left: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: CupertinoColors.black.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.centerRight,
+                      children: [
+                        TapRegion(
+                          onTapOutside: (event) {
+                            if (_searchFocusNode.hasFocus) {
+                              _searchFocusNode.unfocus();
+                            }
+                          },
+                          child: CupertinoSearchTextField(
+                            controller: _searchController,
+                            focusNode: _searchFocusNode,
+                            suffixIcon: _isSearching
+                                ? const Icon(CupertinoIcons.clear_thick_circled)
+                                : const Icon(CupertinoIcons.search),
+                            suffixMode: OverlayVisibilityMode.editing,
+                            onSubmitted: (value) async {
+                              if (value.trim().isEmpty) return;
+
+                              setState(() => _isSearching = true);
+
+                              try {
+                                final spendingService = context
+                                    .read<SpendingService>();
+                                final results = await spendingService
+                                    .searchMessages(value);
+
+                                if (!context.mounted) return;
+
+                                FocusScope.of(context).unfocus();
+
+                                showCupertinoSheet(
+                                  context: context,
+                                  builder: (context) => SearchMessagesSheet(
+                                    results: results,
+                                    query: value,
+                                    onMessageSelected: (tx) {
+                                      spendingService.selectTransaction(tx.id);
+                                    },
+                                  ),
+                                );
+                              } catch (e) {
+                                debugPrint('Search error: $e');
+                              } finally {
+                                if (mounted) {
+                                  setState(() => _isSearching = false);
+                                }
+                              }
+                            },
+                            placeholder: 'Search transactions...',
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 15,
+                              color: const Color(0xFF1D1D1F),
+                            ),
+                            backgroundColor: CupertinoColors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          right: 30, // Adjusted to be before the search icon
+                          child: IgnorePointer(
+                            child: AnimatedOpacity(
+                              opacity: _showAnalytics ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 300),
+                              child: const AnimatedSpendingAnalytics(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_isSearching)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8, left: 12),
+                      child: Row(
+                        children: [
+                          CupertinoActivityIndicator(radius: 8),
+                          SizedBox(width: 8),
+                          Text(
+                            'Searching...',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: spending.categories.map((cat) {
+                        final isSelected = _selectedCategory == cat.name;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () async {
+                              HapticFeedback.lightImpact();
+                              setState(() {
+                                if (_selectedCategory == cat.name) {
+                                  _selectedCategory = null;
+                                } else {
+                                  _selectedCategory = cat.name;
+                                }
+                              });
+
+                              // If we just selected a category, show the sheet with its messages
+                              if (_selectedCategory != null) {
+                                final results = await spending
+                                    .getMessagesByCategory(cat.name);
+
+                                if (!context.mounted) return;
+
+                                showCupertinoSheet(
+                                  context: context,
+                                  builder: (context) => CategoryMessagesSheet(
+                                    results: results,
+                                    categoryName: cat.name,
+                                    onMessageSelected: (tx) {
+                                      spending.selectTransaction(tx.id);
+                                    },
+                                  ),
+                                );
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? cat.color
+                                    : CupertinoColors.white.withValues(
+                                        alpha: 0.9,
+                                      ),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? cat.color
+                                      : CupertinoColors.systemGrey5,
+                                  width: 1,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: CupertinoColors.black.withValues(
+                                      alpha: 0.05,
+                                    ),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  HugeIcon(
+                                    icon: cat.icon,
+                                    color: isSelected
+                                        ? CupertinoColors.white
+                                        : CupertinoColors.black,
+                                    size: 16,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    cat.name,
+                                    style: GoogleFonts.spaceGrotesk(
+                                      fontSize: 13,
+                                      fontWeight: isSelected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: isSelected
+                                          ? CupertinoColors.white
+                                          : CupertinoColors.black,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
-          Positioned(
-            top: topPadding,
-            left: 16,
-            right: 16,
-            child: DynamicIsland(
-              spent: spending.spent,
-              limit: spending.limit,
-              amountsVisible: _amountsVisible,
-              islandExpanded: _islandExpanded,
-              selectedPeriod: spending.period,
-              bounceScale: _bounceScale,
-              onTapCircle: () {
-                setState(() => _amountsVisible = true);
-                _bounceController.value = 0.0;
-              },
-              onTapClose: () {
-                setState(() {
-                  _amountsVisible = false;
-                  _islandExpanded = false;
-                });
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (mounted) _bounceController.forward(from: 0.0);
-                });
-              },
-              onToggleExpand: () =>
-                  setState(() => _islandExpanded = !_islandExpanded),
-              onTapEditLimit: () => _showLimitSettings(spending),
-              onPeriodSelected: (period) =>
-                  context.read<SpendingService>().setPeriod(period),
-            ),
-          ),
-          // FABs moved into the stack as Positioned widgets
-          Positioned(
-            bottom: 32,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    _showMapStylePicker();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.square_stack_3d_up,
-                      color: Color(0xFF1D1D1F),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    _flyToUserLocation();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.location_fill,
-                      color: Color(0xFF1D1D1F),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (_places.isNotEmpty)
+
+            // FABs moved into the stack as Positioned widgets
+            Positioned(
+              bottom: 32,
+              right: 16,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    onPressed: _isAnimating
-                        ? null
-                        : () {
-                            HapticFeedback.mediumImpact();
-                            _animateAnnotations();
-                          },
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      _showMapStylePicker();
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isAnimating
-                            ? CupertinoColors.systemGrey3
-                            : const Color(0xFF1D1D1F),
+                      decoration: const BoxDecoration(
+                        color: CupertinoColors.white,
                         shape: BoxShape.circle,
-                        boxShadow: const [
+                        boxShadow: [
                           BoxShadow(
                             color: Color(0x26000000),
                             blurRadius: 12,
@@ -356,127 +532,185 @@ class _MapScreenState extends State<MapScreen>
                           ),
                         ],
                       ),
-                      child: _isAnimating
-                          ? const CupertinoActivityIndicator(
-                              color: CupertinoColors.white,
-                            )
-                          : const Icon(
-                              CupertinoIcons.play_fill,
-                              color: CupertinoColors.white,
-                            ),
+                      child: const Icon(
+                        CupertinoIcons.square_stack_3d_up,
+                        color: Color(0xFF1D1D1F),
+                      ),
                     ),
                   ),
-              ],
-            ),
-          ),
-          if (_popupPosition != null)
-            Positioned(
-              left: _popupPosition!.x,
-              top: _popupPosition!.y,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: CustomPopup(
-                    key: _popupKey,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
-                    contentPadding: EdgeInsets.zero,
-                    content: DefaultTextStyle(
-                      style: GoogleFonts.spaceGrotesk(
-                        color: Colors.black,
-                        decoration: TextDecoration.none,
+                  const SizedBox(height: 12),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () {
+                      HapticFeedback.mediumImpact();
+                      _flyToUserLocation();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: const BoxDecoration(
+                        color: CupertinoColors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0x26000000),
+                            blurRadius: 12,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
                       ),
+                      child: const Icon(
+                        CupertinoIcons.location_fill,
+                        color: Color(0xFF1D1D1F),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (_places.isNotEmpty)
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _isAnimating
+                          ? null
+                          : () {
+                              HapticFeedback.mediumImpact();
+                              _animateAnnotations();
+                            },
                       child: Container(
-                        constraints: const BoxConstraints(maxWidth: 300),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Builder(
-                              builder: (context) {
-                                final cat = context
-                                    .read<SpendingService>()
-                                    .getCategoryByName(
-                                      _selectedPlace?.category,
-                                    );
-                                return CustomPopup(
-                                  barrierColor: CupertinoColors.transparent,
-                                  contentPadding: EdgeInsets.zero,
-                                  content: CategoryDropdownWidget(
-                                    transactionId: _selectedPlace!.id,
-                                    currentCategory: _selectedPlace!.category,
-                                    onCategorySelected: () {
-                                      HapticFeedback.lightImpact();
-                                      Navigator.popUntil(
-                                        context,
-                                        (route) => route.isFirst,
-                                      );
-                                    },
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: cat == null
-                                          ? CupertinoColors.systemGrey5
-                                          : cat.color.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (cat != null) ...[
-                                          HugeIcon(
-                                            icon: cat.icon,
-                                            color: cat.color,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _selectedPlace?.category ??
-                                              'Set Category',
-                                          style: GoogleFonts.spaceGrotesk(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: cat == null
-                                                ? CupertinoColors.systemGrey
-                                                : cat.color,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              height: 1,
-                              color: Colors.black.withValues(alpha: 0.1),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _selectedPlace?.rawMessage ?? '',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 14,
-                                height: 1.5,
-                                color: Colors.black,
-                              ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _isAnimating
+                              ? CupertinoColors.systemGrey3
+                              : const Color(0xFF1D1D1F),
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
+                        child: _isAnimating
+                            ? const CupertinoActivityIndicator(
+                                color: CupertinoColors.white,
+                              )
+                            : const Icon(
+                                CupertinoIcons.play_fill,
+                                color: CupertinoColors.white,
+                              ),
                       ),
                     ),
-                    child: const SizedBox.shrink(),
+                ],
+              ),
+            ),
+            if (_popupPosition != null)
+              Positioned(
+                left: _popupPosition!.x,
+                top: _popupPosition!.y,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: CustomPopup(
+                      key: _popupKey,
+                      backgroundColor: Colors.white,
+                      contentPadding: EdgeInsets.zero,
+                      content: DefaultTextStyle(
+                        style: GoogleFonts.spaceGrotesk(
+                          color: Colors.black,
+                          decoration: TextDecoration.none,
+                        ),
+                        child: Container(
+                          constraints: const BoxConstraints(maxWidth: 300),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Builder(
+                                builder: (context) {
+                                  final cat = context
+                                      .read<SpendingService>()
+                                      .getCategoryByName(
+                                        _selectedPlace?.category,
+                                      );
+                                  return CustomPopup(
+                                    barrierColor: CupertinoColors.transparent,
+                                    contentPadding: EdgeInsets.zero,
+                                    content: CategoryDropdownWidget(
+                                      transactionId: _selectedPlace!.id,
+                                      currentCategory: _selectedPlace!.category,
+                                      onCategorySelected: () {
+                                        HapticFeedback.lightImpact();
+                                        Navigator.popUntil(
+                                          context,
+                                          (route) => route.isFirst,
+                                        );
+                                      },
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 6,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: cat == null
+                                            ? CupertinoColors.systemGrey5
+                                            : cat.color.withValues(alpha: 0.2),
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (cat != null) ...[
+                                            HugeIcon(
+                                              icon: cat.icon,
+                                              color: cat.color,
+                                              size: 16,
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          Text(
+                                            _selectedPlace?.category ??
+                                                'Set Category',
+                                            style: GoogleFonts.spaceGrotesk(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                              color: cat == null
+                                                  ? CupertinoColors.systemGrey
+                                                  : cat.color,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                height: 1,
+                                color: Colors.black.withValues(alpha: 0.1),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                _selectedPlace?.rawMessage ?? '',
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 14,
+                                  height: 1.5,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      child: const SizedBox.shrink(),
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -546,6 +780,7 @@ class _MapScreenState extends State<MapScreen>
         onStyleChanged: (newStyle) async {
           if (newStyle == _currentMapStyle) return;
           setState(() => _currentMapStyle = newStyle);
+          await _saveMapStyle(newStyle);
           await mapboxMapController?.loadStyleURI(newStyle);
           // Wait for style to load before re-applying layer properties
           Future.delayed(const Duration(milliseconds: 500), () {
@@ -628,6 +863,11 @@ class _MapScreenState extends State<MapScreen>
   Future<void> onMapCreated(mp.MapboxMap controller) async {
     setState(() => mapboxMapController = controller);
 
+    // Ensure the persisted style is loaded if it's not the default
+    if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
+      await controller.loadStyleURI(_currentMapStyle);
+    }
+
     final locationPermission = await Permission.location.status;
     if (locationPermission != PermissionStatus.granted) return;
 
@@ -666,15 +906,14 @@ class _MapScreenState extends State<MapScreen>
       debugPrint('[MapScreen] Initial location fetch failed: $e');
     }
 
-    mapboxMapController?.location.updateSettings(
+    controller.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
     // 1. Initialize Managers
     // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
-    _dotManager = await mapboxMapController?.annotations
-        .createCircleAnnotationManager();
-    _annotationManager = await mapboxMapController?.annotations
+    _dotManager = await controller.annotations.createCircleAnnotationManager();
+    _annotationManager = await controller.annotations
         .createPointAnnotationManager();
 
     await _applyStyleLayerExpressions();
@@ -723,7 +962,11 @@ class _MapScreenState extends State<MapScreen>
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = place.id;
       });
+
+      // Boost priority of the tapped marker
+      await _updateAnnotationPriority();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _popupKey.currentState?.show();
@@ -827,7 +1070,7 @@ class _MapScreenState extends State<MapScreen>
       final geometry = mp.Point(
         coordinates: mp.Position(place.longitude, place.latitude),
       );
-      final sortKey = _getSortKey(place.price);
+      final sortKey = _getSortKey(place);
 
       final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
@@ -925,7 +1168,7 @@ class _MapScreenState extends State<MapScreen>
     final geometry = mp.Point(
       coordinates: mp.Position(place.longitude, place.latitude),
     );
-    final sortKey = _getSortKey(place.price);
+    final sortKey = _getSortKey(place);
 
     final pointAnn = await _annotationManager?.create(
       mp.PointAnnotationOptions(
@@ -958,48 +1201,9 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  double _getSortKey(String price) {
-    final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
+  double _getSortKey(MapPlace place) {
+    if (place.id == _selectedTxId) return -1000000.0;
+    final clean = place.price.replaceAll(RegExp(r'[^0-9.]'), '');
     return double.tryParse(clean) ?? 0.0;
-  }
-
-  void _showLimitSettings(SpendingService spending) {
-    final controller = TextEditingController(
-      text: spending.limit.toStringAsFixed(0),
-    );
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Set ${spending.period} Limit'),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 12),
-              child: Text('Ksh '),
-            ),
-            placeholder: 'Limit Amount',
-            style: GoogleFonts.spaceGrotesk(),
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0.0;
-              spending.setLimit(spending.period, amount);
-              Navigator.pop(context);
-            },
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
-    );
   }
 }

@@ -1,10 +1,32 @@
 import 'package:mapbox_tut/database_helper.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:mapbox_tut/models/category_analytics.dart';
 
 import '../models/app_transaction.dart';
 
 class TransactionRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
+
+  Future<List<CategoryAnalytics>> getCategoryComparison() async {
+    final db = await _db.database;
+    final List<Map<String, dynamic>> maps = await db.rawQuery('''
+      SELECT 
+          ${DatabaseHelper.colCategory} as category,
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as today_total,
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', '-1 day', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as yesterday_total
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colCategory} IS NOT NULL
+      GROUP BY ${DatabaseHelper.colCategory}
+      HAVING today_total > 0 OR yesterday_total > 0
+    ''');
+
+    return maps.map((m) {
+      return CategoryAnalytics(
+        category: m['category'] as String,
+        todayTotal: (m['today_total'] as num).toDouble(),
+        yesterdayTotal: (m['yesterday_total'] as num).toDouble(),
+      );
+    }).toList();
+  }
 
   Future<void> save(AppTransaction tx) async {
     await _db.rawInsert(DatabaseHelper.tableTransactions, tx.toMap());
@@ -148,6 +170,28 @@ class TransactionRepository {
     return (rows.first[DatabaseHelper.colLimitAmount] as num).toDouble();
   }
 
+  Future<List<AppTransaction>> searchTransactions(String query) async {
+    final sanitizedQuery = query.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where:
+          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ?',
+      whereArgs: ['%$query%', '%$sanitizedQuery%', '%$query%', '%$query%'],
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
+  Future<List<AppTransaction>> loadByCategory(String category) async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where: '${DatabaseHelper.colCategory} = ?',
+      whereArgs: [category],
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<Map<String, double>> getAllLimits() async {
     final rows = await _db.rawQuery(DatabaseHelper.tableSpendingLimits);
     return {
@@ -158,15 +202,15 @@ class TransactionRepository {
   }
 
   Future<void> setLimit(String period, double amount) async {
-    final db = await _db.database;
-    await db.insert(
+    await _db.rawUpdate(
       DatabaseHelper.tableSpendingLimits,
       {
         DatabaseHelper.colPeriod: period.toLowerCase(),
         DatabaseHelper.colLimitAmount: amount,
         DatabaseHelper.colUpdatedAt: DateTime.now().toIso8601String(),
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      '${DatabaseHelper.colPeriod} = ?',
+      [period.toLowerCase()],
     );
   }
 }

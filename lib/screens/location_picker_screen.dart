@@ -75,12 +75,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _mapboxMap = controller;
 
     // Enable user location indicator (blue dot)
-    _mapboxMap?.location.updateSettings(
+    controller.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
     if (_initialPosition != null) {
-      _mapboxMap?.setCamera(
+      controller.setCamera(
         mp.CameraOptions(
           center: mp.Point(coordinates: _initialPosition!),
           zoom: 15,
@@ -162,7 +162,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ),
         ),
         trailing: _isSaving
-            ? const CupertinoActivityIndicator()
+            ? CupertinoActivityIndicator(color: CupertinoColors.activeBlue)
             : CupertinoButton(
                 padding: EdgeInsets.zero,
                 child: Text(
@@ -170,7 +170,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   style: GoogleFonts.spaceGrotesk(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.3,
-                    color: const Color(0xFF1D1D1F),
+                    color: CupertinoColors.systemBlue,
                   ),
                 ),
                 onPressed: () {
