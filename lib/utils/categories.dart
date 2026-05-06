@@ -228,4 +228,9 @@ const Map<int, CategoryItem> availableIcons = {
     icon: HugeIcons.strokeRoundedBeach02,
     color: Color(0xFF27C4A2), // seafoam
   ),
+  44: CategoryItem(
+    name: 'Accomodation',
+    icon: HugeIcons.strokeRoundedBedDouble,
+    color: Color(0xFF96D9E9), // seafoam
+  ),
 };

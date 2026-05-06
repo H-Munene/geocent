@@ -160,15 +160,19 @@ class UnmappedMessageTile extends StatelessWidget {
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          transaction.merchant,
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1A1A1A),
+                        Expanded(
+                          child: Text(
+                            transaction.merchant,
+                            style: GoogleFonts.spaceGrotesk(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF1A1A1A),
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
                         Text(
                           transaction.formattedAmount,
                           style: GoogleFonts.spaceGrotesk(

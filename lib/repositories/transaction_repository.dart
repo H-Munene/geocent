@@ -1,5 +1,6 @@
 import 'package:geocent/database_helper.dart';
 import 'package:geocent/models/category_analytics.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../models/app_transaction.dart';
 
@@ -29,6 +30,13 @@ class TransactionRepository {
   }
 
   Future<void> save(AppTransaction tx) async {
+    // Auto-categorize if no category is provided
+    if (tx.category == null) {
+      final String? previousCategory = await getMerchantCategory(tx.merchant);
+      if (previousCategory != null) {
+        tx = tx.copyWith(category: previousCategory);
+      }
+    }
     await _db.rawInsert(DatabaseHelper.tableTransactions, tx.toMap());
   }
 
@@ -55,6 +63,18 @@ class TransactionRepository {
       '${DatabaseHelper.colId} = ?',
       [id],
     );
+
+    // Auto-learn: Associate this merchant with the new category
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isNotEmpty) {
+      final String merchant = rows.first[DatabaseHelper.colMerchant] as String;
+      await upsertMerchantCategory(merchant, category);
+    }
   }
 
   Future<void> updateCategories(List<String> ids, String category) async {
@@ -66,6 +86,20 @@ class TransactionRepository {
       '${DatabaseHelper.colId} IN ($placeholders)',
       ids,
     );
+
+    // Auto-learn for all unique merchants in the batch
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableTransactions,
+      where: '${DatabaseHelper.colId} IN ($placeholders)',
+      whereArgs: ids,
+    );
+    final uniqueMerchants = rows
+        .map((r) => r[DatabaseHelper.colMerchant] as String)
+        .toSet();
+
+    for (final merchant in uniqueMerchants) {
+      await upsertMerchantCategory(merchant, category);
+    }
   }
 
   Future<List<AppTransaction>> loadAll() async {
@@ -211,6 +245,35 @@ class TransactionRepository {
       },
       '${DatabaseHelper.colPeriod} = ?',
       [period.toLowerCase()],
+    );
+  }
+
+  // ── Merchant Categories ──────────────────────────────────────────────────
+
+  Future<String?> getMerchantCategory(String merchantName) async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableMerchantCategories,
+      where: '${DatabaseHelper.colMerchantName} = ?',
+      whereArgs: [merchantName],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first[DatabaseHelper.colCategoryName] as String?;
+  }
+
+  Future<void> upsertMerchantCategory(
+    String merchantName,
+    String categoryName,
+  ) async {
+    final db = await _db.database;
+    await db.insert(
+      DatabaseHelper.tableMerchantCategories,
+      {
+        DatabaseHelper.colMerchantName: merchantName,
+        DatabaseHelper.colCategoryName: categoryName,
+        DatabaseHelper.colUpdatedAt: DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 }

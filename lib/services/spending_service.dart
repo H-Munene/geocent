@@ -29,6 +29,9 @@ class SpendingService extends ChangeNotifier {
   bool _hasMore = true;
   final int _pageSize = 20;
 
+  // Merchant category cache for performance
+  final Map<String, String> _merchantCategoryCache = {};
+
   // A set of frequently used default categories.
   // This list provides immediate actionable options for the user.
   final List<CategoryItem> _defaultCategories = [
@@ -221,6 +224,21 @@ class SpendingService extends ChangeNotifier {
 
   /// Save a freshly-parsed transaction then refresh totals.
   Future<void> addTransaction(AppTransaction tx) async {
+    // Auto-categorize based on merchant history
+    if (tx.category == null) {
+      String? cachedCategory = _merchantCategoryCache[tx.merchant];
+      if (cachedCategory == null) {
+        cachedCategory = await _repo.getMerchantCategory(tx.merchant);
+        if (cachedCategory != null) {
+          _merchantCategoryCache[tx.merchant] = cachedCategory;
+        }
+      }
+
+      if (cachedCategory != null) {
+        tx = tx.copyWith(category: cachedCategory);
+      }
+    }
+
     await _repo.save(tx);
     await refresh();
   }
@@ -239,12 +257,35 @@ class SpendingService extends ChangeNotifier {
   /// Update the category of an existing transaction then refresh state.
   Future<void> updateCategory(String txId, String category) async {
     await _repo.updateCategory(txId, category);
+
+    // Learn and persist merchant preference
+    final tx = [
+      ..._periodTransactions,
+      ..._paginatedMessages,
+    ].where((t) => t.id == txId).firstOrNull;
+    if (tx != null) {
+      _merchantCategoryCache[tx.merchant] = category;
+      await _repo.upsertMerchantCategory(tx.merchant, category);
+    }
+
     // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
   }
 
   Future<void> bulkUpdateCategory(List<String> ids, String category) async {
     await _repo.updateCategories(ids, category);
+
+    // Learn and persist merchant preferences for all unique merchants in the batch
+    final affectedTxs = _paginatedMessages
+        .where((t) => ids.contains(t.id))
+        .toList();
+    final uniqueMerchants = affectedTxs.map((t) => t.merchant).toSet();
+
+    for (final merchant in uniqueMerchants) {
+      _merchantCategoryCache[merchant] = category;
+      await _repo.upsertMerchantCategory(merchant, category);
+    }
+
     await refresh();
     await fetchMessages(refresh: true);
   }
