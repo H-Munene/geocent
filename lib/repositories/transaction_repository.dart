@@ -316,4 +316,46 @@ class TransactionRepository {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
+
+  /// Fetches daily spending aggregated by category within a date range.
+  /// This is optimized to run as a single SQL query using SUM and GROUP BY.
+  Future<List<Map<String, dynamic>>> getDailySpendingByCategory(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    // We filter for 'payment' and 'sent' as these represent outgoing expenses.
+    // 'received' is excluded to keep the focus on spending analytics.
+    return await db.rawQuery(
+      '''
+      SELECT 
+        date(${DatabaseHelper.colTimestamp}, 'localtime') as day,
+        ${DatabaseHelper.colCategory} as category,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY day, category
+      ORDER BY day ASC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+  }
+
+  /// Returns the total spending (outgoing only) within a specific date range.
+  Future<double> getTotalSpending(DateTime start, DateTime end) async {
+    final db = await _db.database;
+    final result = await db.rawQuery(
+      '''
+      SELECT SUM(${DatabaseHelper.colAmount}) as total
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+
+    if (result.isEmpty || result.first['total'] == null) return 0.0;
+    return (result.first['total'] as num).toDouble();
+  }
 }

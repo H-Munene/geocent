@@ -6,6 +6,7 @@ import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
+import '../models/daily_spending.dart';
 import '../repositories/transaction_repository.dart';
 
 class SpendingService extends ChangeNotifier {
@@ -22,6 +23,13 @@ class SpendingService extends ChangeNotifier {
   String? _selectedTxId;
   bool _isLoading = false;
   List<AppTransaction> _allTransactions = [];
+
+  // Analytics State
+  List<DailySpending> _weeklyAnalytics = [];
+  double _weeklyTrendPercentage = 0;
+  bool _isSpendingIncreased = false;
+  double _dailyAverage = 0;
+  String _weekDateRange = '';
 
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
@@ -78,6 +86,13 @@ class SpendingService extends ChangeNotifier {
 
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
+
+  // Analytics Getters
+  List<DailySpending> get weeklyAnalytics => _weeklyAnalytics;
+  double get weeklyTrendPercentage => _weeklyTrendPercentage;
+  bool get isSpendingIncreased => _isSpendingIncreased;
+  double get dailyAverage => _dailyAverage;
+  String get weekDateRange => _weekDateRange;
 
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
@@ -211,6 +226,7 @@ class SpendingService extends ChangeNotifier {
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
       _repo.getCategoryComparison(),
+      _updateAnalytics(), // Added this
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
@@ -225,6 +241,121 @@ class SpendingService extends ChangeNotifier {
 
     // Also refresh paginated messages to keep them in sync
     await fetchMessages(refresh: true);
+  }
+
+  /// Calculates weekly analytics including daily breakdown, trends, and averages.
+  Future<void> _updateAnalytics() async {
+    final now = DateTime.now();
+    // Sunday of the current week (local time)
+    // Dart's weekday: 1 = Mon, 7 = Sun. To start on Sun, subtract weekday % 7.
+    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+    final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+    final currentWeekStart = DateTime(
+      startOfCurrentWeek.year,
+      startOfCurrentWeek.month,
+      startOfCurrentWeek.day,
+    );
+
+    // Previous week boundaries
+    final previousWeekStart = currentWeekStart.subtract(
+      const Duration(days: 7),
+    );
+    final previousWeekEnd = currentWeekStart.subtract(
+      const Duration(milliseconds: 1),
+    );
+
+    // Date range string for UI (e.g., "3 May – 9 May")
+    final endOfWeek = currentWeekStart.add(const Duration(days: 6));
+    final months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    _weekDateRange =
+        "${currentWeekStart.day} ${months[currentWeekStart.month - 1]} – ${endOfWeek.day} ${months[endOfWeek.month - 1]}";
+
+    final results = await Future.wait([
+      _repo.getDailySpendingByCategory(currentWeekStart, now),
+      _repo.getTotalSpending(previousWeekStart, previousWeekEnd),
+    ]);
+
+    final List<Map<String, dynamic>> dailyRaw =
+        results[0] as List<Map<String, dynamic>>;
+    final double previousTotal = results[1] as double;
+
+    // 1. Build the 7-day breakdown (Sunday to Saturday)
+    final List<DailySpending> weekly = [];
+    final List<String> dayNames = [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+    ];
+    double totalMappedThisWeek = 0;
+
+    for (int i = 0; i < 7; i++) {
+      final date = currentWeekStart.add(Duration(days: i));
+      final dateStr =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+      final dayEntries = dailyRaw.where((r) => r['day'] == dateStr).toList();
+      final Map<String, double> categories = {};
+      double unmapped = 0;
+
+      for (final entry in dayEntries) {
+        final category = entry['category'] as String?;
+        final amount = (entry['total_amount'] as num).toDouble();
+        if (category == null) {
+          unmapped += amount;
+        } else {
+          categories[category] = amount;
+          totalMappedThisWeek += amount;
+        }
+      }
+
+      weekly.add(
+        DailySpending(
+          date: date,
+          dayName: date.day == now.day && date.month == now.month
+              ? "Today"
+              : dayNames[i],
+          isToday: date.day == now.day && date.month == now.month,
+          categoryValues: categories,
+          unmappedValue: unmapped,
+        ),
+      );
+    }
+
+    _weeklyAnalytics = weekly;
+
+    // 2. Trend Calculation
+    final double currentTotal = dailyRaw.fold(
+      0.0,
+      (sum, r) => sum + (r['total_amount'] as num).toDouble(),
+    );
+    if (previousTotal == 0) {
+      _weeklyTrendPercentage = currentTotal > 0 ? 100 : 0;
+    } else {
+      _weeklyTrendPercentage =
+          ((currentTotal - previousTotal) / previousTotal * 100).abs();
+    }
+    _isSpendingIncreased = currentTotal > previousTotal;
+
+    // 3. Daily Average (Total mapped spending / days elapsed)
+    final int daysElapsed = now.difference(currentWeekStart).inDays + 1;
+    _dailyAverage = totalMappedThisWeek / daysElapsed;
   }
 
   /// Save a freshly-parsed transaction then refresh totals.

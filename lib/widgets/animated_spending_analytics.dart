@@ -96,18 +96,13 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            data.isNegative
-                ? Icon(
-                    CupertinoIcons.arrowtriangle_down_fill,
-                    color: color,
-                    size: iconSize,
-                  )
-                : Icon(
-                    CupertinoIcons.arrowtriangle_up_fill,
-                    color: color,
-                    size: iconSize,
-                  ),
-            const SizedBox(height: 2),
+            Icon(
+              data.isNegative || data.isZero
+                  ? CupertinoIcons.arrowtriangle_down_fill
+                  : CupertinoIcons.arrowtriangle_up_fill,
+              color: color,
+              size: iconSize,
+            ),
             Flexible(
               child: Text(
                 data.trimmedCategory,
