@@ -134,27 +134,58 @@ class TransactionRepository {
     required String filter,
     int limit = 20,
     int offset = 0,
+    String? searchQuery, // Add this parameter
   }) async {
-    String? where;
-    if (filter == 'mapping') {
-      where = '${DatabaseHelper.colLatitude} IS NULL';
-    } else if (filter == 'categorization') {
-      where =
-          '${DatabaseHelper.colCategory} IS NULL AND ${DatabaseHelper.colLatitude} IS NOT NULL';
-    } else {
-      // 'all' actionable
-      where =
-          '${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL';
+    final db = await _db.database;
+    List<String> conditions = [];
+    List<String> whereArgs = [];
+
+    // Add filter conditions
+    switch (filter) {
+      case 'mapping':
+        conditions.add('(${DatabaseHelper.colLatitude} IS NULL)');
+        break;
+      case 'categorization':
+        conditions.add(
+          '(${DatabaseHelper.colCategory} IS NULL AND ${DatabaseHelper.colLatitude} IS NOT NULL)',
+        );
+        break;
+      case 'all':
+        conditions.add(
+          '(${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL)',
+        );
+        break;
     }
 
-    final rows = await _db.rawQuery(
+    // Add search query to conditions
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final sanitizedQuery = searchQuery.toLowerCase().replaceAll(
+        RegExp(r'[,\-\s]'),
+        '',
+      );
+      conditions.add(
+        "REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ',', ''), '-', ''), ' ', '') LIKE ?",
+      );
+      whereArgs.add('%$sanitizedQuery%');
+    }
+
+    String? finalWhereClause;
+    if (conditions.isNotEmpty) {
+      finalWhereClause = conditions.join(' AND ');
+    }
+
+    final maps = await db.query(
       DatabaseHelper.tableTransactions,
-      where: where,
       orderBy: '${DatabaseHelper.colTimestamp} DESC',
+      where: finalWhereClause,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       limit: limit,
       offset: offset,
     );
-    return rows.map(AppTransaction.fromMap).toList();
+
+    return List.generate(maps.length, (i) {
+      return AppTransaction.fromMap(maps[i]);
+    });
   }
 
   Future<List<AppTransaction>> loadByPeriod(String period) async {
@@ -205,12 +236,21 @@ class TransactionRepository {
   }
 
   Future<List<AppTransaction>> searchTransactions(String query) async {
-    final sanitizedQuery = query.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final sanitizedQuery = query.toLowerCase().replaceAll(
+      RegExp(r'[,\-\s]'),
+      '',
+    );
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,
       where:
-          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ?',
-      whereArgs: ['%$query%', '%$sanitizedQuery%', '%$query%', '%$query%'],
+          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), ",", ""), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ? OR REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ",", ""), "-", ""), " ", "") LIKE ?',
+      whereArgs: [
+        '%$query%',
+        '%$sanitizedQuery%',
+        '%$query%',
+        '%$query%',
+        '%$sanitizedQuery%',
+      ],
       orderBy: '${DatabaseHelper.colTimestamp} DESC',
     );
     return rows.map(AppTransaction.fromMap).toList();

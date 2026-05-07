@@ -61,53 +61,66 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
   ) {
     if (query.isEmpty) return Text(text, style: baseStyle);
 
-    final normalizedText = text.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final normalizedText = text.toLowerCase().replaceAll(
+      RegExp(r'[,\-\s]'),
+      '',
+    );
     final normalizedQuery = query.toLowerCase().replaceAll(
-      RegExp(r'[-\s]'),
+      RegExp(r'[,\-\s]'),
       '',
     );
 
-    if (!normalizedText.contains(normalizedQuery)) {
+    if (normalizedQuery.isEmpty || !normalizedText.contains(normalizedQuery)) {
       return Text(text, style: baseStyle);
     }
 
-    // This is a simplified "fuzzy" highlighter that finds the start of the match
-    // ignoring spaces/hyphens in the query.
     final List<TextSpan> spans = [];
     int normIndex = 0;
+    int currentPos = 0;
 
-    // Find the start index in the original text
-    int? matchStart;
-    int? matchEnd;
+    while (currentPos < text.length) {
+      final startIndex = normalizedText.indexOf(normalizedQuery, normIndex);
+      if (startIndex == -1) {
+        spans.add(TextSpan(text: text.substring(currentPos)));
+        break;
+      }
 
-    final startIndex = normalizedText.indexOf(normalizedQuery);
-    final endIndex = startIndex + normalizedQuery.length;
+      // Find actual start and end in original text
+      int? matchStart;
+      int? matchEnd;
+      int tempNormIndex = normIndex;
 
-    for (int i = 0; i < text.length; i++) {
-      final char = text[i];
-      if (char == ' ' || char == '-') {
-        // Skip
-      } else {
-        if (normIndex == startIndex) matchStart = i;
-        normIndex++;
-        if (normIndex == endIndex) {
+      for (int i = currentPos; i < text.length; i++) {
+        final char = text[i];
+        if (RegExp(r'[,\-\s]').hasMatch(char)) {
+          continue;
+        }
+        if (tempNormIndex == startIndex) {
+          matchStart = i;
+        }
+        tempNormIndex++;
+        if (tempNormIndex == startIndex + normalizedQuery.length) {
           matchEnd = i + 1;
           break;
         }
       }
-    }
 
-    if (matchStart != null && matchEnd != null) {
-      spans.add(TextSpan(text: text.substring(0, matchStart)));
-      spans.add(
-        TextSpan(
-          text: text.substring(matchStart, matchEnd),
-          style: highlightStyle,
-        ),
-      );
-      spans.add(TextSpan(text: text.substring(matchEnd)));
-    } else {
-      return Text(text, style: baseStyle);
+      if (matchStart != null && matchEnd != null) {
+        if (matchStart > currentPos) {
+          spans.add(TextSpan(text: text.substring(currentPos, matchStart)));
+        }
+        spans.add(
+          TextSpan(
+            text: text.substring(matchStart, matchEnd),
+            style: highlightStyle,
+          ),
+        );
+        currentPos = matchEnd;
+        normIndex = startIndex + normalizedQuery.length;
+      } else {
+        spans.add(TextSpan(text: text.substring(currentPos)));
+        break;
+      }
     }
 
     return RichText(

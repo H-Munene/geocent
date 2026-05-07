@@ -41,9 +41,36 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () {
-            final name = _controller.text.trim();
+            var name = _controller.text.trim();
             if (name.isNotEmpty && _selectedIcon != null) {
               final spending = context.read<SpendingService>();
+              final existingCategories = spending.categories;
+
+              // Check for duplicates (case-insensitive)
+              if (existingCategories.any(
+                (cat) => cat.name.toLowerCase() == name.toLowerCase(),
+              )) {
+                // Show an alert if a duplicate is found
+                showCupertinoDialog(
+                  context: context,
+                  builder: (context) => CupertinoAlertDialog(
+                    title: const Text('Duplicate Category'),
+                    content: Text('A category named "$name" already exists.'),
+                    actions: [
+                      CupertinoDialogAction(
+                        isDefaultAction: true,
+                        child: const Text('OK'),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                );
+                return; // Stop execution
+              }
+
+              // Capitalize the first letter
+              name = name.substring(0, 1).toUpperCase() + name.substring(1);
+
               final newCategory = CategoryItem(
                 name: name,
                 icon: _selectedIcon!.icon,
@@ -87,6 +114,7 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 CupertinoTextField(
                   controller: _controller,
                   placeholder: 'e.g. Entertainment',
+                  maxLength: 30,
                   placeholderStyle: GoogleFonts.spaceGrotesk(
                     color: CupertinoColors.systemGrey4,
                   ),

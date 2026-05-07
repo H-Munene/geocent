@@ -21,10 +21,12 @@ class SpendingService extends ChangeNotifier {
   final List<AppTransaction> _actionableTransactions = [];
   String? _selectedTxId;
   bool _isLoading = false;
+  List<AppTransaction> _allTransactions = [];
 
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
   String _currentFilter = 'all';
+  String _searchQuery = ''; // Add this
   int _currentPage = 0;
   bool _hasMore = true;
   final int _pageSize = 20;
@@ -71,6 +73,8 @@ class SpendingService extends ChangeNotifier {
   List<AppTransaction> get paginatedMessages => _paginatedMessages;
   String get currentFilter => _currentFilter;
   bool get hasMore => _hasMore;
+  List<AppTransaction> get allTransactions => _allTransactions; // New getter
+  String get searchQuery => _searchQuery;
 
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
@@ -214,6 +218,7 @@ class SpendingService extends ChangeNotifier {
     _limit = results[2] as double;
     _categoryComparison = results[3] as List<CategoryAnalytics>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
+    _allTransactions = await _repo.loadAll(); // Load all transactions
 
     _isLoading = false;
     notifyListeners();
@@ -305,10 +310,14 @@ class SpendingService extends ChangeNotifier {
     _currentPage = 0;
     _paginatedMessages = [];
     _hasMore = true;
-    await fetchMessages(refresh: true);
+    // Pass the current search query when setting a new filter
+    await fetchMessages(refresh: true, searchQuery: _searchQuery);
   }
 
-  Future<void> fetchMessages({bool refresh = false}) async {
+  Future<void> fetchMessages({
+    bool refresh = false,
+    String? searchQuery,
+  }) async {
     if (_isLoading) return;
     if (!refresh && !_hasMore) return;
 
@@ -321,11 +330,16 @@ class SpendingService extends ChangeNotifier {
       _hasMore = true;
     }
 
+    if (searchQuery != null) {
+      _searchQuery = searchQuery;
+    }
+
     try {
       final newMessages = await _repo.loadFiltered(
         filter: _currentFilter,
         limit: _pageSize,
         offset: _currentPage * _pageSize,
+        searchQuery: _searchQuery, // Pass the search query
       );
 
       if (newMessages.length < _pageSize) {

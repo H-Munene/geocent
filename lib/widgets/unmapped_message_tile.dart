@@ -14,6 +14,7 @@ class UnmappedMessageTile extends StatelessWidget {
   final bool isSelectionMode;
   final bool isSelected;
   final VoidCallback? onSelectToggle;
+  final String? searchQuery;
 
   const UnmappedMessageTile({
     super.key,
@@ -22,6 +23,7 @@ class UnmappedMessageTile extends StatelessWidget {
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onSelectToggle,
+    this.searchQuery,
   });
 
   String _getTimeAgo(DateTime dateTime) {
@@ -193,17 +195,7 @@ class UnmappedMessageTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      transaction.rawMessage,
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey[500],
-                        height: 1.4,
-                      ),
-                    ),
+                    _buildHighlightedBody(context),
                   ],
                 ),
               ),
@@ -273,5 +265,108 @@ class UnmappedMessageTile extends StatelessWidget {
         child: content,
       );
     }
+  }
+
+  Widget _buildHighlightedBody(BuildContext context) {
+    if (searchQuery == null || searchQuery!.isEmpty) {
+      return Text(
+        transaction.rawMessage,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+        style: GoogleFonts.spaceGrotesk(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          color: Colors.grey[500],
+          height: 1.4,
+        ),
+      );
+    }
+
+    final text = transaction.rawMessage;
+    final query = searchQuery!;
+    final baseStyle = GoogleFonts.spaceGrotesk(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      color: Colors.grey[500],
+      height: 1.4,
+    );
+    final highlightStyle = baseStyle.copyWith(
+      fontWeight: FontWeight.w700,
+      backgroundColor: CupertinoColors.activeBlue.withValues(alpha: 0.1),
+      color: CupertinoColors.activeBlue,
+    );
+
+    final normalizedText = text.toLowerCase().replaceAll(
+      RegExp(r'[,\-\s]'),
+      '',
+    );
+    final normalizedQuery = query.toLowerCase().replaceAll(
+      RegExp(r'[,\-\s]'),
+      '',
+    );
+
+    if (normalizedQuery.isEmpty || !normalizedText.contains(normalizedQuery)) {
+      return Text(
+        text,
+        style: baseStyle,
+        maxLines: 3,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    final List<TextSpan> spans = [];
+    int normIndex = 0;
+    int currentPos = 0;
+
+    while (currentPos < text.length) {
+      final startIndex = normalizedText.indexOf(normalizedQuery, normIndex);
+      if (startIndex == -1) {
+        spans.add(TextSpan(text: text.substring(currentPos)));
+        break;
+      }
+
+      // Find actual start and end in original text
+      int? matchStart;
+      int? matchEnd;
+      int tempNormIndex = normIndex;
+
+      for (int i = currentPos; i < text.length; i++) {
+        final char = text[i];
+        if (RegExp(r'[,\-\s]').hasMatch(char)) {
+          continue;
+        }
+        if (tempNormIndex == startIndex) {
+          matchStart = i;
+        }
+        tempNormIndex++;
+        if (tempNormIndex == startIndex + normalizedQuery.length) {
+          matchEnd = i + 1;
+          break;
+        }
+      }
+
+      if (matchStart != null && matchEnd != null) {
+        if (matchStart > currentPos) {
+          spans.add(TextSpan(text: text.substring(currentPos, matchStart)));
+        }
+        spans.add(
+          TextSpan(
+            text: text.substring(matchStart, matchEnd),
+            style: highlightStyle,
+          ),
+        );
+        currentPos = matchEnd;
+        normIndex = startIndex + normalizedQuery.length;
+      } else {
+        spans.add(TextSpan(text: text.substring(currentPos)));
+        break;
+      }
+    }
+
+    return RichText(
+      text: TextSpan(style: baseStyle, children: spans),
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 }

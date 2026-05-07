@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,6 +24,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _activeFilter = 'all';
   final Set<String> _selectedIds = {};
 
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  final FocusNode _searchFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -36,6 +41,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _debounce?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -49,11 +57,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _loadInitialData() async {
     final service = context.read<SpendingService>();
     await service.fetchMessages(refresh: true);
-    _syncList(service.paginatedMessages);
+    // No need to call _syncList directly here, it will be called by the watcher in build
   }
 
   void _syncList(List<AppTransaction> newMessages) {
     if (!mounted) return;
+    // newMessages already contains the filtered/searched list from SpendingService
     final List<dynamic> flatListWithHeaders = _groupWithHeaders(newMessages);
 
     if (flatListWithHeaders.length < _displayList.length ||
@@ -76,6 +85,20 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _displayList.add(flatListWithHeaders[i]);
       _listKey.currentState?.insertItem(i);
     }
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // Immediately clear list when search changes to prevent lingering results
+    _clearList();
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      context.read<SpendingService>().fetchMessages(
+        refresh: true,
+        searchQuery: query,
+      );
+    });
   }
 
   String _getItemId(dynamic item) {
@@ -146,7 +169,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     final service = context.read<SpendingService>();
     await service.setFilter(filter);
-    _syncList(service.paginatedMessages);
+    // _syncList will be triggered by the watcher in build
   }
 
   void _toggleSelection(String id) {
@@ -251,6 +274,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           isSelectionMode: _selectedIds.isNotEmpty,
           isSelected: _selectedIds.contains(tx.id),
           onSelectToggle: () => _toggleSelection(tx.id),
+          searchQuery: context
+              .read<SpendingService>()
+              .searchQuery, // Use service's search query
         ),
       ),
     );
@@ -307,14 +333,36 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              // Add this search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TapRegion(
+                  onTapOutside: (event) {
+                    if (_searchFocusNode.hasFocus) {
+                      _searchFocusNode.unfocus();
+                    }
+                  },
+                  child: CupertinoSearchTextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode, // Assign the focus node
+                    onChanged: _onSearchChanged,
+                    placeholder: 'Search messages',
+                  ),
+                ),
+              ),
               _buildFilterBar(),
               Expanded(
                 child: Stack(
                   children: [
-                    if (messages.isEmpty && !spendingService.isLoading)
+                    // UI based on spendingService.isLoading
+                    if (spendingService.isLoading && _displayList.isEmpty)
+                      const Center(child: CupertinoActivityIndicator())
+                    else if (messages.isEmpty && !spendingService.isLoading)
                       Center(
                         child: Text(
-                          'No messages found',
+                          spendingService.searchQuery.isEmpty
+                              ? 'No messages found'
+                              : 'No results for "${spendingService.searchQuery}"',
                           style: GoogleFonts.spaceGrotesk(
                             color: CupertinoColors.systemGrey,
                             fontSize: 16,
@@ -337,8 +385,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         return _buildItem(item, animation, isLastInGroup);
                       },
                     ),
-                    if (spendingService.isLoading && _displayList.isEmpty)
-                      const Center(child: CupertinoActivityIndicator()),
+                    // Loading indicator for initial load or pagination, only if no search is active
                     if (spendingService.isLoading && _displayList.isNotEmpty)
                       Positioned(
                         bottom: 20,
