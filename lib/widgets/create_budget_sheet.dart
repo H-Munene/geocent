@@ -27,7 +27,25 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
     _amountController = TextEditingController(
       text: widget.budget?.amountLimit.toInt().toString() ?? '',
     );
-    _selectedCategory = widget.budget?.categoryName ?? 'Dining';
+
+    final budgetService = context.read<BudgetService>();
+    final spendingService = context.read<SpendingService>();
+    final budgetedCategoryNames = budgetService.budgets
+        .map((b) => b.categoryName)
+        .toSet();
+
+    if (widget.budget != null) {
+      _selectedCategory = widget.budget!.categoryName;
+    } else {
+      // Find the first non-budgeted category
+      final availableCategories = spendingService.categories
+          .where((c) => !budgetedCategoryNames.contains(c.name))
+          .toList();
+      _selectedCategory = availableCategories.isNotEmpty
+          ? availableCategories.first.name
+          : 'Dining'; // Fallback
+    }
+
     _selectedPeriod = _capitalize(widget.budget?.period ?? 'Weekly');
 
     _amountController.addListener(_onChanged);
@@ -62,7 +80,16 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
   @override
   Widget build(BuildContext context) {
     final spendingService = context.watch<SpendingService>();
-    final categories = spendingService.categories;
+    final budgetService = context.watch<BudgetService>();
+
+    final budgetedCategoryNames = budgetService.budgets
+        .map((b) => b.categoryName)
+        .toSet();
+
+    final filteredCategories = spendingService.categories.where((c) {
+      if (_isUpdate && c.name == widget.budget!.categoryName) return true;
+      return !budgetedCategoryNames.contains(c.name);
+    }).toList();
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
@@ -101,17 +128,17 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
                 opacity: _isUpdate ? 0.5 : 1.0,
                 child: CupertinoPicker(
                   scrollController: FixedExtentScrollController(
-                    initialItem: categories.indexWhere(
+                    initialItem: filteredCategories.indexWhere(
                       (c) => c.name == _selectedCategory,
                     ),
                   ),
                   itemExtent: 40,
                   onSelectedItemChanged: (index) {
                     setState(() {
-                      _selectedCategory = categories[index].name;
+                      _selectedCategory = filteredCategories[index].name;
                     });
                   },
-                  children: categories
+                  children: filteredCategories
                       .map((c) => Center(child: Text(c.name)))
                       .toList(),
                 ),

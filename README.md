@@ -15,7 +15,8 @@ Geocent is a smart personal finance application designed for geo-verified transa
 2. **Geo-Verification**: Automatically captures the device's GPS location when a transaction occurs and links it to the transaction, creating a map of spending habits.
 3. **Advanced Mapbox UI**: Features a highly performant Mapbox implementation with custom GPU-accelerated zoom expressions, dual-layer annotations (dots and callouts), and dynamic style switching.
 4. **Intelligent Auto-Categorization**: Learns from user inputs to automatically assign categories to recurring merchants without manual intervention.
-5. **Interactive Analytics & Messaging**: Provides a searchable, filterable interface for all messages with bulk categorization capabilities, alongside spending limit analytics.
+5. **Real-time Budgeting**: Enables users to set spending limits per category for daily, weekly, or monthly periods, with dynamic visual tracking of spending progress.
+6. **Interactive Analytics & Messaging**: Provides a searchable, filterable interface for all messages with bulk categorization capabilities, alongside comprehensive spending analytics.
 
 ## Documentation
 For an in-depth look at the architecture and logic of Geocent, please refer to the following documentation:

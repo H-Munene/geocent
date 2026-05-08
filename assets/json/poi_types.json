@@ -1,0 +1,3380 @@
+{
+  "listItems": [
+    {
+      "canonical_id": "services",
+      "icon": "marker",
+      "name": "Services",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e6524875-ab19-4b12-a827-222a33708d0e"
+    },
+    {
+      "canonical_id": "shopping",
+      "icon": "shop",
+      "name": "Shopping",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "20eca429-beeb-4e09-a356-246c76b653e5"
+    },
+    {
+      "canonical_id": "food_and_drink",
+      "icon": "fast-food",
+      "name": "Food and Drink",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f3e4b5c0-ab4f-4d2a-8659-e08be18ba413"
+    },
+    {
+      "canonical_id": "food",
+      "icon": "restaurant",
+      "name": "Food",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "def7f57c-64e9-4f48-a7dc-27060466085d"
+    },
+    {
+      "canonical_id": "health_services",
+      "icon": "hospital",
+      "name": "Health Services",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d5b9e253-85d6-48af-b8c6-feb552c2e944"
+    },
+    {
+      "canonical_id": "office",
+      "icon": "building-alt1",
+      "name": "Office",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c81983f8-56e3-412b-9a94-28f445f46fa4"
+    },
+    {
+      "canonical_id": "restaurant",
+      "icon": "restaurant",
+      "name": "Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b6a73b49-3500-458e-a803-1a26b0157605"
+    },
+    {
+      "canonical_id": "apartment_or_condo",
+      "icon": "building",
+      "name": "Apartment Or Condo",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b5bba236-45f8-4d69-81ac-da65a27b6b71"
+    },
+    {
+      "canonical_id": "education",
+      "icon": "school",
+      "name": "Education",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "79f7a7f6-f1e5-46b3-87c4-3b52543d76a1"
+    },
+    {
+      "canonical_id": "transportation",
+      "icon": "bus",
+      "name": "Transportation",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f08fc147-4cdb-40f2-9978-49b040c53d86"
+    },
+    {
+      "canonical_id": "place_of_worship",
+      "icon": "place-of-worship",
+      "name": "Place Of Worship",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9a39a245-4823-466b-8e9e-7a2dc5ee97db"
+    },
+    {
+      "canonical_id": "grocery",
+      "icon": "grocery",
+      "name": "Grocery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "11a7111c-7476-445e-b019-363b0fc10fa9"
+    },
+    {
+      "canonical_id": "outdoors",
+      "icon": "natural",
+      "name": "Outdoors",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e4bf5809-3669-4943-9596-9367cb7e1b01"
+    },
+    {
+      "canonical_id": "clothing_store",
+      "icon": "clothing-store",
+      "name": "Clothes Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "aa2c1e36-b2f7-46fa-bae4-9ae08bd56708"
+    },
+    {
+      "canonical_id": "lodging",
+      "icon": "lodging",
+      "name": "Lodging",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "687003db-abaf-4f74-940b-1f8d582223d2"
+    },
+    {
+      "canonical_id": "salon",
+      "icon": "hairdresser",
+      "name": "Salon",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7d692b21-8a72-4815-ab89-dfcc25cdfdad"
+    },
+    {
+      "canonical_id": "financial_services",
+      "icon": "bank",
+      "name": "Financial Services",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b84e097c-4db6-4ca2-aa01-eb47d048cd17"
+    },
+    {
+      "canonical_id": "wholesale_store",
+      "icon": "shop",
+      "name": "Wholesale",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "724eb8b5-92b3-4ccd-8315-3198c1189847"
+    },
+    {
+      "canonical_id": "supermarket",
+      "icon": "shop",
+      "name": "Supermarket",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a195efd2-db38-4270-957d-d267d9668197"
+    },
+    {
+      "canonical_id": "auto_repair",
+      "icon": "car-repair",
+      "name": "Mechanic",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "cfef84ce-2316-449c-bef9-ade0ca927974"
+    },
+    {
+      "canonical_id": "beauty_store",
+      "icon": "shop",
+      "name": "Cosmetics Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4f7b5d28-5c9e-45e7-81f0-06057dcc9b97"
+    },
+    {
+      "canonical_id": "school",
+      "icon": "school",
+      "name": "School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "986c6cd2-aa6e-447b-93ed-f7927bc1143b"
+    },
+    {
+      "canonical_id": "cafe",
+      "icon": "cafe",
+      "name": "Café",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "198f7a50-025b-42f9-aad9-6c265a16723b"
+    },
+    {
+      "canonical_id": "bus_stop",
+      "icon": "bus",
+      "name": "Bus Stop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "34f72582-43bd-499e-adcd-7828c354d879"
+    },
+    {
+      "canonical_id": "government",
+      "icon": "town-hall",
+      "name": "Government",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b6e59dec-06c2-4a7c-a3e7-d5459c4813f5"
+    },
+    {
+      "canonical_id": "fast_food",
+      "icon": "fast-food",
+      "name": "Fast Food Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "da06a1fc-61f4-4db8-b9d8-8b8924c854bd"
+    },
+    {
+      "canonical_id": "park",
+      "icon": "park",
+      "name": "Park",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "02767305-b8ef-4144-a4d9-9c2e6df3ccff"
+    },
+    {
+      "canonical_id": "real_estate_agent",
+      "icon": "marker",
+      "name": "Real Estate Agent",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "81be96a2-f3e1-4899-b0bc-9b2c295c0d0b"
+    },
+    {
+      "canonical_id": "medical_practice",
+      "icon": "doctor",
+      "name": "Medical Practice",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f7ff41dc-6afd-45a9-b3ee-7d632e1b0931"
+    },
+    {
+      "canonical_id": "hairdresser",
+      "icon": "hairdresser",
+      "name": "Barber",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a4f7df61-e59c-4cd1-bdf5-8f1ddc79948d"
+    },
+    {
+      "canonical_id": "tourist_attraction",
+      "icon": "attraction",
+      "name": "Tourist Attraction",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1f507b74-49bf-47a8-90a6-724906301b27"
+    },
+    {
+      "canonical_id": "sports",
+      "icon": "fitness-centre",
+      "name": "Sports",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f245df4d-128d-4a09-afb5-4581040a2875"
+    },
+    {
+      "canonical_id": "temple",
+      "icon": "place-of-worship",
+      "name": "Temple",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fef7cb75-39c6-497c-8f7a-d399dae67ca7"
+    },
+    {
+      "canonical_id": "nightlife",
+      "icon": "nightclub",
+      "name": "Nightlife",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7741aec4-5ab5-45cb-9ee0-b2d9aa633c0b"
+    },
+    {
+      "canonical_id": "doctors_office",
+      "icon": "doctor",
+      "name": "Doctor's Office",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d6792149-406d-4c36-ad0a-923d91e17ce5"
+    },
+    {
+      "canonical_id": "bank",
+      "icon": "bank",
+      "name": "Bank",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "db7718a9-bc86-4a10-be14-87071e9fb38c"
+    },
+    {
+      "canonical_id": "hotel",
+      "icon": "lodging",
+      "name": "Hotel",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5e0c5602-e0b9-4538-aec6-410986ecfc34"
+    },
+    {
+      "canonical_id": "pharmacy",
+      "icon": "pharmacy",
+      "name": "Pharmacy",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1fdf5564-aa34-415e-95fd-56cbe48715f9"
+    },
+    {
+      "canonical_id": "church",
+      "icon": "religious-christian",
+      "name": "Church",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "47ecc9d5-75d3-4775-979c-c6552ee58153"
+    },
+    {
+      "canonical_id": "farm",
+      "icon": "farm",
+      "name": "Farm",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2e76b5a6-0e9c-438d-91cb-c05bc2e2e4d5"
+    },
+    {
+      "canonical_id": "bar",
+      "icon": "bar",
+      "name": "Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4f7d74ef-a0f2-4fba-9783-4efa4884fccf"
+    },
+    {
+      "canonical_id": "coffee",
+      "icon": "cafe",
+      "name": "Coffee",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a164e9b9-979e-48d5-937b-fd57b47f5456"
+    },
+    {
+      "canonical_id": "medical_clinic",
+      "icon": "hospital",
+      "name": "Medical Clinic",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f974b031-4f59-4e66-bff5-43b7354d0297"
+    },
+    {
+      "canonical_id": "consulting",
+      "icon": "building-alt1",
+      "name": "Consulting",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8cb9b22d-3a27-492f-ab84-119d4b746f4e"
+    },
+    {
+      "canonical_id": "lawyer",
+      "icon": "marker",
+      "name": "Lawyer",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c5a19af1-ebd1-4691-ad0d-9e9d787688c7"
+    },
+    {
+      "canonical_id": "home",
+      "icon": "home",
+      "name": "Home",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c98bafa6-b81e-4769-b6f1-66ad514c23dc"
+    },
+    {
+      "canonical_id": "bakery",
+      "icon": "bakery",
+      "name": "Bakery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7a1cc271-c219-4141-8765-35283d837547"
+    },
+    {
+      "canonical_id": "coffee_shop",
+      "icon": "cafe",
+      "name": "Coffee Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1907fc1e-8842-4b5e-b4ab-06bfe0dadd1a"
+    },
+    {
+      "canonical_id": "repair_shop",
+      "icon": "shop",
+      "name": "Repair Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "32c38e14-d36a-4478-bbd1-c1f9c01f7ee1"
+    },
+    {
+      "canonical_id": "fitness_center",
+      "icon": "fitness-centre",
+      "name": "Gym",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b6479fb5-a2ff-40a1-8ff0-6a8e112e6912"
+    },
+    {
+      "canonical_id": "dentist",
+      "icon": "dentist",
+      "name": "Dentist's",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9d859d4e-7863-4af7-86e5-44dda5f76084"
+    },
+    {
+      "canonical_id": "factory",
+      "icon": "industry",
+      "name": "Factory",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "22b54cb9-63df-4e1b-8a5a-f32976c9939b"
+    },
+    {
+      "canonical_id": "entertainment",
+      "icon": "cinema",
+      "name": "Entertainment",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c22ebb6b-5666-4c74-b342-d377399d10d7"
+    },
+    {
+      "canonical_id": "shipping_store",
+      "icon": "shop",
+      "name": "Shipping Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6e61f0b5-7839-48ba-968a-e243e5596311"
+    },
+    {
+      "canonical_id": "furniture_store",
+      "icon": "shop",
+      "name": "Furniture Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f6104684-3f4b-4870-bf70-d2f23404f643"
+    },
+    {
+      "canonical_id": "photographer",
+      "icon": "marker",
+      "name": "Photographer",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "653fadac-9a6f-482b-a3bf-99a86def55cb"
+    },
+    {
+      "canonical_id": "electronics_shop",
+      "icon": "shop",
+      "name": "Electronics",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "60deacba-fd87-47fb-b422-02911814b672"
+    },
+    {
+      "canonical_id": "car_dealership",
+      "icon": "car",
+      "name": "Car Dealership",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "edc21d65-1a07-4c3f-976d-04de22dfb295"
+    },
+    {
+      "canonical_id": "clothing",
+      "icon": "clothing-store",
+      "name": "Clothing",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4bb1818f-27c0-4329-82b6-5afe2778bef8"
+    },
+    {
+      "canonical_id": "travel_agency",
+      "icon": "suitcase",
+      "name": "Travel Agent",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "63365c13-1772-4a12-baf1-d2a0fd0eba3d"
+    },
+    {
+      "canonical_id": "atm",
+      "icon": "bank",
+      "name": "Atm",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bfd56b0e-7572-447e-957c-5d3c8d0f516b"
+    },
+    {
+      "canonical_id": "hospital",
+      "icon": "hospital",
+      "name": "Hospital",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "968ba275-41f3-4934-8131-e6bfc3d34719"
+    },
+    {
+      "canonical_id": "shopping_mall",
+      "icon": "shop",
+      "name": "Shopping Mall",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "76b8f8be-2cf9-4b32-8d64-2a88ec5a2c28"
+    },
+    {
+      "canonical_id": "advertising_agency",
+      "icon": "commercial",
+      "name": "Ad Agency",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "044f0587-3abd-468b-910f-6199cf6952d7"
+    },
+    {
+      "canonical_id": "gas_station",
+      "icon": "fuel",
+      "name": "Gas Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bad14d7b-6fe1-4866-939a-5f97886d186d"
+    },
+    {
+      "canonical_id": "commercial",
+      "icon": "commercial",
+      "name": "Business Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7a5b4ef4-622a-4d3e-814c-6e69a15f42fa"
+    },
+    {
+      "canonical_id": "post_office",
+      "icon": "post",
+      "name": "Post Office",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4d60f88f-d133-4b4f-bc97-e5cf6acc5c8b"
+    },
+    {
+      "canonical_id": "historic_site",
+      "icon": "monument",
+      "name": "Historic Site",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9c74df5a-65ab-4979-9d0d-12d1d3f0121a"
+    },
+    {
+      "canonical_id": "insurance_broker",
+      "icon": "bank",
+      "name": "Insurance Broker",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "19f181f9-4ac3-4c02-879d-239480a73176"
+    },
+    {
+      "canonical_id": "hospital_unit",
+      "icon": "hospital",
+      "name": "Hospital Unit",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d71d80c7-c7b5-4654-b492-decb39c50f83"
+    },
+    {
+      "canonical_id": "alternative_healthcare",
+      "icon": "doctor",
+      "name": "Alternative Healthcare",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "25710eee-e594-428e-99b9-8e0b16130393"
+    },
+    {
+      "canonical_id": "it",
+      "icon": "information",
+      "name": "It",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "04d8bf3d-9459-4516-8562-ca69d879d661"
+    },
+    {
+      "canonical_id": "hardware_store",
+      "icon": "shop",
+      "name": "Hardware Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7061311c-1107-4bd9-ab91-fbe86574ec93"
+    },
+    {
+      "canonical_id": "phone_store",
+      "icon": "mobile-phone",
+      "name": "Mobile Phone Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fda1dac9-df98-44bb-9556-2ce2a8742d98"
+    },
+    {
+      "canonical_id": "dessert_shop",
+      "icon": "bakery",
+      "name": "Confectionary",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "68a579b6-509b-4b6d-8bef-900de1ad356c"
+    },
+    {
+      "canonical_id": "mosque",
+      "icon": "religious-muslim",
+      "name": "Mosque",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fb0d2bc6-87e5-43ac-a465-788cef55d7e0"
+    },
+    {
+      "canonical_id": "parking_lot",
+      "icon": "parking",
+      "name": "Parking",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f4fa9d08-707a-4c71-a9eb-28b5aaca5091"
+    },
+    {
+      "canonical_id": "elementary_school",
+      "icon": "school",
+      "name": "Elementary School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ed45a931-9510-4826-b0ba-4e6d2d7de786"
+    },
+    {
+      "canonical_id": "jewelry_store",
+      "icon": "jewelry-store",
+      "name": "Jewelry Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a74fc719-1b47-4135-b6ca-8e034f51fa92"
+    },
+    {
+      "canonical_id": "monument",
+      "icon": "monument",
+      "name": "Monument",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a6dd569d-09ec-42d7-9d3b-2901895c55ee"
+    },
+    {
+      "canonical_id": "psychotherapist",
+      "icon": "doctor",
+      "name": "Psychotherapist",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "09935e5a-6453-4502-9bda-d5242ef7c661"
+    },
+    {
+      "canonical_id": "convenience_store",
+      "icon": "shop",
+      "name": "Convenience Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "624fa079-ba69-43da-9949-4945d46ede45"
+    },
+    {
+      "canonical_id": "market",
+      "icon": "shop",
+      "name": "Market",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2def6a11-ec52-4816-b390-4c75f8cef53c"
+    },
+    {
+      "canonical_id": "river",
+      "icon": "natural",
+      "name": "River",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "91d279d5-8f54-4b03-90ba-fa55efd5595f"
+    },
+    {
+      "canonical_id": "physiotherapist",
+      "icon": "doctor",
+      "name": "Physiotherapist",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "419fd0ae-113b-4089-94bb-81fa8ec6fc75"
+    },
+    {
+      "canonical_id": "warehouse",
+      "icon": "warehouse",
+      "name": "Warehouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "07d8012e-2049-47e2-9a6d-1deaf8840952"
+    },
+    {
+      "canonical_id": "pet_store",
+      "icon": "animal-shelter",
+      "name": "Pet Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ad90c323-6ae3-4a91-b462-604909ebdffa"
+    },
+    {
+      "canonical_id": "playground",
+      "icon": "playground",
+      "name": "Playground",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3c8a3f94-0bc5-4d3e-97e7-9a7dd6896508"
+    },
+    {
+      "canonical_id": "car_wash",
+      "icon": "car",
+      "name": "Car Wash",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5cc5c4b4-8206-4ad0-9fd6-25fdbe4f443d"
+    },
+    {
+      "canonical_id": "lake",
+      "icon": "natural",
+      "name": "Lake",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "269661fa-a81d-4650-8d51-07625b8d811e"
+    },
+    {
+      "canonical_id": "shoe_store",
+      "icon": "shoe",
+      "name": "Shoe Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d95adf57-0b2a-49c1-9fbf-d8530fe5be52"
+    },
+    {
+      "canonical_id": "tailor",
+      "icon": "marker",
+      "name": "Tailor",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d6e9cf18-9792-4c02-9ed5-ea873c0dbec2"
+    },
+    {
+      "canonical_id": "kindergarten",
+      "icon": "school",
+      "name": "Kindergarten",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dd937fd3-70a3-40ad-98ac-55e96fc126ec"
+    },
+    {
+      "canonical_id": "laundry",
+      "icon": "laundry",
+      "name": "Laundry",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a8e2e2d9-b27e-4543-bbe1-9500c6621b3b"
+    },
+    {
+      "canonical_id": "nongovernmental_organization",
+      "icon": "building-alt1",
+      "name": "Ngo",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "07e8bc70-4165-4371-9522-18f2c1da2ad0"
+    },
+    {
+      "canonical_id": "sports_club",
+      "icon": "fitness-centre",
+      "name": "Sports Club",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2356823c-db23-4808-87a8-574081935993"
+    },
+    {
+      "canonical_id": "garden",
+      "icon": "garden",
+      "name": "Garden",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e7cd1112-6eea-4ba8-9a9a-55e565352c84"
+    },
+    {
+      "canonical_id": "gift_shop",
+      "icon": "shop",
+      "name": "Gift Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c9b5ed67-6bf6-452c-8977-e633bb0224ba"
+    },
+    {
+      "canonical_id": "field",
+      "icon": "park",
+      "name": "Sports Ground",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "571943a0-f344-4912-a3b7-085cc20ad12b"
+    },
+    {
+      "canonical_id": "cemetery",
+      "icon": "cemetery",
+      "name": "Cemetery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ae8ab8b6-2029-4c91-a4f8-06f8fd1e8dd6"
+    },
+    {
+      "canonical_id": "butcher_shop",
+      "icon": "slaughterhouse",
+      "name": "Butcher",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1a5b0805-5fb7-41d9-a33c-2aff760f0dd0"
+    },
+    {
+      "canonical_id": "psychological_services",
+      "icon": "doctor",
+      "name": "Psychological Services",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4b19d6a2-2c03-42d0-9166-b406be8fa7be"
+    },
+    {
+      "canonical_id": "florist",
+      "icon": "florist",
+      "name": "Flower Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "58e35039-ab8e-44be-bf31-d731232bfe85"
+    },
+    {
+      "canonical_id": "care_services",
+      "icon": "doctor",
+      "name": "Care Services",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "593393d8-a1e7-498b-b619-2e861e28598d"
+    },
+    {
+      "canonical_id": "charging_station",
+      "icon": "charging-station",
+      "name": "Charging Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8ee1d1a5-12c2-461a-86c8-82171534c24f"
+    },
+    {
+      "canonical_id": "bed_and_breakfast",
+      "icon": "lodging",
+      "name": "Bed and Breakfast",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8fe37369-1e83-45c4-a67b-e278238c5f46"
+    },
+    {
+      "canonical_id": "landscaping",
+      "icon": "garden-centre",
+      "name": "Landscaping",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "60729bda-15f7-43ea-a417-aca8c57da316"
+    },
+    {
+      "canonical_id": "womens_clothing_store",
+      "icon": "clothing-store",
+      "name": "Women's Clothing Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c76d6cfa-f2aa-452d-a089-cc2a18278108"
+    },
+    {
+      "canonical_id": "massage_shop",
+      "icon": "shop",
+      "name": "Massage",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b67b3558-e936-4d68-b9a7-e66e4a9ec307"
+    },
+    {
+      "canonical_id": "ice_cream",
+      "icon": "ice-cream",
+      "name": "Ice Cream Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f7136047-494d-4ad9-8838-6934bb698d47"
+    },
+    {
+      "canonical_id": "spa",
+      "icon": "hot-spring",
+      "name": "Spa",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7c45b05a-8f9c-45ff-a8f2-b56e264bae8a"
+    },
+    {
+      "canonical_id": "chiropractor",
+      "icon": "doctor",
+      "name": "Chiropractor",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bcbf407c-bc5b-436c-b0ff-b79a6c553e87"
+    },
+    {
+      "canonical_id": "photo_store",
+      "icon": "shop",
+      "name": "Photo Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "96cf9ba1-2ded-49ac-9df8-9bc198290824"
+    },
+    {
+      "canonical_id": "pizza_restaurant",
+      "icon": "restaturant-pizza",
+      "name": "Pizza",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "599a5432-15be-4602-a6b9-2c6ce1b4f526"
+    },
+    {
+      "canonical_id": "car_rental",
+      "icon": "car-rental",
+      "name": "Car Rental",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ace16f86-190d-4762-9736-e75f67765762"
+    },
+    {
+      "canonical_id": "paper_goods_store",
+      "icon": "shop",
+      "name": "Stationery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "52ebcd23-2972-4df5-bf9f-54508f88c8f2"
+    },
+    {
+      "canonical_id": "college",
+      "icon": "college",
+      "name": "College",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dab9997f-9833-4b48-9653-fb3abe6ec84e"
+    },
+    {
+      "canonical_id": "internet_cafe",
+      "icon": "information",
+      "name": "Internet Cafe",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0c323306-4102-4135-b5c3-70f865390c95"
+    },
+    {
+      "canonical_id": "nail_salon",
+      "icon": "hairdresser",
+      "name": "Nail Salon",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "68eca2e8-dac1-48d1-b60c-792bfa0ecb07"
+    },
+    {
+      "canonical_id": "copyshop",
+      "icon": "shop",
+      "name": "Copyshop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5d6ade51-7d37-4d22-ad44-918e5d07c262"
+    },
+    {
+      "canonical_id": "event_planner",
+      "icon": "marker",
+      "name": "Event Planner",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0658d632-90b8-4d5a-b493-df60d3388b75"
+    },
+    {
+      "canonical_id": "design_studio",
+      "icon": "marker",
+      "name": "Design Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4b962435-4a96-4518-8ae1-12ee41d1b646"
+    },
+    {
+      "canonical_id": "mountain",
+      "icon": "mountain",
+      "name": "Mountain",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6f2bfd49-a037-434d-a605-b04609c76514"
+    },
+    {
+      "canonical_id": "social_club",
+      "icon": "marker",
+      "name": "Social Club",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d0368cb9-2819-4cc8-9685-c2031d2b5a18"
+    },
+    {
+      "canonical_id": "public_transportation_station",
+      "icon": "bus",
+      "name": "Public Transit Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "938a58a2-8dac-4417-8b49-26c7652dede7"
+    },
+    {
+      "canonical_id": "liquor_store",
+      "icon": "alcohol-shop",
+      "name": "Liquor Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5d1980ab-0421-4535-8869-9d7465cadad0"
+    },
+    {
+      "canonical_id": "event_space",
+      "icon": "building-alt1",
+      "name": "Event Space",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b99cff39-69a9-46f7-8d00-fe703b767428"
+    },
+    {
+      "canonical_id": "book_store",
+      "icon": "library",
+      "name": "Bookstore",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "68c9ac36-9b6a-4064-8639-486ed48b30a3"
+    },
+    {
+      "canonical_id": "teahouse",
+      "icon": "teahouse",
+      "name": "Teahouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b8e65423-141a-4d1e-816e-aeddb41545d6"
+    },
+    {
+      "canonical_id": "tobacco_shop",
+      "icon": "shop",
+      "name": "Smoke Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ef436077-fef9-4cfa-af06-c5f7f5d18ea2"
+    },
+    {
+      "canonical_id": "taxi",
+      "icon": "taxi",
+      "name": "Taxi",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "63a16159-0c9b-4d16-8597-165c88b6212b"
+    },
+    {
+      "canonical_id": "employment_agency",
+      "icon": "building-alt1",
+      "name": "Employment Agency",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a68976f1-f904-4252-8fff-22bdbf368e62"
+    },
+    {
+      "canonical_id": "studio",
+      "icon": "art-gallery",
+      "name": "Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6f08de38-9078-493b-9a6c-dd4c1f960cd4"
+    },
+    {
+      "canonical_id": "community_center",
+      "icon": "residential-community",
+      "name": "Community Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3088ac8f-84e4-45cb-9db4-ed99d8e49a18"
+    },
+    {
+      "canonical_id": "medical_supply_store",
+      "icon": "shop",
+      "name": "Medical Supplies",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8b1e0c1f-dfe2-4474-a78a-d2c3cddbf709"
+    },
+    {
+      "canonical_id": "childcare",
+      "icon": "school",
+      "name": "Childcare",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fccb12fa-f194-413e-a1ca-66f666cc0414"
+    },
+    {
+      "canonical_id": "veterinarian",
+      "icon": "animal-shelter",
+      "name": "Veterinary",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "51b18d16-b5d2-47b2-ba45-989db2998c68"
+    },
+    {
+      "canonical_id": "art",
+      "icon": "art-gallery",
+      "name": "Art",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2fc684f5-47ab-4c0b-8d6c-a244688049b9"
+    },
+    {
+      "canonical_id": "university",
+      "icon": "college",
+      "name": "University",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1fd01b5d-2da2-4644-8a61-f9154c6b6643"
+    },
+    {
+      "canonical_id": "museum",
+      "icon": "museum",
+      "name": "Museum",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5b2109a1-3354-438f-8703-be5556090447"
+    },
+    {
+      "canonical_id": "tax_advisor",
+      "icon": "bank",
+      "name": "Tax Advisor",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "35255bc1-33fe-4fab-911e-532bb759b8b7"
+    },
+    {
+      "canonical_id": "mexican_restaurant",
+      "icon": "restaurant",
+      "name": "Mexican Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9efd5deb-b9f4-4ec4-b192-27cee1cd201b"
+    },
+    {
+      "canonical_id": "optician",
+      "icon": "optician",
+      "name": "Optical",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9a80b8e4-7e24-4833-bea5-5f52a481f491"
+    },
+    {
+      "canonical_id": "medical_laboratory",
+      "icon": "doctor",
+      "name": "Medical Laboratory",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "72188501-6d54-4b41-a1d4-37ea4d3b3cdb"
+    },
+    {
+      "canonical_id": "equipment_rental",
+      "icon": "shop",
+      "name": "Equipment Rental",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6af6bb17-e733-4783-ab15-f950f6694439"
+    },
+    {
+      "canonical_id": "arts_and_craft_store",
+      "icon": "shop",
+      "name": "Arts and Craft Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fc2511ad-140b-41ba-abc6-c408200c8bf3"
+    },
+    {
+      "canonical_id": "snack_bar",
+      "icon": "bar",
+      "name": "Snack Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b35eb389-b4d9-4a29-adc5-bc1ff94452bc"
+    },
+    {
+      "canonical_id": "assisted_living_facility",
+      "icon": "wheelchair",
+      "name": "Nursing Home",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "65481762-50b6-415d-a23a-1a2b0a2541a0"
+    },
+    {
+      "canonical_id": "indian_restaurant",
+      "icon": "restaurant",
+      "name": "Indian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a2d634f6-c235-4bba-8f0f-0f494c02e75c"
+    },
+    {
+      "canonical_id": "food_court",
+      "icon": "fast-food",
+      "name": "Food Court",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "57f5b0a3-8a7e-4612-997e-128d4766c1ce"
+    },
+    {
+      "canonical_id": "driving_school",
+      "icon": "car",
+      "name": "Driving School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e0b59ba4-a63a-4a3b-9dc3-00f731c35c8e"
+    },
+    {
+      "canonical_id": "bicycle_shop",
+      "icon": "bicycle",
+      "name": "Bike Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "81e88731-2667-4923-a19b-91c7482d7a78"
+    },
+    {
+      "canonical_id": "deli",
+      "icon": "restaurant",
+      "name": "Deli",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1305eb78-4f8e-4206-adcd-b28c25c8557e"
+    },
+    {
+      "canonical_id": "hostel",
+      "icon": "lodging",
+      "name": "Hostel",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3756f1d5-fe5b-4cbf-9a66-3bffea7a5657"
+    },
+    {
+      "canonical_id": "high_school",
+      "icon": "school",
+      "name": "High School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "58dd7b74-c078-4576-ba31-63220e6e0fb0"
+    },
+    {
+      "canonical_id": "asian_restaurant",
+      "icon": "restaurant",
+      "name": "Asian Food",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "30944b1e-1ccf-416d-a980-8977dd946477"
+    },
+    {
+      "canonical_id": "forest",
+      "icon": "park",
+      "name": "Forest",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "96bc0092-c831-471a-a33b-971f638fc6dc"
+    },
+    {
+      "canonical_id": "sports_shop",
+      "icon": "shop",
+      "name": "Sports Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "af29cb60-e72c-4ec1-a8e1-ad461a0a962d"
+    },
+    {
+      "canonical_id": "tattoo_parlour",
+      "icon": "marker",
+      "name": "Tattoo Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7a160335-8b47-4e71-99f6-7db7b6f21ee0"
+    },
+    {
+      "canonical_id": "health_food_store",
+      "icon": "grocery",
+      "name": "Health Food Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "aff0221b-8427-4622-be7b-22d8e2fa181c"
+    },
+    {
+      "canonical_id": "library",
+      "icon": "library",
+      "name": "Library",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f015e452-3ce4-47d0-bb78-0baa1fe9c5e4"
+    },
+    {
+      "canonical_id": "counselling",
+      "icon": "hospital",
+      "name": "Counselling",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8ae6efb8-7669-4abb-995f-ea2d644004c8"
+    },
+    {
+      "canonical_id": "fashion_accessory_shop",
+      "icon": "shop",
+      "name": "Fashion Accessories",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4d2236e6-7cc0-4754-8aa9-654d878f31d8"
+    },
+    {
+      "canonical_id": "boutique",
+      "icon": "gift",
+      "name": "Boutique Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "753b3db0-e4bb-4fb8-9c9d-24262e9ad852"
+    },
+    {
+      "canonical_id": "dance_studio",
+      "icon": "music",
+      "name": "Dance Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "71389e51-5663-4fd1-bdb5-0e81a03282e4"
+    },
+    {
+      "canonical_id": "island",
+      "icon": "natural",
+      "name": "Island",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a25b53b3-1dda-4dfd-a0a6-9bf1e5a71590"
+    },
+    {
+      "canonical_id": "department_store",
+      "icon": "shop",
+      "name": "Department Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2e41db52-4f07-4c0e-84e5-95e186c6453b"
+    },
+    {
+      "canonical_id": "burger_restaurant",
+      "icon": "fast-food",
+      "name": "Burger Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4c5a8175-dd17-4829-9bb9-8667035a4db4"
+    },
+    {
+      "canonical_id": "tutor",
+      "icon": "college",
+      "name": "Tutor",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "eb3ced7d-9af7-4289-a3be-e7a75d07089a"
+    },
+    {
+      "canonical_id": "storage",
+      "icon": "warehouse",
+      "name": "Self Storage",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "888e43ea-9a3d-4587-bad9-787749a1539b"
+    },
+    {
+      "canonical_id": "nightclub",
+      "icon": "nightclub",
+      "name": "Nightclub",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "13c2d3b5-10c2-4ce3-99e8-e1feb2c5c5cd"
+    },
+    {
+      "canonical_id": "motorcycle_dealer",
+      "icon": "car",
+      "name": "Motorcycles",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "baa02c32-09a6-4f96-b8ea-23a02d9b84e6"
+    },
+    {
+      "canonical_id": "dry_cleaners",
+      "icon": "laundry",
+      "name": "Dry Cleaners",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "10dacf33-7da0-49b9-b6be-3f463225e02b"
+    },
+    {
+      "canonical_id": "diner_restaurant",
+      "icon": "restaurant",
+      "name": "Diner",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1fd6fa1d-f932-419b-aa9b-c2bda28b753d"
+    },
+    {
+      "canonical_id": "bridge",
+      "icon": "bridge",
+      "name": "Bridge",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a856a701-b6be-4086-9584-776a96d76f05"
+    },
+    {
+      "canonical_id": "fabric_store",
+      "icon": "shop",
+      "name": "Fabric Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c9818885-de90-4d7e-af92-2f1e0e98f9ec"
+    },
+    {
+      "canonical_id": "soccer_field",
+      "icon": "soccer",
+      "name": "Soccer Field",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f17e2b34-0651-4afe-8e29-77d1bc18f145"
+    },
+    {
+      "canonical_id": "police_station",
+      "icon": "police",
+      "name": "Police",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b0f02a3a-0140-4145-85f9-4a8ed77fb446"
+    },
+    {
+      "canonical_id": "news_kiosk",
+      "icon": "shop",
+      "name": "News Kiosk",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "29edbd40-6fce-4b01-9a9f-72d915d022ca"
+    },
+    {
+      "canonical_id": "video_game_store",
+      "icon": "gaming",
+      "name": "Video Games",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3ca74df8-d6db-4762-af96-cce60aca314b"
+    },
+    {
+      "canonical_id": "juice_bar",
+      "icon": "bar",
+      "name": "Juice Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "85ba0516-9300-4369-a37d-dd2e13a53c75"
+    },
+    {
+      "canonical_id": "art_gallery",
+      "icon": "art-gallery",
+      "name": "Art Gallery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "998ad3c2-41de-4d82-8b64-97745d4cb532"
+    },
+    {
+      "canonical_id": "language_school",
+      "icon": "school",
+      "name": "Language School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "696325b1-4506-4cfc-b2f3-4db054693358"
+    },
+    {
+      "canonical_id": "breakfast_restaurant",
+      "icon": "restaurant",
+      "name": "Breakfast Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4722c53f-6fc2-4042-b856-24facbff43a9"
+    },
+    {
+      "canonical_id": "yoga_studio",
+      "icon": "fitness-centre",
+      "name": "Yoga Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "847e516d-a428-4ab5-ae6a-5114fa32a957"
+    },
+    {
+      "canonical_id": "music_school",
+      "icon": "music",
+      "name": "Music School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a25bd70a-4e65-4368-86d8-a9d2588d1b3e"
+    },
+    {
+      "canonical_id": "recording_studio",
+      "icon": "music",
+      "name": "Recording Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "97c2f42d-e86f-41b7-893c-3593affde5bf"
+    },
+    {
+      "canonical_id": "indonesian_restaurant",
+      "icon": "restaurant",
+      "name": "Indonesian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0f2103eb-c3b0-442d-8769-6c50ed118061"
+    },
+    {
+      "canonical_id": "fire_station",
+      "icon": "fire-station",
+      "name": "Fire Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "40a03786-d073-4f33-87ca-0dc3b3986e1b"
+    },
+    {
+      "canonical_id": "brunch_restaurant",
+      "icon": "restaurant",
+      "name": "Brunch Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0df506d6-6e0b-453b-8530-1adda7553965"
+    },
+    {
+      "canonical_id": "japanese_restaurant",
+      "icon": "restaurant",
+      "name": "Japanese Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6732026c-82f2-4681-9ed0-ff223d965447"
+    },
+    {
+      "canonical_id": "chinese_restaurant",
+      "icon": "restaurant",
+      "name": "Chinese Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "29f48e76-5820-4a7b-8b79-b106b15e51f0"
+    },
+    {
+      "canonical_id": "funeral_home",
+      "icon": "cemetery",
+      "name": "Funeral Home",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "499007a2-0968-4ddf-8905-70b482937efa"
+    },
+    {
+      "canonical_id": "toy_store",
+      "icon": "shop",
+      "name": "Toy Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "866bebde-426c-4c14-ba0f-dc1f5e960f2a"
+    },
+    {
+      "canonical_id": "baby_goods_shop",
+      "icon": "shop",
+      "name": "Baby Goods Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0231e83d-0039-4302-8073-95505146ec30"
+    },
+    {
+      "canonical_id": "seafood_restaurant",
+      "icon": "restaurant-seafood",
+      "name": "Fish Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1dcccc02-7f38-4c57-a9f0-ac4c03f11c34"
+    },
+    {
+      "canonical_id": "furniture_maker",
+      "icon": "furniture",
+      "name": "Furniture Maker",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "08d5d997-9689-4217-8a89-9ece3bd0f9b4"
+    },
+    {
+      "canonical_id": "buddhist_temple",
+      "icon": "religious-buddhist",
+      "name": "Buddhist Temple",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "47c7b1c9-7d37-41aa-951d-a41cf0adead8"
+    },
+    {
+      "canonical_id": "notary",
+      "icon": "marker",
+      "name": "Notary",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "eb152517-0427-4592-936d-0173fd3cae37"
+    },
+    {
+      "canonical_id": "fishing_store",
+      "icon": "shop",
+      "name": "Fishing Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d5577253-618c-4266-a448-fadf2bcd697e"
+    },
+    {
+      "canonical_id": "swimming_pool",
+      "icon": "swimming",
+      "name": "Swimming Pool",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4ff313cc-e7e6-4e5c-90f0-42987945884b"
+    },
+    {
+      "canonical_id": "government_offices",
+      "icon": "town-hall",
+      "name": "Government Buildings",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3c868282-7968-4c80-bc4a-17ffec37a4bb"
+    },
+    {
+      "canonical_id": "university_building",
+      "icon": "college",
+      "name": "University Building",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "926e1dc1-77f0-4c71-8fde-e55bd5034156"
+    },
+    {
+      "canonical_id": "noodle_restaurant",
+      "icon": "restaturant-noodle",
+      "name": "Noodle Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "71df4549-4bf8-4aaa-82f1-1996ce44b8c6"
+    },
+    {
+      "canonical_id": "theatre",
+      "icon": "theatre",
+      "name": "Theater",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e3050fab-4952-488b-bebf-6ce50e672667"
+    },
+    {
+      "canonical_id": "bus_station",
+      "icon": "bus",
+      "name": "Bus Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2a72a6f7-f83e-4e98-b038-5bb050605e41"
+    },
+    {
+      "canonical_id": "theme_park",
+      "icon": "amusement-park",
+      "name": "Theme Park",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0faddf38-974e-4571-bd11-55c5e904cde9"
+    },
+    {
+      "canonical_id": "pub",
+      "icon": "beer",
+      "name": "Pub",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "96be9d63-41e5-4611-a7ad-2d50148276b6"
+    },
+    {
+      "canonical_id": "barbeque_restaurant",
+      "icon": "bbq",
+      "name": "Barbecue Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "60d37792-4589-4c6e-b8f5-61668dd4d797"
+    },
+    {
+      "canonical_id": "townhall",
+      "icon": "town-hall",
+      "name": "Town Hall",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b69ad766-7266-4bc5-b06b-981e26243a20"
+    },
+    {
+      "canonical_id": "dormitory",
+      "icon": "college",
+      "name": "Dormitory",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "79d9d953-6b75-4123-87b4-52944abe482d"
+    },
+    {
+      "canonical_id": "charity",
+      "icon": "building-alt1",
+      "name": "Charity",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a443da86-ae74-4900-b761-b46a87f3b093"
+    },
+    {
+      "canonical_id": "conference_center",
+      "icon": "building-alt1",
+      "name": "Conference Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d440b686-4d9c-4366-a354-26f1e9a34481"
+    },
+    {
+      "canonical_id": "laboratory",
+      "icon": "hospital",
+      "name": "Laboratory",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ea3e523d-5b55-4d3a-a70f-5d0211a1f02c"
+    },
+    {
+      "canonical_id": "taco_shop",
+      "icon": "restaurant",
+      "name": "Taco Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6bb23074-1e86-4687-89bd-1ba075751ab3"
+    },
+    {
+      "canonical_id": "italian_restaurant",
+      "icon": "restaurant",
+      "name": "Italian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a27d9716-392b-462b-899a-9142f1df74f9"
+    },
+    {
+      "canonical_id": "music_shop",
+      "icon": "music",
+      "name": "Music Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bed41b61-2888-4a19-acaa-85abf004dad8"
+    },
+    {
+      "canonical_id": "winery",
+      "icon": "alcohol-shop",
+      "name": "Winery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "34648943-dea5-4fe0-bb3f-4ba31aede1ca"
+    },
+    {
+      "canonical_id": "public_artwork",
+      "icon": "attraction",
+      "name": "Public Artwork",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e99f4958-5053-4d5c-b4fe-7518363c3013"
+    },
+    {
+      "canonical_id": "outdoor_sculpture",
+      "icon": "art-gallery",
+      "name": "Outdoor Sculpture",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c48c2dff-4203-4c7b-81ff-db267ab79999"
+    },
+    {
+      "canonical_id": "nature_reserve",
+      "icon": "ranger-station",
+      "name": "Nature Reserve",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2dc11ef0-e104-45f1-acfb-867a8af038e6"
+    },
+    {
+      "canonical_id": "sandwich_shop",
+      "icon": "restaurant",
+      "name": "Sandwich Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "41f9770b-d546-4a80-9f92-df9bc37033b4"
+    },
+    {
+      "canonical_id": "waste_transfer_station",
+      "icon": "waste-basket",
+      "name": "Waste Transfer Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5db55110-a6f4-47ba-a59a-689c46575b5b"
+    },
+    {
+      "canonical_id": "recycling_center",
+      "icon": "recycling",
+      "name": "Recycling Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d2d965cf-bd90-445e-b569-f42889a826fb"
+    },
+    {
+      "canonical_id": "music_venue",
+      "icon": "music",
+      "name": "Music Venue",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8d7a0cb1-e7a8-412a-b09a-b4ba767222e0"
+    },
+    {
+      "canonical_id": "mattress_store",
+      "icon": "shop",
+      "name": "Mattress Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bb380c32-a1de-4224-80e7-54c3d092930d"
+    },
+    {
+      "canonical_id": "stadium",
+      "icon": "stadium",
+      "name": "Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0dfe8ac2-c34a-4c0c-a345-a010f78ee22b"
+    },
+    {
+      "canonical_id": "american_restaurant",
+      "icon": "restaurant",
+      "name": "American Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d1323d21-e5da-474a-9f55-404406435269"
+    },
+    {
+      "canonical_id": "discount_store",
+      "icon": "shop",
+      "name": "Discount Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e8b86c37-1c9c-4312-8e64-4c7f663eb71f"
+    },
+    {
+      "canonical_id": "tourist_information",
+      "icon": "information",
+      "name": "Tourist Information Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "95456d7e-1f95-4250-b902-75d114b3a378"
+    },
+    {
+      "canonical_id": "party_store",
+      "icon": "shop",
+      "name": "Party Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f210c2f2-bc83-4819-aae2-25eaaca0ca54"
+    },
+    {
+      "canonical_id": "garden_store",
+      "icon": "garden",
+      "name": "Garden Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "64564ca7-aeeb-480c-9274-756256882342"
+    },
+    {
+      "canonical_id": "rehabilitation_center",
+      "icon": "hospital",
+      "name": "Rehabilitation Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4f10278e-b5bb-412a-9264-3eb3e0411abd"
+    },
+    {
+      "canonical_id": "motel",
+      "icon": "lodging",
+      "name": "Motel",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7a65cb1d-f561-447e-9144-fa7071c53b86"
+    },
+    {
+      "canonical_id": "cinema",
+      "icon": "cinema",
+      "name": "Movie Theater",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0da528dd-c82b-427e-a050-d8e0419dee11"
+    },
+    {
+      "canonical_id": "tennis_courts",
+      "icon": "tennis",
+      "name": "Tennis Court",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2f7e05aa-7c09-40b9-9b72-e59a8b58a8c2"
+    },
+    {
+      "canonical_id": "antique_shop",
+      "icon": "shop",
+      "name": "Antique Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "03455083-2fcc-4235-83b8-5a0014561998"
+    },
+    {
+      "canonical_id": "labor_union",
+      "icon": "town-hall",
+      "name": "Labor Union",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c0b9de22-87fe-40ff-bed3-116e4c276835"
+    },
+    {
+      "canonical_id": "lighting_store",
+      "icon": "shop",
+      "name": "Lighting Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "cc6b742a-c46e-45fb-bcf4-b20569d85537"
+    },
+    {
+      "canonical_id": "locksmith",
+      "icon": "hardware",
+      "name": "Locksmith",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "92cee1ad-efac-4c10-b9ff-c8a69af22909"
+    },
+    {
+      "canonical_id": "lounge",
+      "icon": "bar",
+      "name": "Lounge",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5a0593d9-c879-4a1f-98e6-6c3a8b572234"
+    },
+    {
+      "canonical_id": "psychic",
+      "icon": "marker",
+      "name": "Psychic",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b358bebb-fccc-4415-b0fa-526edc8594be"
+    },
+    {
+      "canonical_id": "rest_area",
+      "icon": "highway-rest-area",
+      "name": "Rest Area",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "85840845-f88b-4bdf-8389-19be94a9c371"
+    },
+    {
+      "canonical_id": "thrift_shop",
+      "icon": "shop",
+      "name": "Thrift Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "61b94c19-725e-4746-8265-b6f2f6f71514"
+    },
+    {
+      "canonical_id": "canal",
+      "icon": "natural",
+      "name": "Canal",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1138be2b-1e1a-4ff8-9732-e65e54337b11"
+    },
+    {
+      "canonical_id": "radio_studio",
+      "icon": "communications-tower",
+      "name": "Radio Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ade6559d-c327-4e47-8a5e-b188f7be87c0"
+    },
+    {
+      "canonical_id": "watch_store",
+      "icon": "watch",
+      "name": "Watch Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "16edca8b-a66f-48d8-8b49-2d6837b63859"
+    },
+    {
+      "canonical_id": "pawnshop",
+      "icon": "shop",
+      "name": "Pawn Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dc30ad7e-6601-44fd-8107-82a7df22ecd4"
+    },
+    {
+      "canonical_id": "vape_shop",
+      "icon": "shop",
+      "name": "Vape Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a758bec1-66ee-4a5d-b1ac-f7c8673b8593"
+    },
+    {
+      "canonical_id": "railway_station",
+      "icon": "rail",
+      "name": "Train Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ef5efafe-ebbf-467e-b023-1a377cefd0c7"
+    },
+    {
+      "canonical_id": "golf_course",
+      "icon": "golf",
+      "name": "Golf Course",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "647d6730-e24a-4664-a7a0-92ab334ab332"
+    },
+    {
+      "canonical_id": "bridal_shop",
+      "icon": "shop",
+      "name": "Bridal Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8d5e67a5-d4dc-49da-84fe-2e02fdee4edb"
+    },
+    {
+      "canonical_id": "pilates_studio",
+      "icon": "fitness-centre",
+      "name": "Pilates Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "aa8a8f06-bbe4-4208-b44d-273ac73baf59"
+    },
+    {
+      "canonical_id": "vacation_rental",
+      "icon": "lodging",
+      "name": "Vacation Rental",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "52096aec-1912-497e-9a45-fd4c094108b7"
+    },
+    {
+      "canonical_id": "buffet_restaurant",
+      "icon": "restaurant",
+      "name": "Buffet Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "adb4e4e8-68cb-4e63-aa28-add8786fcc30"
+    },
+    {
+      "canonical_id": "thai_restaurant",
+      "icon": "restaurant",
+      "name": "Thai Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b660d9fd-5474-4ff2-a3d3-5278e086ba1c"
+    },
+    {
+      "canonical_id": "video_store",
+      "icon": "shop",
+      "name": "Video Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b91e577a-8c9e-4dd3-8473-d4ed2d61fd7b"
+    },
+    {
+      "canonical_id": "campground",
+      "icon": "campsite",
+      "name": "Campground",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f805cc47-3ea8-40bf-89f3-3ed3d8dbe5fd"
+    },
+    {
+      "canonical_id": "boat_rental",
+      "icon": "ferry",
+      "name": "Boat Rental",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1b500be4-7b59-4b45-a651-3bece2226b3b"
+    },
+    {
+      "canonical_id": "sushi_restaurant",
+      "icon": "restaurant-sushi",
+      "name": "Sushi Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "925cc486-674a-46e1-8824-fc893ec710fc"
+    },
+    {
+      "canonical_id": "basketball_court",
+      "icon": "basketball",
+      "name": "Basketball Court",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "afc68024-876a-4312-9f8a-3270ec6831cc"
+    },
+    {
+      "canonical_id": "cobbler",
+      "icon": "shoe",
+      "name": "Cobbler",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d486287c-aec4-414e-9b88-cedb6ceb6bdb"
+    },
+    {
+      "canonical_id": "kitchen_store",
+      "icon": "shop",
+      "name": "Kitchen Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "16b6a0bc-e602-46f4-9fe4-448e7c72bd3b"
+    },
+    {
+      "canonical_id": "martial_arts_studio",
+      "icon": "fitness-centre",
+      "name": "Martial Arts",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "766923d7-aeea-429c-bdb4-4e079752a7ec"
+    },
+    {
+      "canonical_id": "recreation_center",
+      "icon": "fitness-centre",
+      "name": "Recreation Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a4237dc0-c366-4243-9f9e-ace4b97ee2ac"
+    },
+    {
+      "canonical_id": "cocktail_bar",
+      "icon": "bar",
+      "name": "Cocktail Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b66ef4a9-71ef-4ae6-8414-6bcebd90c990"
+    },
+    {
+      "canonical_id": "shoe_repair",
+      "icon": "shoe",
+      "name": "Shoe Repair",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8e57fe32-445f-42f3-8932-fe09ca07e6d3"
+    },
+    {
+      "canonical_id": "brewery",
+      "icon": "beer",
+      "name": "Brewery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ee198f5e-3f7b-4820-91f0-3df535f68d99"
+    },
+    {
+      "canonical_id": "home_repair",
+      "icon": "home",
+      "name": "Home Services Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c9708cd1-5f6b-43b5-ad14-188ff8ebee23"
+    },
+    {
+      "canonical_id": "coworking_space",
+      "icon": "building-alt1",
+      "name": "Coworking Space",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6ff3c553-b1f1-4b0f-860c-52212f93d03e"
+    },
+    {
+      "canonical_id": "leather_goods",
+      "icon": "shop",
+      "name": "Leather Goods Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5fc241d9-642d-4f20-a604-49c2db65f061"
+    },
+    {
+      "canonical_id": "bubble_tea",
+      "icon": "teahouse",
+      "name": "Bubble Tea",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2854ff57-1741-4286-8bee-dfb77b7869dd"
+    },
+    {
+      "canonical_id": "outlet_store",
+      "icon": "shop",
+      "name": "Outlet Mall",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7d3d3296-e182-4940-8d97-cd51f980a978"
+    },
+    {
+      "canonical_id": "arts_center",
+      "icon": "art-gallery",
+      "name": "Arts Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "61e3c042-d333-4b4f-800b-70e0066fe697"
+    },
+    {
+      "canonical_id": "sewing_shop",
+      "icon": "shop",
+      "name": "Sewing Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3d330a79-ab38-4083-bd1e-e18899c73d50"
+    },
+    {
+      "canonical_id": "airport",
+      "icon": "airport",
+      "name": "Airport",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "69949c51-e598-4623-811e-90d213127a0a"
+    },
+    {
+      "canonical_id": "fair_grounds",
+      "icon": "amusement-park",
+      "name": "Festival Grounds",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f6bc3329-49d9-42ac-af40-c1102816d061"
+    },
+    {
+      "canonical_id": "courthouse",
+      "icon": "town-hall",
+      "name": "Courthouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "abc88c06-df9a-4e1e-8dd7-cd6ef84fabaa"
+    },
+    {
+      "canonical_id": "cannabis_dispensary",
+      "icon": "shop",
+      "name": "Dispensary",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1c57b0bb-ec5f-44fc-bf08-16445059bced"
+    },
+    {
+      "canonical_id": "tanning_salon",
+      "icon": "marker",
+      "name": "Tanning Salon",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1110be3c-15f7-4275-a1cc-4b2f770bd686"
+    },
+    {
+      "canonical_id": "trade_school",
+      "icon": "school",
+      "name": "Trade School",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "64338aa3-213a-4661-9974-9626b0da2628"
+    },
+    {
+      "canonical_id": "beach",
+      "icon": "beach",
+      "name": "Beach",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4186675c-4d68-4238-aa91-32b8a38a02d5"
+    },
+    {
+      "canonical_id": "animal_shelter",
+      "icon": "animal-shelter",
+      "name": "Animal Shelter",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c90b557a-1d79-482e-8389-9297f7b637d2"
+    },
+    {
+      "canonical_id": "concert_hall",
+      "icon": "music",
+      "name": "Concert Hall",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "68e72d2b-2ba8-42b9-90ea-26b84e773a13"
+    },
+    {
+      "canonical_id": "gymnastics",
+      "icon": "fitness-centre",
+      "name": "Gymnastics",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "67815a4c-c00a-423a-994b-6afb18736a2f"
+    },
+    {
+      "canonical_id": "donut_shop",
+      "icon": "shop",
+      "name": "Donut Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "323d35cc-b716-418c-a266-76c8139a9661"
+    },
+    {
+      "canonical_id": "stable",
+      "icon": "horse-riding",
+      "name": "Horse Boarding Stable",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d95909cf-b3f6-469c-ada4-c2258c3cfa0a"
+    },
+    {
+      "canonical_id": "currency_exchange",
+      "icon": "bank",
+      "name": "Currency Exchange",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "195d9b7a-89aa-48c2-9d17-ae4a28011536"
+    },
+    {
+      "canonical_id": "hobby_shop",
+      "icon": "shop",
+      "name": "Hobby Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c41adbe7-f183-44cb-834b-5e99c37f77e5"
+    },
+    {
+      "canonical_id": "herbalist",
+      "icon": "doctor",
+      "name": "Herbalist",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c7d250ea-1783-447a-a697-74fb5c07013c"
+    },
+    {
+      "canonical_id": "frame_store",
+      "icon": "shop",
+      "name": "Frame Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c513011e-255f-4a6a-a8fa-2b9c5cfefa99"
+    },
+    {
+      "canonical_id": "camera_shop",
+      "icon": "shop",
+      "name": "Camera Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3b773dce-7b71-4726-97b7-66dec189936f"
+    },
+    {
+      "canonical_id": "carpet_store",
+      "icon": "shop",
+      "name": "Carpet Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "38476da7-013e-49ad-bdae-bee294cc1c6b"
+    },
+    {
+      "canonical_id": "casino",
+      "icon": "casino",
+      "name": "Casino",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ca038ea3-3ca0-4c9d-987a-05835aa721dd"
+    },
+    {
+      "canonical_id": "karaoke_bar",
+      "icon": "karaoke",
+      "name": "Karaoke Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fc01c2ee-21a4-43d2-897e-68bc9229022b"
+    },
+    {
+      "canonical_id": "tapas_restaurant",
+      "icon": "restaurant",
+      "name": "Tapas Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5e9c53e5-8d15-4597-9a67-340e0329dd8b"
+    },
+    {
+      "canonical_id": "spanish_restaurant",
+      "icon": "restaurant",
+      "name": "Spanish Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ad88a688-7d1a-497e-bb10-5e1cc71b78a2"
+    },
+    {
+      "canonical_id": "turkish_restaurant",
+      "icon": "restaurant",
+      "name": "Turkish Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fa529955-3cfe-4423-b543-3c99df57e470"
+    },
+    {
+      "canonical_id": "gun_store",
+      "icon": "shop",
+      "name": "Gun Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4b9fb124-76d2-42a9-8a8e-10f6a8ea96b4"
+    },
+    {
+      "canonical_id": "marina",
+      "icon": "ferry",
+      "name": "Marina",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6aed94d6-cfb3-431e-a4ae-2c437396dc2a"
+    },
+    {
+      "canonical_id": "wine_bar",
+      "icon": "bar",
+      "name": "Wine Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b43ba97d-c7ca-48b3-9811-7727ea48db77"
+    },
+    {
+      "canonical_id": "steakhouse",
+      "icon": "restaurant",
+      "name": "Steakhouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "76c83d8e-ca18-4224-80d8-f2f15150fa34"
+    },
+    {
+      "canonical_id": "tours",
+      "icon": "attraction",
+      "name": "Tours",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7a9b6811-90b4-4ad2-954a-7b51c1f36d74"
+    },
+    {
+      "canonical_id": "viewpoint",
+      "icon": "viewpoint",
+      "name": "Viewpoint",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "66616941-7525-4c3f-b2d8-d8a9523df897"
+    },
+    {
+      "canonical_id": "waste_disposal",
+      "icon": "recycling",
+      "name": "Waste Disposal",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6648ef90-d1f5-4b52-8f90-5c7d37180edc"
+    },
+    {
+      "canonical_id": "billiards",
+      "icon": "cinema",
+      "name": "Billiards",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6d7fcb41-08cc-4aa8-801c-6f319c735f77"
+    },
+    {
+      "canonical_id": "korean_restaurant",
+      "icon": "restaurant",
+      "name": "Korean Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "58756a28-aedd-44c4-adc9-8de3592361e9"
+    },
+    {
+      "canonical_id": "television_studio",
+      "icon": "art-gallery",
+      "name": "Television Studio",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "596f79cd-363f-455a-803a-649e13737980"
+    },
+    {
+      "canonical_id": "pier",
+      "icon": "ferry",
+      "name": "Pier",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e42e9ad4-8a4a-4fc9-b8b3-810a5dfd6428"
+    },
+    {
+      "canonical_id": "baseball_field",
+      "icon": "baseball",
+      "name": "Baseball Field",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a17bed0c-ca4e-4d37-a94a-5f17cf7febcf"
+    },
+    {
+      "canonical_id": "beer_bar",
+      "icon": "beer",
+      "name": "Beer Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "179dd44f-cc0c-4d41-8bd8-732e6cc46603"
+    },
+    {
+      "canonical_id": "french_restaurant",
+      "icon": "restaurant",
+      "name": "French Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "03795a4d-25c2-474c-901e-71d68dc159bc"
+    },
+    {
+      "canonical_id": "vietnamese_restaurant",
+      "icon": "restaurant",
+      "name": "Vietnamese Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ec2b468e-356d-4df4-8611-5eedc383705d"
+    },
+    {
+      "canonical_id": "picnic_shelter",
+      "icon": "picnic-site",
+      "name": "Picnic Shelter",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d7dd6cf2-2b25-462d-9c40-47b20a9207ae"
+    },
+    {
+      "canonical_id": "cheese_shop",
+      "icon": "shop",
+      "name": "Cheese Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9f823328-5543-45d4-b79e-824eca1d8a52"
+    },
+    {
+      "canonical_id": "dog_park",
+      "icon": "dog-park",
+      "name": "Dog Park",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "98accc6c-e257-4c68-9e27-b8c4c6ab1483"
+    },
+    {
+      "canonical_id": "photo_lab",
+      "icon": "marker",
+      "name": "Photo Lab",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "96918b95-f9da-4956-9f7f-e55a45c5305c"
+    },
+    {
+      "canonical_id": "fireworks_store",
+      "icon": "shop",
+      "name": "Fireworks Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "69d0fa01-4a04-4dee-9453-d8630c542820"
+    },
+    {
+      "canonical_id": "middle_eastern_restaurant",
+      "icon": "restaurant",
+      "name": "Middle Eastern Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a09c5ddc-e359-4532-9dea-2852963b4cd8"
+    },
+    {
+      "canonical_id": "sports_bar",
+      "icon": "bar",
+      "name": "Sports Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "46cdb7b8-7909-48c8-824f-adee88747839"
+    },
+    {
+      "canonical_id": "fish_and_chips_restaurant",
+      "icon": "restaurant",
+      "name": "Fish and Chips",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a8ebb4a0-3c00-4e3f-9e79-1d271585d621"
+    },
+    {
+      "canonical_id": "greek_restaurant",
+      "icon": "restaurant",
+      "name": "Greek Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b3a2f523-64bd-4527-8874-14426c9ac045"
+    },
+    {
+      "canonical_id": "sports_center",
+      "icon": "fitness-centre",
+      "name": "Sports Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bc7934b6-9fd2-47fa-beb3-ddf8a07c6b5f"
+    },
+    {
+      "canonical_id": "synagogue",
+      "icon": "religious-jewish",
+      "name": "Synagogue",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2f7b08b1-a88c-4a33-8bc2-e8081e650f24"
+    },
+    {
+      "canonical_id": "hookah_lounge",
+      "icon": "bar",
+      "name": "Hookah Lounge",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e3ec2199-4c78-4a70-9ced-bb50386c1217"
+    },
+    {
+      "canonical_id": "military_office",
+      "icon": "building-alt1",
+      "name": "Military Office",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "638f2987-631a-4c54-aa4f-ea0dfea9a5ce"
+    },
+    {
+      "canonical_id": "sauna",
+      "icon": "hot-spring",
+      "name": "Sauna",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6a359b4c-c167-495a-876f-526d8f3eae49"
+    },
+    {
+      "canonical_id": "vineyard",
+      "icon": "alcohol-shop",
+      "name": "Vineyards",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c276cd52-cc0e-40a8-a1b8-4d4195bd91ca"
+    },
+    {
+      "canonical_id": "gastropub",
+      "icon": "beer",
+      "name": "Gastropub",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3c30606e-13cf-4562-8053-b22a75344006"
+    },
+    {
+      "canonical_id": "african_restaurant",
+      "icon": "restaurant",
+      "name": "African Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7771d0fb-6c48-4bcc-98a7-a60584d120e6"
+    },
+    {
+      "canonical_id": "mediterranean_restaurant",
+      "icon": "restaurant",
+      "name": "Mediterranean Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "67fa9086-58d6-4a5f-b4c9-d4ff8ee96894"
+    },
+    {
+      "canonical_id": "coffee_roaster",
+      "icon": "cafe",
+      "name": "Coffee Roaster",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e0018eb6-9031-47c5-ad10-2d5cb4cd4d71"
+    },
+    {
+      "canonical_id": "racetrack",
+      "icon": "racetrack",
+      "name": "Race Track",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "268d53d9-7506-4796-87f7-ad5eea4ac893"
+    },
+    {
+      "canonical_id": "zoo",
+      "icon": "zoo",
+      "name": "Zoo",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "226c1fd0-29c1-4adb-86c2-57fd39555768"
+    },
+    {
+      "canonical_id": "bookmaker",
+      "icon": "marker",
+      "name": "Betting",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1fa851a5-ace1-4335-a899-20b8fd78035d"
+    },
+    {
+      "canonical_id": "community_college",
+      "icon": "college",
+      "name": "Community College",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9babd9b8-a234-49e3-9233-47e5565481d1"
+    },
+    {
+      "canonical_id": "salad_bar",
+      "icon": "restaurant",
+      "name": "Salad Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8f63c1a3-1c27-4dcf-ab9b-bf97b50948b8"
+    },
+    {
+      "canonical_id": "prison",
+      "icon": "prison",
+      "name": "Jail",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ee4585e0-8cf0-491e-9cd3-d6a8ae532adc"
+    },
+    {
+      "canonical_id": "hot_dog_stand",
+      "icon": "fast-food",
+      "name": "Hot Dogs",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "cb72a901-4586-4d9e-af27-ca9f437016f0"
+    },
+    {
+      "canonical_id": "dam",
+      "icon": "dam",
+      "name": "Dam",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f912dc80-d60b-4089-9b93-60e03bd518c0"
+    },
+    {
+      "canonical_id": "boxing_gym",
+      "icon": "fitness-centre",
+      "name": "Boxing Gym",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0381c4ca-9d3e-4651-a82a-57910788cbd6"
+    },
+    {
+      "canonical_id": "climbing",
+      "icon": "fitness-centre",
+      "name": "Climbing",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "47d2d71d-872a-4c53-917b-ef2b5543b8b6"
+    },
+    {
+      "canonical_id": "climbing_gym",
+      "icon": "fitness-centre",
+      "name": "Climbing Gym",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e5568174-ec39-418a-8e05-ace1d8d852f3"
+    },
+    {
+      "canonical_id": "luggage_store",
+      "icon": "shop",
+      "name": "Luggage Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1e58d55c-8b8a-4e8e-9397-5a4c238f617c"
+    },
+    {
+      "canonical_id": "brazilian_restaurant",
+      "icon": "restaurant",
+      "name": "Brazilian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7802e760-f3fb-4e23-abfe-099374cebe25"
+    },
+    {
+      "canonical_id": "hunting_store",
+      "icon": "shop",
+      "name": "Hunting Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4519691f-867b-4f52-8976-29048b5a75c3"
+    },
+    {
+      "canonical_id": "dialysis_center",
+      "icon": "hospital",
+      "name": "Dialysis Center",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fa922f17-4f78-4c5f-ba7f-ec01c49969de"
+    },
+    {
+      "canonical_id": "bowling_alley",
+      "icon": "bowling-alley",
+      "name": "Bowling Alley",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6d100c17-743b-41e1-998d-6a8b6f5575d4"
+    },
+    {
+      "canonical_id": "emergency_room",
+      "icon": "hospital",
+      "name": "Emergency Room",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3e2d33e0-fdf8-4447-83a5-5af20050f8b0"
+    },
+    {
+      "canonical_id": "waterfall",
+      "icon": "waterfall",
+      "name": "Waterfall",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7bc306a4-c6bd-4538-b514-47224f24ce25"
+    },
+    {
+      "canonical_id": "fishing",
+      "icon": "natural",
+      "name": "Fishing",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4586d0da-9d51-46ee-a8a8-ef13a476d62c"
+    },
+    {
+      "canonical_id": "bagel_shop",
+      "icon": "shop",
+      "name": "Bagel Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "851e6d47-3ca7-4354-a44b-a49d08120837"
+    },
+    {
+      "canonical_id": "aquarium",
+      "icon": "aquarium",
+      "name": "Aquarium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c1bebfab-2ff0-4d59-9d2c-f41c82d67905"
+    },
+    {
+      "canonical_id": "cricket_club",
+      "icon": "cricket",
+      "name": "Cricket Club",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "10e86d94-e38e-4d33-b3b3-764d847118c2"
+    },
+    {
+      "canonical_id": "light_rail_station",
+      "icon": "rail-light",
+      "name": "Light Rail Station",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "064f5518-9097-47f2-aae0-0aabdc00ca4c"
+    },
+    {
+      "canonical_id": "summer_camp",
+      "icon": "campsite",
+      "name": "Summer Camp",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "195bbc6d-059c-40d3-b0bc-5b66a9ead783"
+    },
+    {
+      "canonical_id": "filipino_restaurant",
+      "icon": "restaurant",
+      "name": "Filipino Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "72876f10-29a3-4b25-8da5-c81123c8843f"
+    },
+    {
+      "canonical_id": "fishmonger",
+      "icon": "restaurant-seafood",
+      "name": "Fish Market",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0beb3a6d-a467-4897-80e0-3d7e3372e3a4"
+    },
+    {
+      "canonical_id": "german_restaurant",
+      "icon": "restaurant",
+      "name": "German Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8316a8e8-623b-4f0f-8e9b-d164ef9b65de"
+    },
+    {
+      "canonical_id": "military_base",
+      "icon": "marker",
+      "name": "Military Base",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f55e4c73-7ac2-42e3-a52f-d215523cdf4f"
+    },
+    {
+      "canonical_id": "motorsports_store",
+      "icon": "shop",
+      "name": "Motorsports Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "21ff5210-d469-44e5-819c-eed755cd22e6"
+    },
+    {
+      "canonical_id": "frozen_yogurt_shop",
+      "icon": "restaurant",
+      "name": "Frozen Yogurt",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6e0f936b-8b56-4ad8-82bf-1b2683d17115"
+    },
+    {
+      "canonical_id": "carribean_restaurant",
+      "icon": "restaurant",
+      "name": "Carribean Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b1955501-8337-43bf-bd06-103d0b7f8a7d"
+    },
+    {
+      "canonical_id": "ice_rink",
+      "icon": "stadium",
+      "name": "Ice Rink",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1fdc1bff-0743-486f-ac22-16d1c0e57682"
+    },
+    {
+      "canonical_id": "ski_area",
+      "icon": "skiing",
+      "name": "Ski Area",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3168bd00-94ff-4801-a445-213da6c73c6a"
+    },
+    {
+      "canonical_id": "distillery",
+      "icon": "alcohol-shop",
+      "name": "Distillery",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ca309d2c-1afc-4c75-b3c1-6573201fe489"
+    },
+    {
+      "canonical_id": "exhibit",
+      "icon": "amusement-park",
+      "name": "Exhibit",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "60d233b2-afac-4a0f-9722-27e98d2f4c00"
+    },
+    {
+      "canonical_id": "surfboard_store",
+      "icon": "shop",
+      "name": "Surfboard Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "38c0bc08-55f7-458b-b640-822c082fd6ed"
+    },
+    {
+      "canonical_id": "embassy",
+      "icon": "embassy",
+      "name": "Embassy",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "48612631-c1cf-4ca9-931d-563ddd2ee82c"
+    },
+    {
+      "canonical_id": "biergarten",
+      "icon": "beer",
+      "name": "Biergarten",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f73520b4-fef7-4fb6-b2e5-a1c87863da36"
+    },
+    {
+      "canonical_id": "treecare",
+      "icon": "park-alt1",
+      "name": "Tree Care",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5a31cae2-d1d7-41ae-b352-1d92651f502c"
+    },
+    {
+      "canonical_id": "resort",
+      "icon": "lodging",
+      "name": "Resort",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "240ade57-e1a6-4783-ad23-d7b9baeba1fc"
+    },
+    {
+      "canonical_id": "ramen_restaurant",
+      "icon": "restaturant-noodle",
+      "name": "Ramen Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d1caf109-3a92-4697-8b12-17735dfeb05d"
+    },
+    {
+      "canonical_id": "hunting_area",
+      "icon": "fitness-centre",
+      "name": "Hunting Area",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "149acbd0-9521-4107-99e9-3b855377514d"
+    },
+    {
+      "canonical_id": "plaza",
+      "icon": "natural",
+      "name": "Plaza",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "03e45dfb-e34b-4434-9eb3-9df5331e7f3e"
+    },
+    {
+      "canonical_id": "optometrist",
+      "icon": "optician",
+      "name": "Optometrist",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "30e12cb7-5a97-405c-98ac-fa190101f8a2"
+    },
+    {
+      "canonical_id": "check_cashing",
+      "icon": "bank",
+      "name": "Check Cashing",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1dc31dfb-7847-4759-b96d-714ad8993137"
+    },
+    {
+      "canonical_id": "disc_golf_course",
+      "icon": "golf",
+      "name": "Disc Golf Course",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "2e57b20b-6001-45d8-a7dc-a6d02d1b2edf"
+    },
+    {
+      "canonical_id": "miniature_golf",
+      "icon": "golf",
+      "name": "Miniature Golf",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dad8bb56-ef67-4214-8b95-4209f5b53320"
+    },
+    {
+      "canonical_id": "gay_bar",
+      "icon": "bar",
+      "name": "Gay Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "da4c24c6-ea10-4293-8a8e-0095b1f9d831"
+    },
+    {
+      "canonical_id": "observatory",
+      "icon": "observation-tower",
+      "name": "Observatory",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5406d2d4-4450-48d3-9f22-4323349a5f33"
+    },
+    {
+      "canonical_id": "cable_car",
+      "icon": "aerialway",
+      "name": "Cable Car",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "22bc9c53-5178-424d-ba6c-b9df586a20da"
+    },
+    {
+      "canonical_id": "cave",
+      "icon": "natural",
+      "name": "Cave",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "de909d33-3fbd-4baf-a1d9-0d4f0aa32cd3"
+    },
+    {
+      "canonical_id": "town",
+      "icon": "town",
+      "name": "Town",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fc1d6e38-79d7-4d3d-b60a-570acaf00430"
+    },
+    {
+      "canonical_id": "korean_barbeque_restaurant",
+      "icon": "restaurant-bbq",
+      "name": "Korean Barbeque",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d2ce65a0-0100-4855-a005-a4b46dc1c1d5"
+    },
+    {
+      "canonical_id": "hawaiian_restaurant",
+      "icon": "restaurant",
+      "name": "Hawaiian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7186e2c2-6b04-4e29-bc54-1a4b6a2f2e34"
+    },
+    {
+      "canonical_id": "portuguese_restaurant",
+      "icon": "restaurant",
+      "name": "Portuguese Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c1963940-f367-48fa-9f81-67b3543d6551"
+    },
+    {
+      "canonical_id": "latin_american_restaurant",
+      "icon": "restaurant",
+      "name": "Latin American Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9b0eebf3-c529-45ef-9a67-ce8fc0d7aa9b"
+    },
+    {
+      "canonical_id": "duty_free_shop",
+      "icon": "shop",
+      "name": "Duty Free Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6d0e0259-97e5-4ca6-99c9-6fb8068da810"
+    },
+    {
+      "canonical_id": "fountain",
+      "icon": "water",
+      "name": "Fountain",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7f9b495b-6834-42ee-b9a6-017498b160b3"
+    },
+    {
+      "canonical_id": "skydiving_drop_zone",
+      "icon": "airfield",
+      "name": "Skydiving Drop Zone",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f65598f8-36ab-41ca-960f-99792991462f"
+    },
+    {
+      "canonical_id": "persian_restaurant",
+      "icon": "restaurant",
+      "name": "Persian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6a214589-7365-4d4b-b475-e8d91636f61b"
+    },
+    {
+      "canonical_id": "english_restaurant",
+      "icon": "restaurant",
+      "name": "English Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9d59cf8c-6cc8-4edd-9092-de571fe22051"
+    },
+    {
+      "canonical_id": "cuban_restaurant",
+      "icon": "restaurant-seafood",
+      "name": "Cuban Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8becaa8d-a2c5-4f43-abb1-dca63c3e20c4"
+    },
+    {
+      "canonical_id": "train",
+      "icon": "rail",
+      "name": "Train",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6f2b8af4-8a62-477b-9890-b5957fda187e"
+    },
+    {
+      "canonical_id": "gluten_free_restaurant",
+      "icon": "restaurant",
+      "name": "Gluten-free Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "99e95e1f-98df-41af-bdac-1063013f493e"
+    },
+    {
+      "canonical_id": "rugby_stadium",
+      "icon": "stadium",
+      "name": "Rugby Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "29174d38-43ab-4aaa-8c04-58b2b594be3e"
+    },
+    {
+      "canonical_id": "creole_restaurant",
+      "icon": "restaurant",
+      "name": "Creole Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "83fc6d6c-98fb-4a8b-8d38-5e64c613f44b"
+    },
+    {
+      "canonical_id": "trailhead",
+      "icon": "park",
+      "name": "Trailhead",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d74e6130-158a-4990-ac81-d47907612ad7"
+    },
+    {
+      "canonical_id": "carpet_cleaner",
+      "icon": "laundry",
+      "name": "Carpet Cleaning",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "632366f7-6b0d-46da-ad0f-6fe462d3f002"
+    },
+    {
+      "canonical_id": "tiki_bar",
+      "icon": "bar",
+      "name": "Tiki Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "842f4a7d-fa19-4d22-b684-3e27f217dfc0"
+    },
+    {
+      "canonical_id": "airport_terminal",
+      "icon": "airport",
+      "name": "Airport Terminal",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9963ad6a-b771-4e83-91de-c2b702413016"
+    },
+    {
+      "canonical_id": "street",
+      "icon": "bus",
+      "name": "Street",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "cfeca34a-7e02-4878-b2ee-fc1c96abcb10"
+    },
+    {
+      "canonical_id": "intersection",
+      "icon": "cross",
+      "name": "Intersection",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "34981ee4-0bb7-4e8f-937e-11d7a6a3c018"
+    },
+    {
+      "canonical_id": "information_technology_company",
+      "icon": "building-alt1",
+      "name": "Information Technology",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "5e8dd573-11a2-42a3-ab57-0083254621d2"
+    },
+    {
+      "canonical_id": "food_truck",
+      "icon": "fast-food",
+      "name": "Food Truck",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "c563a99b-1a75-4a0a-a0fa-7a61f4e560ca"
+    },
+    {
+      "canonical_id": "windmill",
+      "icon": "windmill",
+      "name": "Windmill",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fb99d174-b268-4b53-9302-fc77feedba81"
+    },
+    {
+      "canonical_id": "bike_rental",
+      "icon": "bicycle",
+      "name": "Bike Rental",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "40f9b417-47b0-45c7-9164-4184e22a9272"
+    },
+    {
+      "canonical_id": "veterans_service",
+      "icon": "marker",
+      "name": "Veterans Service",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1aac7a5b-ea8c-4254-9f72-4b95124f016f"
+    },
+    {
+      "canonical_id": "boat_or_ferry",
+      "icon": "ferry",
+      "name": "Boat Or Ferry",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e50aa97e-b62a-491f-8431-51b58b78ea83"
+    },
+    {
+      "canonical_id": "peruvian_restaurant",
+      "icon": "restaurant",
+      "name": "Peruvian Restaurant",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "121f539d-a22f-4e1a-ba45-66ed7ffd92e5"
+    },
+    {
+      "canonical_id": "arcade",
+      "icon": "gaming",
+      "name": "Arcade",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "db0ec94a-ee29-4546-9be1-02fbb017db9f"
+    },
+    {
+      "canonical_id": "wings_joint",
+      "icon": "restaurant",
+      "name": "Wings",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7f86b7d4-27c1-45f9-b810-be224cf7de8a"
+    },
+    {
+      "canonical_id": "chocolate_shop",
+      "icon": "confectionery",
+      "name": "Chocolate Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a169502e-385e-4064-a778-19de2839275c"
+    },
+    {
+      "canonical_id": "outdoors_store",
+      "icon": "shop",
+      "name": "Outdoors Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0557b9d7-0b3f-4502-ba23-a1439712ce7c"
+    },
+    {
+      "canonical_id": "water_park",
+      "icon": "playground",
+      "name": "Water Park",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f171df55-5afc-4b07-bf2e-164e68345fa5"
+    },
+    {
+      "canonical_id": "irish_pub",
+      "icon": "beer",
+      "name": "Irish Pub",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bca02448-054e-4ead-9396-cf4c5af59d00"
+    },
+    {
+      "canonical_id": "surf_spot",
+      "icon": "beach",
+      "name": "Surf Spot",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a76615e8-91a5-4ebb-84aa-1e9210a1eb40"
+    },
+    {
+      "canonical_id": "service_area",
+      "icon": "bus",
+      "name": "Service Area",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9217da97-3dcb-4fdf-aa49-6d73b9739b0f"
+    },
+    {
+      "canonical_id": "track",
+      "icon": "racetrack",
+      "name": "Track",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "98966a09-323b-466a-9899-cf87284ed9ac"
+    },
+    {
+      "canonical_id": "soccer_stadium",
+      "icon": "stadium",
+      "name": "Soccer Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "439783c6-87d2-4565-86da-1f31b6e62303"
+    },
+    {
+      "canonical_id": "skatepark",
+      "icon": "skateboard",
+      "name": "Skatepark",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "278e3f83-e7e4-48b7-b4e7-0ce18d1820ca"
+    },
+    {
+      "canonical_id": "cruise",
+      "icon": "ferry",
+      "name": "Cruise",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dedfff51-d55b-459d-8ae9-ab7d6442d868"
+    },
+    {
+      "canonical_id": "baseball_stadium",
+      "icon": "baseball",
+      "name": "Baseball Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "36883041-0e18-4300-b38a-71ac8a909d7f"
+    },
+    {
+      "canonical_id": "theme_park_attraction",
+      "icon": "amusement-park",
+      "name": "Theme Park Attraction",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9e0d1bee-bf9c-44ac-918e-62827597f4cf"
+    },
+    {
+      "canonical_id": "mountain_hut",
+      "icon": "shelter",
+      "name": "Mountain Hut",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "b32cc7a8-8455-4110-b262-95e5867c7694"
+    },
+    {
+      "canonical_id": "football_stadium",
+      "icon": "stadium",
+      "name": "Football Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "63c98b57-c3db-4bb7-82ae-249a5e0cb8da"
+    },
+    {
+      "canonical_id": "ski_shop",
+      "icon": "skiing",
+      "name": "Ski Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f7e6bf9f-d0e9-4431-9a54-a42cfe79fc7a"
+    },
+    {
+      "canonical_id": "lighthouse",
+      "icon": "lighthouse",
+      "name": "Lighthouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3bb7be0d-ad55-4e83-9145-b89213351f4b"
+    },
+    {
+      "canonical_id": "political_party_office",
+      "icon": "town-hall",
+      "name": "Political Party Offices",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a6079f97-34e9-4585-be3a-9b012880eb88"
+    },
+    {
+      "canonical_id": "tech_startup",
+      "icon": "building-alt1",
+      "name": "Tech Startup",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e6cd2817-3bdd-4ab6-a3d1-5773a19af5a0"
+    },
+    {
+      "canonical_id": "tunnel",
+      "icon": "tunnel",
+      "name": "Tunnel",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1bae62c9-e2c8-415b-acff-15202b667e67"
+    },
+    {
+      "canonical_id": "airport_gate",
+      "icon": "airport",
+      "name": "Airport Gate",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3bb586ea-3d3e-4f38-97b1-2f1597ae9bf2"
+    },
+    {
+      "canonical_id": "go_kart_racing",
+      "icon": "racetrack",
+      "name": "Go Kart Racing",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "dc69834c-6a10-49b7-a173-3040c2d7f14d"
+    },
+    {
+      "canonical_id": "beach_bar",
+      "icon": "bar",
+      "name": "Beach Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "877145c5-6199-4a6f-9b9c-eb51e22aaadd"
+    },
+    {
+      "canonical_id": "dive_bar",
+      "icon": "bar",
+      "name": "Dive Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4f307907-b9b3-4fb8-9054-73a93be19f51"
+    },
+    {
+      "canonical_id": "hockey_stadium",
+      "icon": "stadium",
+      "name": "Hockey Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "50e08fd4-dda7-46a7-805b-6fe47f426a2f"
+    },
+    {
+      "canonical_id": "laser_tag",
+      "icon": "fitness-centre",
+      "name": "Laser Tag",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "af39055d-4581-49f4-8444-54e46960603c"
+    },
+    {
+      "canonical_id": "basketball_stadium",
+      "icon": "basketball",
+      "name": "Basketball Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "56167bee-2a6c-4d02-b849-27196336f1b0"
+    },
+    {
+      "canonical_id": "states_and_municipalities",
+      "icon": "town-hall",
+      "name": "States and Municipalities",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e704837d-8b2a-42db-aedf-32599df59675"
+    },
+    {
+      "canonical_id": "driving_range",
+      "icon": "golf",
+      "name": "Driving Range",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "257bfb23-7d5c-4c7b-8296-b05a8552e33e"
+    },
+    {
+      "canonical_id": "scuba_diving_shop",
+      "icon": "shop",
+      "name": "Scuba Diving Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a80561db-b8d5-4087-a421-dbd2aa87ab5e"
+    },
+    {
+      "canonical_id": "ski_trail",
+      "icon": "skiing",
+      "name": "Ski Trail",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3078ff01-e4f8-4ef9-92e0-8d2aab148704"
+    },
+    {
+      "canonical_id": "stripclub",
+      "icon": "nightclub",
+      "name": "Strip Club",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "62de6dd6-06d8-4a84-8e85-b1f18d68af50"
+    },
+    {
+      "canonical_id": "well",
+      "icon": "drinking-water",
+      "name": "Well",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "952332ef-bd49-443b-ad85-7366c1d7de51"
+    },
+    {
+      "canonical_id": "boat_launch",
+      "icon": "slipway",
+      "name": "Boat Launch",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "fabc1169-5898-4189-a201-a055ad405b81"
+    },
+    {
+      "canonical_id": "waffle_shop",
+      "icon": "restaurant",
+      "name": "Waffle Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "314ce8a5-f2e0-4d32-9331-1c47fdf0eb9d"
+    },
+    {
+      "canonical_id": "racecourse",
+      "icon": "racetrack",
+      "name": "Racecourse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "bfc0cf6d-0206-4613-93eb-83953cfcffd1"
+    },
+    {
+      "canonical_id": "university_laboratory",
+      "icon": "college",
+      "name": "Lab",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "47cb5478-d94b-4db7-b733-35b386f83d45"
+    },
+    {
+      "canonical_id": "corporate_amenity",
+      "icon": "commercial",
+      "name": "Corporate Amenity",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7e3b0706-0692-4d34-a67a-cc6efd65d0f4"
+    },
+    {
+      "canonical_id": "planetarium",
+      "icon": "museum",
+      "name": "Planetarium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4ebc3ec5-2dfb-4fad-9ee2-fa4b5128fada"
+    },
+    {
+      "canonical_id": "speakeasy",
+      "icon": "bar",
+      "name": "Speakeasy",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "15dbbff8-b1f4-4caf-8f5a-ac6e4e5481b6"
+    },
+    {
+      "canonical_id": "tennis_stadium",
+      "icon": "stadium",
+      "name": "Tennis Stadium",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "16cb50af-11ec-4188-a788-9dba713126c3"
+    },
+    {
+      "canonical_id": "meeting_room",
+      "icon": "building-alt1",
+      "name": "Meeting Room",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1697ca10-2246-4360-b63f-80e83c2271c2"
+    },
+    {
+      "canonical_id": "rafting_spot",
+      "icon": "fitness-centre",
+      "name": "Rafting Spot",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "1df44e39-7ded-47b3-b010-45601d54f38c"
+    },
+    {
+      "canonical_id": "tree",
+      "icon": "park-alt1",
+      "name": "Tree",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7e2d665d-ae87-48db-b720-55a41a8bf943"
+    },
+    {
+      "canonical_id": "university_book_store",
+      "icon": "college",
+      "name": "University Book Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "33a4bd72-ec92-498a-8753-7776e1693f4a"
+    },
+    {
+      "canonical_id": "zoo_exhibit",
+      "icon": "zoo",
+      "name": "Zoo Exhibit",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "3bd52920-caf8-464e-b4ff-615a9318f5ca"
+    },
+    {
+      "canonical_id": "chairlift",
+      "icon": "aerialway",
+      "name": "Chairlift",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4122b5b8-50c4-49b1-9f0a-e513453781af"
+    },
+    {
+      "canonical_id": "champagne_bar",
+      "icon": "bar",
+      "name": "Champagne Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "790451ca-8fa6-4e65-ac58-c16b55fdef9b"
+    },
+    {
+      "canonical_id": "indoor_cycling",
+      "icon": "racetrack-cycling",
+      "name": "Spinning",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "a651d327-32d4-4073-bcde-886377f0f5b3"
+    },
+    {
+      "canonical_id": "turkish_coffeehouse",
+      "icon": "cafe",
+      "name": "Turkish Coffeehouse",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "6104d6d0-f8c2-41d7-a239-ee42b1253b9c"
+    },
+    {
+      "canonical_id": "village",
+      "icon": "village",
+      "name": "Village",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "8c731f35-0d3d-4847-aa6b-ddc11424a530"
+    },
+    {
+      "canonical_id": "baggage_claim",
+      "icon": "suitcase",
+      "name": "Baggage Claim",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "335e130a-5ba1-4e0d-b4dd-ddbf397864c6"
+    },
+    {
+      "canonical_id": "neighbourhood",
+      "icon": "residential-community",
+      "name": "Neighbourhood",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "cef53f1c-099f-4c1f-93b1-d390c35e4330"
+    },
+    {
+      "canonical_id": "sake_bar",
+      "icon": "bar",
+      "name": "Sake Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d0b8b855-1813-41c4-98af-d282f0caa7b2"
+    },
+    {
+      "canonical_id": "airport_ticket_counter",
+      "icon": "airport",
+      "name": "Airport Ticket Counter",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "32d39b86-a8b0-4434-9805-ab856b825697"
+    },
+    {
+      "canonical_id": "beer_festival",
+      "icon": "beer",
+      "name": "Beer Festival",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "18cbc722-05cb-4227-9797-e6b408ee62be"
+    },
+    {
+      "canonical_id": "bus_line",
+      "icon": "bus",
+      "name": "Bus Line",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "821d9b9b-5d41-41aa-b179-133e3e589192"
+    },
+    {
+      "canonical_id": "city",
+      "icon": "city",
+      "name": "City",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "f4de047d-8c81-45ef-be01-809f1aeb16a1"
+    },
+    {
+      "canonical_id": "country",
+      "icon": "natural",
+      "name": "Country",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "faaa0414-30fd-4c17-a029-6a29cbac501f"
+    },
+    {
+      "canonical_id": "county",
+      "icon": "natural",
+      "name": "County",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9dddd610-09d7-4719-a549-80b392a7f0ed"
+    },
+    {
+      "canonical_id": "graffiti",
+      "icon": "art-gallery",
+      "name": "Graffiti",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "66f83d91-076c-4ef6-a461-daab795cc454"
+    },
+    {
+      "canonical_id": "hotel_bar",
+      "icon": "bar",
+      "name": "Hotel Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "d54e167b-8d3a-4902-a90e-5dbd47348799"
+    },
+    {
+      "canonical_id": "lgbtq_organization",
+      "icon": "building-alt1",
+      "name": "Lgbtq Organization",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "4160a5e8-7278-441c-9189-56bc22076bd8"
+    },
+    {
+      "canonical_id": "moving_target",
+      "icon": "bus",
+      "name": "Moving Target",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "884d8e99-7a38-4a10-ad89-c434d254d83a"
+    },
+    {
+      "canonical_id": "pop_up_shop",
+      "icon": "shop",
+      "name": "Pop-up Shop",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "e3d5fcd8-c206-4015-a3e7-ccd1a45ff0ea"
+    },
+    {
+      "canonical_id": "railway_platform",
+      "icon": "rail",
+      "name": "Railway Platform",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "ae4d044c-17bb-496b-a182-9759b985e264"
+    },
+    {
+      "canonical_id": "road",
+      "icon": "bus",
+      "name": "Road",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "9c9f05d5-064c-46de-a205-a015f8760bbb"
+    },
+    {
+      "canonical_id": "state",
+      "icon": "town-hall",
+      "name": "State",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "0dc48b58-3847-4c8a-95b2-451c61a41eac"
+    },
+    {
+      "canonical_id": "variety_store",
+      "icon": "shop",
+      "name": "Variety Store",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "10bc5608-449a-46d1-a9d1-6dd6e3901333"
+    },
+    {
+      "canonical_id": "whiskey_bar",
+      "icon": "bar",
+      "name": "Whiskey Bar",
+      "version": "940:41228a317a9035c32dadd923246c8d9703f2c931",
+      "uuid": "7b661c0b-c158-424f-8e9d-1d38ff2344be"
+    }
+  ],
+  "attribution": "© 2026 Mapbox and its suppliers. All rights reserved. Use of this data is subject to the Mapbox Terms of Service. (https://www.mapbox.com/about/maps/)",
+  "version": "940:41228a317a9035c32dadd923246c8d9703f2c931"
+}
