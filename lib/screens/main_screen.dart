@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'map_screen.dart';
 import 'messages_screen.dart';
+import 'budgets_screen.dart';
 import 'analytics_screen.dart';
 import 'profile_screen.dart';
 import '../utils/icons.dart';
@@ -64,14 +65,19 @@ class MainScreenState extends State<MainScreen> {
             activeIcon: unmapActive,
             label: 'Messages',
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(CupertinoIcons.chart_bar_square),
-            activeIcon: const Icon(CupertinoIcons.chart_bar_square_fill),
+          const BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.chart_pie),
+            activeIcon: Icon(CupertinoIcons.chart_pie_fill),
+            label: 'Budgets',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.chart_bar_square),
+            activeIcon: Icon(CupertinoIcons.chart_bar_square_fill),
             label: 'Analytics',
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(CupertinoIcons.person_circle),
-            activeIcon: const Icon(CupertinoIcons.person_circle_fill),
+          const BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.person_circle),
+            activeIcon: Icon(CupertinoIcons.person_circle_fill),
             label: 'Profile',
           ),
         ],
@@ -87,8 +93,10 @@ class MainScreenState extends State<MainScreen> {
                   case 1:
                     return const MessagesScreen();
                   case 2:
-                    return const AnalyticsScreen();
+                    return const BudgetsScreen();
                   case 3:
+                    return const AnalyticsScreen();
+                  case 4:
                     return const ProfileScreen();
                   default:
                     return const MapScreen();

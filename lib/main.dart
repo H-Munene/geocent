@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 import 'package:geocent/screens/main_screen.dart';
 import 'package:geocent/services/background_executor.dart';
+import 'package:geocent/services/budget_service.dart';
 import 'package:geocent/services/spending_service.dart';
 import 'package:geocent/widgets/custom_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,6 +35,7 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SpendingService()..init()),
+        ChangeNotifierProvider(create: (_) => BudgetService()..init()),
       ],
       child: const MyApp(),
     ),

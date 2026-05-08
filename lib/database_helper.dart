@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'geocent.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -28,6 +28,9 @@ class DatabaseHelper {
   static const String tableMerchantCategories = 'merchant_categories';
   static const String colMerchantName = 'merchant_name';
   static const String colCategoryName = 'category_name';
+
+  static const String tableBudgets = 'budgets';
+  static const String colAmountLimit = 'amount_limit';
 
   // Singleton
   DatabaseHelper._();
@@ -105,6 +108,17 @@ class DatabaseHelper {
         $colUpdatedAt    TEXT NOT NULL
       )
     ''');
+
+    // ── Budgets ──────────────────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableBudgets (
+        $colId            TEXT PRIMARY KEY,
+        $colCategoryName  TEXT UNIQUE NOT NULL,
+        $colAmountLimit   REAL NOT NULL,
+        $colPeriod        TEXT NOT NULL CHECK($colPeriod IN ('daily','weekly','monthly')),
+        $colUpdatedAt     TEXT NOT NULL
+      )
+    ''');
   }
 
   // Extend schema here in future versions without wiping data
@@ -120,6 +134,17 @@ class DatabaseHelper {
           $colMerchantName TEXT PRIMARY KEY,
           $colCategoryName TEXT NOT NULL,
           $colUpdatedAt    TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE $tableBudgets (
+          $colId            TEXT PRIMARY KEY,
+          $colCategoryName  TEXT UNIQUE NOT NULL,
+          $colAmountLimit   REAL NOT NULL,
+          $colPeriod        TEXT NOT NULL CHECK($colPeriod IN ('daily','weekly','monthly')),
+          $colUpdatedAt     TEXT NOT NULL
         )
       ''');
     }

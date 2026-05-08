@@ -56,14 +56,14 @@ class _ToastWidgetState extends State<_ToastWidget>
       duration: const Duration(milliseconds: 200),
     );
 
-    _yAnimation = Tween<Offset>(begin: const Offset(0, 2), end: Offset.zero)
+    _yAnimation = Tween<Offset>(begin: const Offset(0, -2), end: Offset.zero)
         .animate(
           CurvedAnimation(parent: _yController, curve: Curves.easeOutCubic),
         );
 
     _xAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(-1, 0),
+      end: const Offset(1, 0),
     ).animate(CurvedAnimation(parent: _xController, curve: Curves.easeIn));
 
     _opacityAnimation = Tween<double>(
@@ -94,7 +94,7 @@ class _ToastWidgetState extends State<_ToastWidget>
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      bottom: MediaQuery.of(context).padding.bottom + 20,
+      top: MediaQuery.of(context).padding.top + 20,
       left: 20,
       right: 20,
       child: SlideTransition(
