@@ -22,8 +22,31 @@ class AnalyticsChart extends StatefulWidget {
   State<AnalyticsChart> createState() => _AnalyticsChartState();
 }
 
-class _AnalyticsChartState extends State<AnalyticsChart> {
+class _AnalyticsChartState extends State<AnalyticsChart>
+    with SingleTickerProviderStateMixin {
   int touchedIndex = -1;
+  late AnimationController _animationController;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    );
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   String _getMonthName(int month) {
     const months = [
@@ -55,27 +78,19 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
     // Ensure maxY is at least 1000 for a better looking empty state
     if (maxY < 1000) maxY = 1000;
 
-    return GestureDetector(
-      behavior: HitTestBehavior.translucent,
-      onTap: () {
-        if (touchedIndex != -1) {
-          setState(() {
-            touchedIndex = -1;
-          });
-        }
-      },
-      child: Column(
-        children: [
-          Text(
-            widget.dateRange,
-            style: GoogleFonts.spaceGrotesk(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: CupertinoColors.black,
-            ),
-          ),
-          const SizedBox(height: 32),
-          AspectRatio(
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            if (touchedIndex != -1) {
+              setState(() {
+                touchedIndex = -1;
+              });
+            }
+          },
+          child: AspectRatio(
             aspectRatio: 1.3,
             child: BarChart(
               BarChartData(
@@ -178,17 +193,65 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
                         );
                       }
 
+                      double totalSum = 0;
                       data.categoryValues.forEach((cat, val) {
+                        totalSum += val;
                         addEntry(cat, val, widget.categoryColors[cat]!);
                       });
 
                       if (data.unmappedValue > 0) {
+                        totalSum += data.unmappedValue;
                         addEntry(
                           'Unmapped',
                           data.unmappedValue,
                           widget.unmappedColor,
                         );
                       }
+
+                      // Add Full-Width Divider and Total Sum
+                      children.add(
+                        const TextSpan(
+                          text: '──────────────────────\n', // Longer divider
+                          style: TextStyle(
+                            color: CupertinoColors.systemGrey5,
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+
+                      // Aligned Total Row
+                      children.add(
+                        const TextSpan(
+                          text:
+                              '■\u00A0\u00A0', // Added the box for alignment consistency
+                          style: TextStyle(
+                            color: Colors.transparent,
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
+
+                      children.add(
+                        TextSpan(
+                          text: 'TOTAL'.padRight(14),
+                          style: GoogleFonts.spaceMono(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      );
+
+                      children.add(
+                        TextSpan(
+                          text: 'KES\u00A0${totalSum.toInt()}\n',
+                          style: GoogleFonts.spaceMono(
+                            color: CupertinoColors.black,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      );
 
                       if (children.isNotEmpty &&
                           children.last.text!.endsWith('\n')) {
@@ -307,8 +370,8 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
                   data.categoryValues.forEach((cat, val) {
                     stackItems.add(
                       BarChartRodStackItem(
-                        currentY,
-                        currentY + val,
+                        currentY * _animation.value,
+                        (currentY + val) * _animation.value,
                         widget.categoryColors[cat]!,
                       ),
                     );
@@ -317,8 +380,8 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
                   if (data.unmappedValue > 0) {
                     stackItems.add(
                       BarChartRodStackItem(
-                        currentY,
-                        currentY + data.unmappedValue,
+                        currentY * _animation.value,
+                        (currentY + data.unmappedValue) * _animation.value,
                         widget.unmappedColor,
                       ),
                     );
@@ -344,7 +407,7 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
                       ),
                       // Rod 2: Actual Data Bar
                       BarChartRodData(
-                        toY: currentY,
+                        toY: currentY * _animation.value,
                         width: 24, // Inner bar
                         borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(4),
@@ -357,8 +420,8 @@ class _AnalyticsChartState extends State<AnalyticsChart> {
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

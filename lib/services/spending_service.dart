@@ -2,6 +2,7 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:geocent/models/category_analytics.dart';
+import 'package:geocent/models/analytics_item.dart';
 import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_transaction.dart';
@@ -24,12 +25,16 @@ class SpendingService extends ChangeNotifier {
   bool _isLoading = false;
   List<AppTransaction> _allTransactions = [];
 
+  int _tabSwitchCount = 0;
+
   // Analytics State
   List<DailySpending> _weeklyAnalytics = [];
   double _weeklyTrendPercentage = 0;
   bool _isSpendingIncreased = false;
   double _dailyAverage = 0;
   String _weekDateRange = '';
+  List<AnalyticsItem> _categoryAnalyticsItems = [];
+  List<AnalyticsItem> _recipientAnalyticsItems = [];
 
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
@@ -107,12 +112,16 @@ class SpendingService extends ChangeNotifier {
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
 
+  int get tabSwitchCount => _tabSwitchCount;
+
   // Analytics Getters
   List<DailySpending> get weeklyAnalytics => _weeklyAnalytics;
   double get weeklyTrendPercentage => _weeklyTrendPercentage;
   bool get isSpendingIncreased => _isSpendingIncreased;
   double get dailyAverage => _dailyAverage;
   String get weekDateRange => _weekDateRange;
+  List<AnalyticsItem> get categoryAnalyticsItems => _categoryAnalyticsItems;
+  List<AnalyticsItem> get recipientAnalyticsItems => _recipientAnalyticsItems;
 
   Color getCategoryColor(String name) {
     return _categoryColors[name] ?? CupertinoColors.systemGrey2;
@@ -190,14 +199,33 @@ class SpendingService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Filter out the built-in default ones to only save custom ones
-      final builtInNames = availableIcons.values.map((c) => c.name).toSet();
+      // Filter out the core 16 built-in default ones to only save custom ones.
+      // We use a fixed set of names to ensure user-created categories with matching icons are saved.
+      final coreDefaults = {
+        'Dining',
+        'Snacks',
+        'Public Transport',
+        'Shopping',
+        'Taxi',
+        'Social',
+        'Entertainment',
+        'Laundry',
+        'Household Utilities',
+        'Phone Bill',
+        'Subscriptions',
+        'Savings',
+        'Health',
+        'Services',
+        'Hobby',
+        'Pet',
+      };
+
       final customCategories = _defaultCategories
-          .where((c) => !builtInNames.contains(c.name))
+          .where((c) => !coreDefaults.contains(c.name))
           .toList();
 
       final List<Map<String, dynamic>> toSave = customCategories.map((cat) {
-        // Find baseId
+        // Find baseId to link back to the correct icon on load
         int baseId = 2; // Default to dining
         for (final entry in availableIcons.entries) {
           if (entry.value.icon == cat.icon) {
@@ -222,6 +250,7 @@ class SpendingService extends ChangeNotifier {
 
   /// Clears the search query and resets the current filter to 'all'.
   void resetSearchAndFilters() {
+    _tabSwitchCount++;
     _searchQuery = '';
     _currentFilter = 'all';
     _currentPage = 0;
@@ -332,11 +361,17 @@ class SpendingService extends ChangeNotifier {
     final results = await Future.wait([
       _repo.getDailySpendingByCategory(currentWeekStart, now),
       _repo.getTotalSpending(previousWeekStart, previousWeekEnd),
+      _repo.getCategorySpending(currentWeekStart, now),
+      _repo.getCategorySpending(previousWeekStart, previousWeekEnd),
+      _repo.getRecipientSpending(currentWeekStart, now),
     ]);
 
     final List<Map<String, dynamic>> dailyRaw =
         results[0] as List<Map<String, dynamic>>;
     final double previousTotal = results[1] as double;
+    final currentCategories = results[2] as List<Map<String, dynamic>>;
+    final previousCategories = results[3] as List<Map<String, dynamic>>;
+    final currentRecipients = results[4] as List<Map<String, dynamic>>;
 
     // 1. Build the 7-day breakdown (Sunday to Saturday)
     final List<DailySpending> weekly = [];
@@ -402,6 +437,46 @@ class SpendingService extends ChangeNotifier {
     // 3. Daily Average (Total mapped spending / days elapsed)
     final int daysElapsed = now.difference(currentWeekStart).inDays + 1;
     _dailyAverage = totalMappedThisWeek / daysElapsed;
+
+    // 4. Process List Items (Category)
+    _categoryAnalyticsItems = currentCategories.map((m) {
+      final category = m['category'] as String;
+      final currentTotal = (m['total_amount'] as num).toDouble();
+      final prevMatch = previousCategories
+          .where((pm) => pm['category'] == category)
+          .firstOrNull;
+      final double prevTotal = prevMatch != null
+          ? (prevMatch['total_amount'] as num).toDouble()
+          : 0.0;
+
+      return AnalyticsItem(
+        title: category,
+        count: m['count'] as int,
+        total: currentTotal,
+        trend: currentTotal - prevTotal,
+        category: category == 'Unmapped' ? null : category,
+      );
+    }).toList();
+
+    // 5. Process List Items (Recipient)
+    _recipientAnalyticsItems = currentRecipients.map((m) {
+      final recipient = m['recipient'] as String;
+      return AnalyticsItem(
+        title: recipient,
+        count: m['count'] as int,
+        total: (m['total_amount'] as num).toDouble(),
+        initials: _getInitials(recipient),
+      );
+    }).toList();
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
   }
 
   /// Save a freshly-parsed transaction then refresh totals.

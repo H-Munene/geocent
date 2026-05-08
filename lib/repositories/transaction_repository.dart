@@ -358,4 +358,46 @@ class TransactionRepository {
     if (result.isEmpty || result.first['total'] == null) return 0.0;
     return (result.first['total'] as num).toDouble();
   }
+
+  Future<List<Map<String, dynamic>>> getRecipientSpending(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    return await db.rawQuery(
+      '''
+      SELECT 
+        ${DatabaseHelper.colMerchant} as recipient,
+        COUNT(*) as count,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY recipient
+      ORDER BY total_amount DESC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getCategorySpending(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    return await db.rawQuery(
+      '''
+      SELECT 
+        IFNULL(${DatabaseHelper.colCategory}, 'Unmapped') as category,
+        COUNT(*) as count,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY category
+      ORDER BY total_amount DESC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+  }
 }

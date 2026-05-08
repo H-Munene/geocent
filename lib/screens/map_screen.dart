@@ -818,7 +818,7 @@ class _MapScreenState extends State<MapScreen> {
           'step',
           ['zoom'],
           0.0,
-          13.0,
+          11.0,
           1.0,
         ],
       );
@@ -829,7 +829,7 @@ class _MapScreenState extends State<MapScreen> {
           'step',
           ['zoom'],
           0.0,
-          13.0,
+          11.0,
           1.0,
         ],
       );
@@ -846,7 +846,7 @@ class _MapScreenState extends State<MapScreen> {
           'step',
           ['zoom'],
           0.0,
-          11.0,
+          9.0,
           1.0,
         ],
       );
@@ -857,7 +857,7 @@ class _MapScreenState extends State<MapScreen> {
           'step',
           ['zoom'],
           0.0,
-          11.0,
+          9.0,
           1.0,
         ],
       );
