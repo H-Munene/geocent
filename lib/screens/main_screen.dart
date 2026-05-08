@@ -5,6 +5,9 @@ import 'analytics_screen.dart';
 import 'profile_screen.dart';
 import '../utils/icons.dart';
 
+import 'package:provider/provider.dart';
+import '../services/spending_service.dart';
+
 final GlobalKey<MainScreenState> mainScreenKey = GlobalKey<MainScreenState>();
 
 class MainScreen extends StatefulWidget {
@@ -17,12 +20,25 @@ class MainScreen extends StatefulWidget {
 class MainScreenState extends State<MainScreen> {
   final CupertinoTabController _tabController = CupertinoTabController();
 
+  @override
+  void initState() {
+    super.initState();
+    _tabController.addListener(_handleTabSelection);
+  }
+
+  void _handleTabSelection() {
+    if (!mounted) return;
+    // Reset search and filters in SpendingService when switching tabs
+    context.read<SpendingService>().resetSearchAndFilters();
+  }
+
   void switchToTab(int index) {
     _tabController.index = index;
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
     super.dispose();
   }

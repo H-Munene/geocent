@@ -450,14 +450,14 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                               decoration: BoxDecoration(
                                 color: isSelected
-                                    ? cat.color
+                                    ? spending.getCategoryColor(cat.name)
                                     : CupertinoColors.white.withValues(
                                         alpha: 0.9,
                                       ),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isSelected
-                                      ? cat.color
+                                      ? spending.getCategoryColor(cat.name)
                                       : CupertinoColors.systemGrey5,
                                   width: 1,
                                 ),
@@ -508,7 +508,7 @@ class _MapScreenState extends State<MapScreen> {
 
             // FABs moved into the stack as Positioned widgets
             Positioned(
-              bottom: 32,
+              bottom: 90,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -655,7 +655,9 @@ class _MapScreenState extends State<MapScreen> {
                                       decoration: BoxDecoration(
                                         color: cat == null
                                             ? CupertinoColors.systemGrey5
-                                            : cat.color.withValues(alpha: 0.2),
+                                            : spending
+                                                  .getCategoryColor(cat.name)
+                                                  .withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(20),
                                       ),
                                       child: Row(
@@ -664,7 +666,9 @@ class _MapScreenState extends State<MapScreen> {
                                           if (cat != null) ...[
                                             HugeIcon(
                                               icon: cat.icon,
-                                              color: cat.color,
+                                              color: spending.getCategoryColor(
+                                                cat.name,
+                                              ),
                                               size: 16,
                                             ),
                                             const SizedBox(width: 8),
@@ -677,7 +681,9 @@ class _MapScreenState extends State<MapScreen> {
                                               fontWeight: FontWeight.w700,
                                               color: cat == null
                                                   ? CupertinoColors.systemGrey
-                                                  : cat.color,
+                                                  : spending.getCategoryColor(
+                                                      cat.name,
+                                                    ),
                                             ),
                                           ),
                                         ],
@@ -910,6 +916,26 @@ class _MapScreenState extends State<MapScreen> {
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
     );
 
+    controller.compass.updateSettings(
+      mp.CompassSettings(
+        enabled: true,
+        position: mp.OrnamentPosition.BOTTOM_RIGHT,
+        marginTop: 0,
+        marginBottom: 270, // Positioned above the FABs
+        marginLeft: 0,
+        marginRight: 16,
+      ),
+    );
+
+    controller.scaleBar.updateSettings(
+      mp.ScaleBarSettings(
+        enabled: true,
+        position: mp.OrnamentPosition.BOTTOM_RIGHT,
+        marginBottom: 60, // Positioned just above the tab bar
+        marginRight: 16,
+      ),
+    );
+
     // 1. Initialize Managers
     // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
     _dotManager = await controller.annotations.createCircleAnnotationManager();
@@ -1060,11 +1086,11 @@ class _MapScreenState extends State<MapScreen> {
     // Generate callout options and dot options in parallel
     final List<Future<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>>
     futures = places.map((place) async {
-      final cat = spending.getCategoryByName(place.category);
+      final catColor = spending.getCategoryColor(place.category ?? '');
       final CalloutResult callout = await createCalloutImage(
         place.name,
         place.price,
-        color: cat?.color,
+        color: catColor,
       );
 
       final geometry = mp.Point(
@@ -1083,8 +1109,7 @@ class _MapScreenState extends State<MapScreen> {
 
       final circleOptions = mp.CircleAnnotationOptions(
         geometry: geometry,
-        circleColor:
-            cat?.color.toARGB32() ?? const ui.Color(0xFF0071E3).toARGB32(),
+        circleColor: catColor.toARGB32(),
         circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
@@ -1158,11 +1183,11 @@ class _MapScreenState extends State<MapScreen> {
 
     if (!mounted) return;
     final spending = context.read<SpendingService>();
-    final cat = spending.getCategoryByName(place.category);
+    final catColor = spending.getCategoryColor(place.category ?? '');
     final CalloutResult callout = await createCalloutImage(
       place.name,
       place.price,
-      color: cat?.color,
+      color: catColor,
     );
 
     final geometry = mp.Point(
@@ -1184,8 +1209,7 @@ class _MapScreenState extends State<MapScreen> {
     final circleAnn = await _dotManager?.create(
       mp.CircleAnnotationOptions(
         geometry: geometry,
-        circleColor:
-            cat?.color.toARGB32() ?? CupertinoColors.systemGrey.toARGB32(),
+        circleColor: catColor.toARGB32(),
         circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),

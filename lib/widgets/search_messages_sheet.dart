@@ -268,8 +268,9 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                     children: [
                                       Builder(
                                         builder: (context) {
-                                          final categoryItem = context
-                                              .read<SpendingService>()
+                                          final spendingService = context
+                                              .read<SpendingService>();
+                                          final categoryItem = spendingService
                                               .getCategoryByName(tx.category);
 
                                           final hasValidCategory =
@@ -280,7 +281,10 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
                                             height: 40,
                                             decoration: BoxDecoration(
                                               color: hasValidCategory
-                                                  ? categoryItem.color
+                                                  ? spendingService
+                                                        .getCategoryColor(
+                                                          tx.category!,
+                                                        )
                                                   : _getAvatarColor(
                                                       tx.merchant,
                                                     ),

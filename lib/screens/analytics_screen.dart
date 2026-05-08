@@ -18,9 +18,7 @@ class AnalyticsScreen extends StatelessWidget {
     for (final day in spendingService.weeklyAnalytics) {
       for (final catName in day.categoryValues.keys) {
         if (!categoryColors.containsKey(catName)) {
-          final catItem = spendingService.getCategoryByName(catName);
-          categoryColors[catName] =
-              catItem?.color ?? CupertinoColors.systemGrey2;
+          categoryColors[catName] = spendingService.getCategoryColor(catName);
         }
       }
     }

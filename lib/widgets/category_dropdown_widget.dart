@@ -1,9 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:geocent/models/category_item.dart';
 import 'package:geocent/services/spending_service.dart';
-import 'package:geocent/utils/categories.dart';
 import 'package:provider/provider.dart';
 import 'category_sheet.dart';
 import 'custom_toast.dart';
@@ -26,8 +24,6 @@ class CategoryDropdownWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final spending = context.watch<SpendingService>();
     final categories = spending.categories;
-    final List<CategoryItem> availableIconsList = availableIcons.values
-        .toList();
 
     return Container(
       width: 240,
@@ -85,7 +81,11 @@ class CategoryDropdownWidget extends StatelessWidget {
                           : CupertinoColors.white,
                       child: Row(
                         children: [
-                          HugeIcon(icon: cat.icon, color: cat.color, size: 20),
+                          HugeIcon(
+                            icon: cat.icon,
+                            color: spending.getCategoryColor(cat.name),
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -116,10 +116,8 @@ class CategoryDropdownWidget extends StatelessWidget {
                   showCupertinoSheet(
                     showDragHandle: true,
                     context: context,
-                    builder: (context) => CreateCategorySheet(
-                      transactionId: transactionId!,
-                      availableIcons: availableIconsList,
-                    ),
+                    builder: (context) =>
+                        CreateCategorySheet(transactionId: transactionId!),
                   );
                 },
                 child: Container(

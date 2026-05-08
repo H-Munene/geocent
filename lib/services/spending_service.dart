@@ -42,6 +42,26 @@ class SpendingService extends ChangeNotifier {
   // Merchant category cache for performance
   final Map<String, String> _merchantCategoryCache = {};
 
+  // Category Colors Map
+  final Map<String, Color> _categoryColors = {
+    'Dining': CupertinoColors.systemOrange,
+    'Snacks': const Color(0xFFFFCC00),
+    'Public Transport': CupertinoColors.systemBrown,
+    'Shopping': CupertinoColors.systemTeal,
+    'Taxi': CupertinoColors.black,
+    'Social': const Color.fromARGB(183, 243, 3, 211),
+    'Entertainment': const Color.fromARGB(137, 2, 139, 157),
+    'Laundry': const Color(0xFFE2D746),
+    'Household Utilities': const Color(0xFF0A84FF),
+    'Phone Bill': const Color(0xFF36EA84),
+    'Subscriptions': const Color.fromARGB(255, 182, 67, 94),
+    'Savings': const Color.fromARGB(255, 186, 195, 58),
+    'Health': CupertinoColors.systemRed,
+    'Services': const Color(0xFF0EAFE2),
+    'Hobby': CupertinoColors.systemIndigo,
+    'Pet': CupertinoColors.systemMint,
+  };
+
   // A set of frequently used default categories.
   // This list provides immediate actionable options for the user.
   final List<CategoryItem> _defaultCategories = [
@@ -94,6 +114,18 @@ class SpendingService extends ChangeNotifier {
   double get dailyAverage => _dailyAverage;
   String get weekDateRange => _weekDateRange;
 
+  Color getCategoryColor(String name) {
+    return _categoryColors[name] ?? CupertinoColors.systemGrey2;
+  }
+
+  /// Returns icons that are not yet assigned to any category.
+  List<CategoryItem> get availableIconsPool {
+    final usedIcons = _defaultCategories.map((c) => c.icon).toSet();
+    return availableIcons.values
+        .where((icon) => !usedIcons.contains(icon.icon))
+        .toList();
+  }
+
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
     // Check in-memory actively used categories first (includes custom ones)
@@ -137,17 +169,15 @@ class SpendingService extends ChangeNotifier {
         for (final item in decoded) {
           final String name = item['name'];
           final int baseId = item['baseId'];
+          final int colorValue = item['colorValue'];
 
           if (availableIcons.containsKey(baseId) &&
               !_defaultCategories.any((c) => c.name == name)) {
             final baseCat = availableIcons[baseId]!;
             _defaultCategories.add(
-              CategoryItem(
-                name: name,
-                icon: baseCat.icon,
-                color: baseCat.color,
-              ),
+              CategoryItem(name: name, icon: baseCat.icon),
             );
+            _categoryColors[name] = Color(colorValue);
           }
         }
       }
@@ -175,7 +205,11 @@ class SpendingService extends ChangeNotifier {
             break;
           }
         }
-        return {'name': cat.name, 'baseId': baseId};
+        return {
+          'name': cat.name,
+          'baseId': baseId,
+          'colorValue': getCategoryColor(cat.name).toARGB32(),
+        };
       }).toList();
 
       await prefs.setString('custom_categories', jsonEncode(toSave));
@@ -185,6 +219,18 @@ class SpendingService extends ChangeNotifier {
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
+
+  /// Clears the search query and resets the current filter to 'all'.
+  void resetSearchAndFilters() {
+    _searchQuery = '';
+    _currentFilter = 'all';
+    _currentPage = 0;
+    _hasMore = true;
+    _paginatedMessages = [];
+    notifyListeners();
+    // Re-fetch messages so that screens are populated with fresh data
+    fetchMessages(refresh: true);
+  }
 
   /// Set the selected transaction and notify listeners to trigger navigation/popups.
   void selectTransaction(String id) {
@@ -487,9 +533,10 @@ class SpendingService extends ChangeNotifier {
     }
   }
 
-  void addCategory(CategoryItem category) {
+  void addCategory(CategoryItem category, Color color) {
     if (!_defaultCategories.any((c) => c.name == category.name)) {
       _defaultCategories.add(category);
+      _categoryColors[category.name] = color;
       _saveCustomCategories();
       notifyListeners();
     }

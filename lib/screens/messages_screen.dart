@@ -34,17 +34,44 @@ class _MessagesScreenState extends State<MessagesScreen> {
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
+      context.read<SpendingService>().addListener(_onServiceStateChanged);
     });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    context.read<SpendingService>().removeListener(_onServiceStateChanged);
     _scrollController.dispose();
     _debounce?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onServiceStateChanged() {
+    if (!mounted) return;
+    final spendingService = context.read<SpendingService>();
+    final messages = spendingService.paginatedMessages;
+
+    // Synchronize local search text if it was reset globally (e.g. on tab switch)
+    if (spendingService.searchQuery.isEmpty &&
+        _searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+
+    // Sync filter state
+    if (spendingService.currentFilter != _activeFilter) {
+      setState(() {
+        _activeFilter = spendingService.currentFilter;
+      });
+    }
+
+    // Sync the animated list
+    final grouped = _groupWithHeaders(messages);
+    if (grouped.length != _displayList.length) {
+      _syncList(messages);
+    }
   }
 
   void _onScroll() {
@@ -57,12 +84,10 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _loadInitialData() async {
     final service = context.read<SpendingService>();
     await service.fetchMessages(refresh: true);
-    // No need to call _syncList directly here, it will be called by the watcher in build
   }
 
   void _syncList(List<AppTransaction> newMessages) {
     if (!mounted) return;
-    // newMessages already contains the filtered/searched list from SpendingService
     final List<dynamic> flatListWithHeaders = _groupWithHeaders(newMessages);
 
     if (flatListWithHeaders.length < _displayList.length ||
@@ -89,9 +114,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    // Immediately clear list when search changes to prevent lingering results
-    _clearList();
 
     _debounce = Timer(const Duration(milliseconds: 300), () {
       context.read<SpendingService>().fetchMessages(
@@ -169,7 +191,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     final service = context.read<SpendingService>();
     await service.setFilter(filter);
-    // _syncList will be triggered by the watcher in build
   }
 
   void _toggleSelection(String id) {
@@ -286,14 +307,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget build(BuildContext context) {
     final spendingService = context.watch<SpendingService>();
     final messages = spendingService.paginatedMessages;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final grouped = _groupWithHeaders(messages);
-      if (grouped.length != _displayList.length) {
-        _syncList(messages);
-      }
-    });
 
     return PopScope(
       canPop: _selectedIds.isEmpty,

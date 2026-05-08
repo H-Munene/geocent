@@ -117,8 +117,9 @@ class UnmappedMessageTile extends StatelessWidget {
                         )
                       : Builder(
                           builder: (context) {
-                            final categoryItem = context
-                                .read<SpendingService>()
+                            final spendingService = context
+                                .read<SpendingService>();
+                            final categoryItem = spendingService
                                 .getCategoryByName(transaction.category);
 
                             final hasValidCategory = categoryItem != null;
@@ -129,7 +130,9 @@ class UnmappedMessageTile extends StatelessWidget {
                               height: 40,
                               decoration: BoxDecoration(
                                 color: hasValidCategory
-                                    ? categoryItem.color
+                                    ? spendingService.getCategoryColor(
+                                        transaction.category!,
+                                      )
                                     : _getAvatarColor(transaction.merchant),
                                 shape: BoxShape.circle,
                               ),
