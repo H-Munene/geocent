@@ -134,27 +134,58 @@ class TransactionRepository {
     required String filter,
     int limit = 20,
     int offset = 0,
+    String? searchQuery, // Add this parameter
   }) async {
-    String? where;
-    if (filter == 'mapping') {
-      where = '${DatabaseHelper.colLatitude} IS NULL';
-    } else if (filter == 'categorization') {
-      where =
-          '${DatabaseHelper.colCategory} IS NULL AND ${DatabaseHelper.colLatitude} IS NOT NULL';
-    } else {
-      // 'all' actionable
-      where =
-          '${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL';
+    final db = await _db.database;
+    List<String> conditions = [];
+    List<String> whereArgs = [];
+
+    // Add filter conditions
+    switch (filter) {
+      case 'mapping':
+        conditions.add('(${DatabaseHelper.colLatitude} IS NULL)');
+        break;
+      case 'categorization':
+        conditions.add(
+          '(${DatabaseHelper.colCategory} IS NULL AND ${DatabaseHelper.colLatitude} IS NOT NULL)',
+        );
+        break;
+      case 'all':
+        conditions.add(
+          '(${DatabaseHelper.colLatitude} IS NULL OR ${DatabaseHelper.colCategory} IS NULL)',
+        );
+        break;
     }
 
-    final rows = await _db.rawQuery(
+    // Add search query to conditions
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final sanitizedQuery = searchQuery.toLowerCase().replaceAll(
+        RegExp(r'[,\-\s]'),
+        '',
+      );
+      conditions.add(
+        "REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ',', ''), '-', ''), ' ', '') LIKE ?",
+      );
+      whereArgs.add('%$sanitizedQuery%');
+    }
+
+    String? finalWhereClause;
+    if (conditions.isNotEmpty) {
+      finalWhereClause = conditions.join(' AND ');
+    }
+
+    final maps = await db.query(
       DatabaseHelper.tableTransactions,
-      where: where,
       orderBy: '${DatabaseHelper.colTimestamp} DESC',
+      where: finalWhereClause,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
       limit: limit,
       offset: offset,
     );
-    return rows.map(AppTransaction.fromMap).toList();
+
+    return List.generate(maps.length, (i) {
+      return AppTransaction.fromMap(maps[i]);
+    });
   }
 
   Future<List<AppTransaction>> loadByPeriod(String period) async {
@@ -205,12 +236,21 @@ class TransactionRepository {
   }
 
   Future<List<AppTransaction>> searchTransactions(String query) async {
-    final sanitizedQuery = query.toLowerCase().replaceAll(RegExp(r'[-\s]'), '');
+    final sanitizedQuery = query.toLowerCase().replaceAll(
+      RegExp(r'[,\-\s]'),
+      '',
+    );
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,
       where:
-          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ?',
-      whereArgs: ['%$query%', '%$sanitizedQuery%', '%$query%', '%$query%'],
+          '${DatabaseHelper.colId} LIKE ? OR REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colMerchant}), ",", ""), "-", ""), " ", "") LIKE ? OR ${DatabaseHelper.colSource} LIKE ? OR CAST(${DatabaseHelper.colAmount} AS TEXT) LIKE ? OR REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ",", ""), "-", ""), " ", "") LIKE ?',
+      whereArgs: [
+        '%$query%',
+        '%$sanitizedQuery%',
+        '%$query%',
+        '%$query%',
+        '%$sanitizedQuery%',
+      ],
       orderBy: '${DatabaseHelper.colTimestamp} DESC',
     );
     return rows.map(AppTransaction.fromMap).toList();
@@ -274,6 +314,90 @@ class TransactionRepository {
         DatabaseHelper.colUpdatedAt: DateTime.now().toIso8601String(),
       },
       conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  /// Fetches daily spending aggregated by category within a date range.
+  /// This is optimized to run as a single SQL query using SUM and GROUP BY.
+  Future<List<Map<String, dynamic>>> getDailySpendingByCategory(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    // We filter for 'payment' and 'sent' as these represent outgoing expenses.
+    // 'received' is excluded to keep the focus on spending analytics.
+    return await db.rawQuery(
+      '''
+      SELECT 
+        date(${DatabaseHelper.colTimestamp}, 'localtime') as day,
+        ${DatabaseHelper.colCategory} as category,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY day, category
+      ORDER BY day ASC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+  }
+
+  /// Returns the total spending (outgoing only) within a specific date range.
+  Future<double> getTotalSpending(DateTime start, DateTime end) async {
+    final db = await _db.database;
+    final result = await db.rawQuery(
+      '''
+      SELECT SUM(${DatabaseHelper.colAmount}) as total
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+
+    if (result.isEmpty || result.first['total'] == null) return 0.0;
+    return (result.first['total'] as num).toDouble();
+  }
+
+  Future<List<Map<String, dynamic>>> getRecipientSpending(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    return await db.rawQuery(
+      '''
+      SELECT 
+        ${DatabaseHelper.colMerchant} as recipient,
+        COUNT(*) as count,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY recipient
+      ORDER BY total_amount DESC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getCategorySpending(
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    return await db.rawQuery(
+      '''
+      SELECT 
+        IFNULL(${DatabaseHelper.colCategory}, 'Unmapped') as category,
+        COUNT(*) as count,
+        SUM(${DatabaseHelper.colAmount}) as total_amount
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colTimestamp} BETWEEN ? AND ?
+        AND ${DatabaseHelper.colType} IN ('payment', 'sent')
+      GROUP BY category
+      ORDER BY total_amount DESC
+    ''',
+      [start.toIso8601String(), end.toIso8601String()],
     );
   }
 }

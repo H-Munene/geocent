@@ -13,6 +13,7 @@ class CategoryAnalytics {
 
   bool get isNegative => difference < 0;
   bool get isPositive => difference > 0;
+  bool get isZero => difference == 0;
 
   String get trimmedCategory {
     if (category.length <= 10) return category;

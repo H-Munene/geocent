@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,20 +24,54 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _activeFilter = 'all';
   final Set<String> _selectedIds = {};
 
+  final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
+  final FocusNode _searchFocusNode = FocusNode();
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
+      context.read<SpendingService>().addListener(_onServiceStateChanged);
     });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
+    context.read<SpendingService>().removeListener(_onServiceStateChanged);
     _scrollController.dispose();
+    _debounce?.cancel();
+    _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
+  }
+
+  void _onServiceStateChanged() {
+    if (!mounted) return;
+    final spendingService = context.read<SpendingService>();
+    final messages = spendingService.paginatedMessages;
+
+    // Synchronize local search text if it was reset globally (e.g. on tab switch)
+    if (spendingService.searchQuery.isEmpty &&
+        _searchController.text.isNotEmpty) {
+      _searchController.clear();
+    }
+
+    // Sync filter state
+    if (spendingService.currentFilter != _activeFilter) {
+      setState(() {
+        _activeFilter = spendingService.currentFilter;
+      });
+    }
+
+    // Sync the animated list
+    final grouped = _groupWithHeaders(messages);
+    if (grouped.length != _displayList.length) {
+      _syncList(messages);
+    }
   }
 
   void _onScroll() {
@@ -49,7 +84,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Future<void> _loadInitialData() async {
     final service = context.read<SpendingService>();
     await service.fetchMessages(refresh: true);
-    _syncList(service.paginatedMessages);
   }
 
   void _syncList(List<AppTransaction> newMessages) {
@@ -76,6 +110,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
       _displayList.add(flatListWithHeaders[i]);
       _listKey.currentState?.insertItem(i);
     }
+  }
+
+  void _onSearchChanged(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      context.read<SpendingService>().fetchMessages(
+        refresh: true,
+        searchQuery: query,
+      );
+    });
   }
 
   String _getItemId(dynamic item) {
@@ -146,7 +191,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     final service = context.read<SpendingService>();
     await service.setFilter(filter);
-    _syncList(service.paginatedMessages);
   }
 
   void _toggleSelection(String id) {
@@ -251,6 +295,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           isSelectionMode: _selectedIds.isNotEmpty,
           isSelected: _selectedIds.contains(tx.id),
           onSelectToggle: () => _toggleSelection(tx.id),
+          searchQuery: context
+              .read<SpendingService>()
+              .searchQuery, // Use service's search query
         ),
       ),
     );
@@ -260,14 +307,6 @@ class _MessagesScreenState extends State<MessagesScreen> {
   Widget build(BuildContext context) {
     final spendingService = context.watch<SpendingService>();
     final messages = spendingService.paginatedMessages;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final grouped = _groupWithHeaders(messages);
-      if (grouped.length != _displayList.length) {
-        _syncList(messages);
-      }
-    });
 
     return PopScope(
       canPop: _selectedIds.isEmpty,
@@ -307,14 +346,36 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              // Add this search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: TapRegion(
+                  onTapOutside: (event) {
+                    if (_searchFocusNode.hasFocus) {
+                      _searchFocusNode.unfocus();
+                    }
+                  },
+                  child: CupertinoSearchTextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode, // Assign the focus node
+                    onChanged: _onSearchChanged,
+                    placeholder: 'Search messages',
+                  ),
+                ),
+              ),
               _buildFilterBar(),
               Expanded(
                 child: Stack(
                   children: [
-                    if (messages.isEmpty && !spendingService.isLoading)
+                    // UI based on spendingService.isLoading
+                    if (spendingService.isLoading && _displayList.isEmpty)
+                      const Center(child: CupertinoActivityIndicator())
+                    else if (messages.isEmpty && !spendingService.isLoading)
                       Center(
                         child: Text(
-                          'No messages found',
+                          spendingService.searchQuery.isEmpty
+                              ? 'No messages found'
+                              : 'No results for "${spendingService.searchQuery}"',
                           style: GoogleFonts.spaceGrotesk(
                             color: CupertinoColors.systemGrey,
                             fontSize: 16,
@@ -337,8 +398,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                         return _buildItem(item, animation, isLastInGroup);
                       },
                     ),
-                    if (spendingService.isLoading && _displayList.isEmpty)
-                      const Center(child: CupertinoActivityIndicator()),
+                    // Loading indicator for initial load or pagination, only if no search is active
                     if (spendingService.isLoading && _displayList.isNotEmpty)
                       Positioned(
                         bottom: 20,

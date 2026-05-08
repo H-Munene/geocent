@@ -191,8 +191,9 @@ class _CategoryMessagesSheetState extends State<CategoryMessagesSheet> {
                                     children: [
                                       Builder(
                                         builder: (context) {
-                                          final categoryItem = context
-                                              .read<SpendingService>()
+                                          final spendingService = context
+                                              .read<SpendingService>();
+                                          final categoryItem = spendingService
                                               .getCategoryByName(tx.category);
 
                                           final hasValidCategory =
@@ -203,7 +204,10 @@ class _CategoryMessagesSheetState extends State<CategoryMessagesSheet> {
                                             height: 40,
                                             decoration: BoxDecoration(
                                               color: hasValidCategory
-                                                  ? categoryItem.color
+                                                  ? spendingService
+                                                        .getCategoryColor(
+                                                          tx.category!,
+                                                        )
                                                   : _getAvatarColor(
                                                       tx.merchant,
                                                     ),
