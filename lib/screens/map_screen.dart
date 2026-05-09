@@ -368,7 +368,9 @@ class _MapScreenState extends State<MapScreen> {
                                 }
                               }
                             },
-                            placeholder: 'Search transactions...',
+                            placeholder: _showAnalytics
+                                ? ''
+                                : 'Search transactions...',
                             style: GoogleFonts.spaceGrotesk(
                               fontSize: 15,
                               color: const Color(0xFF1D1D1F),
@@ -382,12 +384,18 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                         ),
                         Positioned(
-                          right: 30, // Adjusted to be before the search icon
+                          left: 40,
+                          right: 40,
                           child: IgnorePointer(
                             child: AnimatedOpacity(
                               opacity: _showAnalytics ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 300),
-                              child: const AnimatedSpendingAnalytics(),
+                              child: const SizedBox(
+                                height: 44,
+                                child: Center(
+                                  child: AnimatedSpendingAnalytics(),
+                                ),
+                              ),
                             ),
                           ),
                         ),

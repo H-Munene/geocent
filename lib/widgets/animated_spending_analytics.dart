@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../services/spending_service.dart';
-import '../models/category_analytics.dart';
+import '../models/spending_insight.dart';
 
 class AnimatedSpendingAnalytics extends StatefulWidget {
   const AnimatedSpendingAnalytics({super.key});
@@ -26,10 +27,10 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
   void _startTimer() {
     _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
       if (mounted) {
-        final analytics = context.read<SpendingService>().categoryComparison;
-        if (analytics.isNotEmpty) {
+        final insights = context.read<SpendingService>().insights;
+        if (insights.isNotEmpty) {
           setState(() {
-            _currentIndex = (_currentIndex + 1) % analytics.length;
+            _currentIndex = (_currentIndex + 1) % insights.length;
           });
         }
       }
@@ -44,29 +45,20 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
 
   @override
   Widget build(BuildContext context) {
-    final List<CategoryAnalytics> analytics = context
+    final List<SpendingInsight> insights = context
         .watch<SpendingService>()
-        .categoryComparison;
+        .insights;
 
-    if (analytics.isEmpty) {
+    if (insights.isEmpty) {
       return const SizedBox.shrink();
     }
 
     // Safety check in case the list shrunk while index stayed high
-    if (_currentIndex >= analytics.length) {
+    if (_currentIndex >= insights.length) {
       _currentIndex = 0;
     }
 
-    final data = analytics[_currentIndex];
-    // Green if spending less than yesterday (negative difference)
-    // Red if spending more than yesterday (positive difference)
-    final color = data.isNegative
-        ? CupertinoColors.systemGreen
-        : data.isPositive
-        ? CupertinoColors.systemRed
-        : CupertinoColors.systemGrey;
-
-    const double iconSize = 12;
+    final insight = insights[_currentIndex];
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 600),
@@ -89,43 +81,29 @@ class _AnimatedSpendingAnalyticsState extends State<AnimatedSpendingAnalytics> {
           child: FadeTransition(opacity: fadeAnimation, child: child),
         );
       },
-      child: SizedBox(
-        key: ValueKey<String>('${data.category}_${data.formattedDifference}'),
-        width: 160,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            Icon(
-              data.isNegative || data.isZero
-                  ? CupertinoIcons.arrowtriangle_down_fill
-                  : CupertinoIcons.arrowtriangle_up_fill,
-              color: color,
-              size: iconSize,
+      child: Container(
+        key: ValueKey<String>(insight.key),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        width: double.infinity, // Take available space to center within parent
+        child: RichText(
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          text: TextSpan(
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 13,
+              color: CupertinoColors.secondaryLabel,
+              fontWeight: FontWeight.w500,
             ),
-            Flexible(
-              child: Text(
-                data.trimmedCategory,
-                textAlign: TextAlign.right,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
+            children: [
+              if (insight.prefix != null) TextSpan(text: insight.prefix),
+              TextSpan(
+                text: insight.highlight,
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-            ),
-            const SizedBox(width: 4),
-            Text(
-              data.formattedDifference,
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ],
+              if (insight.suffix != null) TextSpan(text: insight.suffix),
+            ],
+          ),
         ),
       ),
     );
