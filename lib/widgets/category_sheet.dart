@@ -7,9 +7,14 @@ import 'package:geocent/widgets/custom_toast.dart';
 import 'package:provider/provider.dart';
 
 class CreateCategorySheet extends StatefulWidget {
-  final String transactionId;
+  final String? transactionId;
+  final Function(String name)? onCategoryCreated;
 
-  const CreateCategorySheet({super.key, required this.transactionId});
+  const CreateCategorySheet({
+    super.key,
+    this.transactionId,
+    this.onCategoryCreated,
+  });
 
   @override
   State<CreateCategorySheet> createState() => _CreateCategorySheetState();
@@ -86,7 +91,15 @@ class _CreateCategorySheetState extends State<CreateCategorySheet> {
                 icon: _selectedIcon!.icon,
               );
               spending.addCategory(newCategory, _selectedColor!);
-              spending.updateCategory(widget.transactionId, name);
+
+              if (widget.transactionId != null) {
+                spending.updateCategory(widget.transactionId!, name);
+              }
+
+              if (widget.onCategoryCreated != null) {
+                widget.onCategoryCreated!(name);
+              }
+
               Navigator.pop(context);
             }
           },

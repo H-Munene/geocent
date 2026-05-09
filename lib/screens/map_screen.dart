@@ -16,6 +16,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/call_out_result.dart';
 import '../models/map_place.dart';
+import '../models/app_transaction.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
@@ -23,6 +24,7 @@ import '../utils/marker_utils.dart';
 import '../widgets/animated_spending_analytics.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/category_messages_sheet.dart';
+import '../widgets/custom_toast.dart';
 import '../widgets/map_style_picker_modal.dart';
 import '../widgets/search_messages_sheet.dart';
 import 'location_picker_screen.dart';
@@ -183,13 +185,10 @@ class _MapScreenState extends State<MapScreen> {
     }
 
     final place = MapPlace(
-      id: tx.id,
       name: tx.merchant,
-      price: tx.formattedAmount,
       latitude: tx.latitude!,
       longitude: tx.longitude!,
-      rawMessage: tx.rawMessage,
-      category: tx.category,
+      transactions: [tx],
     );
 
     // Fly to the location
@@ -249,6 +248,27 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  List<MapPlace> _groupTransactions(List<AppTransaction> transactions) {
+    final Map<String, List<AppTransaction>> groups = {};
+
+    for (var tx in transactions) {
+      if (tx.latitude == null || tx.longitude == null) continue;
+      // Using a rounded coordinate string as key to handle precision issues if any,
+      // but the requirement says "exact same location".
+      final key = '${tx.latitude},${tx.longitude}';
+      groups.putIfAbsent(key, () => []).add(tx);
+    }
+
+    return groups.values.map((group) {
+      return MapPlace(
+        name: group.first.merchant,
+        latitude: group.first.latitude!,
+        longitude: group.first.longitude!,
+        transactions: group,
+      );
+    }).toList();
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -258,19 +278,7 @@ class _MapScreenState extends State<MapScreen> {
 
     // Sync places with spending service mapped transactions
     final saved = spending.mappedTransactions;
-    _places = saved
-        .map(
-          (tx) => MapPlace(
-            id: tx.id,
-            name: tx.merchant,
-            price: tx.formattedAmount,
-            latitude: tx.latitude!,
-            longitude: tx.longitude!,
-            rawMessage: tx.rawMessage,
-            category: tx.category,
-          ),
-        )
-        .toList();
+    _places = _groupTransactions(saved);
 
     return CupertinoPageScaffold(
       child: GestureDetector(
@@ -360,7 +368,9 @@ class _MapScreenState extends State<MapScreen> {
                                 }
                               }
                             },
-                            placeholder: 'Search transactions...',
+                            placeholder: _showAnalytics
+                                ? ''
+                                : 'Search transactions...',
                             style: GoogleFonts.spaceGrotesk(
                               fontSize: 15,
                               color: const Color(0xFF1D1D1F),
@@ -374,12 +384,18 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                         ),
                         Positioned(
-                          right: 30, // Adjusted to be before the search icon
+                          left: 40,
+                          right: 40,
                           child: IgnorePointer(
                             child: AnimatedOpacity(
                               opacity: _showAnalytics ? 1.0 : 0.0,
                               duration: const Duration(milliseconds: 300),
-                              child: const AnimatedSpendingAnalytics(),
+                              child: const SizedBox(
+                                height: 44,
+                                child: Center(
+                                  child: AnimatedSpendingAnalytics(),
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -579,7 +595,7 @@ class _MapScreenState extends State<MapScreen> {
                         decoration: BoxDecoration(
                           color: _isAnimating
                               ? CupertinoColors.systemGrey3
-                              : const Color(0xFF1D1D1F),
+                              : CupertinoColors.white,
                           shape: BoxShape.circle,
                           boxShadow: const [
                             BoxShadow(
@@ -595,14 +611,14 @@ class _MapScreenState extends State<MapScreen> {
                               )
                             : const Icon(
                                 CupertinoIcons.play_fill,
-                                color: CupertinoColors.white,
+                                color: CupertinoColors.black,
                               ),
                       ),
                     ),
                 ],
               ),
             ),
-            if (_popupPosition != null)
+            if (_popupPosition != null && _selectedPlace != null)
               Positioned(
                 left: _popupPosition!.x,
                 top: _popupPosition!.y,
@@ -699,7 +715,8 @@ class _MapScreenState extends State<MapScreen> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                _selectedPlace?.rawMessage ?? '',
+                                _selectedPlace?.transactions.first.rawMessage ??
+                                    '',
                                 style: GoogleFonts.spaceGrotesk(
                                   fontSize: 14,
                                   height: 1.5,
@@ -982,6 +999,11 @@ class _MapScreenState extends State<MapScreen> {
     final place = _annotationToPlaceMap[annotationId];
     if (place == null) return;
 
+    if (place.transactions.length > 1) {
+      _showGroupedTransactionsSheet(place);
+      return;
+    }
+
     final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
 
     if (screenCoord != null && mounted) {
@@ -1000,19 +1022,243 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
+  void _showGroupedTransactionsSheet(MapPlace place) {
+    showCupertinoSheet(
+      showDragHandle: true,
+      context: context,
+      builder: (context) {
+        final spending = context.watch<SpendingService>();
+        final totalFormatted = 'KES ${place.totalAmount.toStringAsFixed(0)}';
+        final cat = spending.getCategoryByName(place.category);
+
+        return Container(
+          color: CupertinoColors.systemBackground,
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              place.name,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                          ),
+                          CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            child: const Icon(
+                              CupertinoIcons.xmark_circle_fill,
+                              color: CupertinoColors.systemGrey3,
+                              size: 28,
+                            ),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // Standardized Pills Row
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildStandardPill(
+                              text: totalFormatted,
+                              bgColor: const Color(0xFF1D1D1F),
+                              textColor: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildStandardPill(
+                              text: '${place.transactions.length} messages',
+                              bgColor: CupertinoColors.systemGrey6,
+                              textColor: CupertinoColors.secondaryLabel,
+                            ),
+                            const SizedBox(width: 8),
+                            // Category Pill
+                            GestureDetector(
+                              onTap: () {
+                                showCupertinoDialog(
+                                  context: context,
+                                  barrierDismissible: true,
+                                  builder: (dialogContext) => Center(
+                                    child: DefaultTextStyle(
+                                      style: GoogleFonts.spaceGrotesk(
+                                        color: CupertinoColors.label,
+                                        decoration: TextDecoration.none,
+                                      ),
+                                      child: CategoryDropdownWidget(
+                                        onCategorySelectedOverride:
+                                            (categoryName) async {
+                                              final ids = place.transactions
+                                                  .map((tx) => tx.id)
+                                                  .toList();
+                                              await spending.bulkUpdateCategory(
+                                                ids,
+                                                categoryName,
+                                              );
+                                              if (context.mounted) {
+                                                Navigator.pop(
+                                                  dialogContext,
+                                                ); // Pop picker
+                                                Navigator.pop(
+                                                  context,
+                                                ); // Pop sheet
+                                                showCustomToast(
+                                                  '${place.transactions.length} messages successfully categorized',
+                                                );
+                                              }
+                                            },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: _buildStandardPill(
+                                text: cat?.name ?? 'Set Category',
+                                bgColor: cat == null
+                                    ? CupertinoColors.systemGrey5
+                                    : spending
+                                          .getCategoryColor(cat.name)
+                                          .withValues(alpha: 0.15),
+                                textColor: cat == null
+                                    ? CupertinoColors.systemGrey
+                                    : spending.getCategoryColor(cat.name),
+                                icon: cat != null
+                                    ? cat.icon
+                                    : CupertinoIcons.tag,
+                                isCategory: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    itemCount: place.transactions.length,
+                    separatorBuilder: (context, index) =>
+                        const Divider(indent: 20, endIndent: 20),
+                    itemBuilder: (context, index) {
+                      final tx = place.transactions[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  tx.formattedAmount,
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDate(tx.timestamp),
+                                  style: GoogleFonts.spaceGrotesk(
+                                    fontSize: 12,
+                                    color: CupertinoColors.secondaryLabel,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              tx.rawMessage,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 13,
+                                color: CupertinoColors.label,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStandardPill({
+    required String text,
+    required Color bgColor,
+    required Color textColor,
+    dynamic icon,
+    bool isCategory = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: isCategory
+            ? Border.all(color: textColor.withValues(alpha: 0.3), width: 1.5)
+            : null,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            if (icon is IconData)
+              Icon(icon, color: textColor, size: 16)
+            else
+              HugeIcon(icon: icon, color: textColor, size: 16),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            text,
+            style: GoogleFonts.spaceGrotesk(
+              color: textColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   void _onMarkerLongPressed(String annotationId, mp.Point geometry) async {
     final place = _annotationToPlaceMap[annotationId];
     if (place == null) return;
 
     HapticFeedback.heavyImpact();
-    final spending = context.read<SpendingService>();
-    final allTxs = [
-      ...spending.mappedTransactions,
-      ...spending.periodTransactions,
-    ];
-    final txIndex = allTxs.indexWhere((t) => t.id == place.id);
 
-    if (txIndex != -1 && mounted) {
+    // For grouped messages, we use the first one for the picker initial state
+    final tx = place.transactions.first;
+
+    if (mounted) {
       // Close any open popups first
       if (_selectedPlace != null) {
         setState(() {
@@ -1023,8 +1269,7 @@ class _MapScreenState extends State<MapScreen> {
 
       Navigator.of(context, rootNavigator: true).push(
         CupertinoPageRoute(
-          builder: (context) =>
-              LocationPickerScreen(transaction: allTxs[txIndex]),
+          builder: (context) => LocationPickerScreen(transactions: [tx]),
         ),
       );
     }
@@ -1053,20 +1298,7 @@ class _MapScreenState extends State<MapScreen> {
     final int currentVersion = ++_annotationUpdateVersion;
 
     final saved = spending.mappedTransactions;
-
-    final newPlaces = saved
-        .map(
-          (tx) => MapPlace(
-            id: tx.id,
-            name: tx.merchant,
-            price: tx.formattedAmount,
-            latitude: tx.latitude!,
-            longitude: tx.longitude!,
-            rawMessage: tx.rawMessage,
-            category: tx.category,
-          ),
-        )
-        .toList();
+    final newPlaces = _groupTransactions(saved);
 
     // If a newer refresh has started, abort this outdated one.
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
@@ -1089,7 +1321,7 @@ class _MapScreenState extends State<MapScreen> {
       final catColor = spending.getCategoryColor(place.category ?? '');
       final CalloutResult callout = await createCalloutImage(
         place.name,
-        place.price,
+        place.displayPrice,
         color: catColor,
       );
 
@@ -1186,7 +1418,7 @@ class _MapScreenState extends State<MapScreen> {
     final catColor = spending.getCategoryColor(place.category ?? '');
     final CalloutResult callout = await createCalloutImage(
       place.name,
-      place.price,
+      place.displayPrice,
       color: catColor,
     );
 
@@ -1227,7 +1459,13 @@ class _MapScreenState extends State<MapScreen> {
 
   double _getSortKey(MapPlace place) {
     if (place.id == _selectedTxId) return -1000000.0;
-    final clean = place.price.replaceAll(RegExp(r'[^0-9.]'), '');
+    // For grouped markers, use a large priority so they stay visible
+    if (place.transactions.length > 1) return -500000.0;
+
+    final clean = place.transactions.first.formattedAmount.replaceAll(
+      RegExp(r'[^0-9.]'),
+      '',
+    );
     return double.tryParse(clean) ?? 0.0;
   }
 }

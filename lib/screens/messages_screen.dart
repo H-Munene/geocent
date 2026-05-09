@@ -9,6 +9,9 @@ import '../services/spending_service.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/custom_toast.dart';
 import '../widgets/unmapped_message_tile.dart';
+import 'location_picker_screen.dart';
+
+enum SelectionMode { none, categorize, forget, bulkMap }
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -19,29 +22,33 @@ class MessagesScreen extends StatefulWidget {
 
 class _MessagesScreenState extends State<MessagesScreen> {
   final ScrollController _scrollController = ScrollController();
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   final List<dynamic> _displayList = [];
   String _activeFilter = 'all';
   final Set<String> _selectedIds = {};
+  SelectionMode _selectionMode = SelectionMode.none;
+  AppTransaction? _anchorTransaction;
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   final FocusNode _searchFocusNode = FocusNode();
+  SpendingService? _spendingService;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _spendingService = context.read<SpendingService>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
-      context.read<SpendingService>().addListener(_onServiceStateChanged);
+      _spendingService?.addListener(_onServiceStateChanged);
     });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    context.read<SpendingService>().removeListener(_onServiceStateChanged);
+    _spendingService?.removeListener(_onServiceStateChanged);
     _scrollController.dispose();
     _debounce?.cancel();
     _searchController.dispose();
@@ -69,9 +76,33 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     // Sync the animated list
     final grouped = _groupWithHeaders(messages);
-    if (grouped.length != _displayList.length) {
+    if (grouped.length != _displayList.length ||
+        _hasContentChanged(_displayList, grouped)) {
       _syncList(messages);
     }
+  }
+
+  bool _hasContentChanged(List<dynamic> oldList, List<dynamic> newList) {
+    if (oldList.length != newList.length) return true;
+    for (int i = 0; i < oldList.length; i++) {
+      final oldItem = oldList[i];
+      final newItem = newList[i];
+
+      if (oldItem.runtimeType != newItem.runtimeType) return true;
+
+      if (oldItem is String) {
+        if (oldItem != newItem) return true;
+      } else if (oldItem is AppTransaction) {
+        final newTx = newItem as AppTransaction;
+        if (oldItem.id != newTx.id ||
+            oldItem.category != newTx.category ||
+            oldItem.latitude != newTx.latitude ||
+            oldItem.longitude != newTx.longitude) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   void _onScroll() {
@@ -90,24 +121,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (!mounted) return;
     final List<dynamic> flatListWithHeaders = _groupWithHeaders(newMessages);
 
+    // 1. If the list is shorter (deletion) or completely different (filter change),
+    // swap the key for a safe, instant rebuild.
     if (flatListWithHeaders.length < _displayList.length ||
         (flatListWithHeaders.isNotEmpty &&
             _displayList.isNotEmpty &&
             _getItemId(flatListWithHeaders.first) !=
                 _getItemId(_displayList.first))) {
-      _clearList();
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (!mounted) return;
+      setState(() {
+        _displayList.clear();
+        _displayList.addAll(flatListWithHeaders);
+        _listKey = GlobalKey<AnimatedListState>();
+      });
+      return;
+    }
+
+    // 2. If length is the same, synchronize the contents of the existing items
+    if (flatListWithHeaders.length == _displayList.length) {
+      setState(() {
         for (int i = 0; i < flatListWithHeaders.length; i++) {
-          _displayList.add(flatListWithHeaders[i]);
-          _listKey.currentState?.insertItem(i);
+          _displayList[i] = flatListWithHeaders[i];
         }
       });
       return;
     }
 
-    for (int i = _displayList.length; i < flatListWithHeaders.length; i++) {
-      _displayList.add(flatListWithHeaders[i]);
+    // 3. Otherwise, append new items (pagination)
+    final int oldLength = _displayList.length;
+    setState(() {
+      _displayList.addAll(flatListWithHeaders.sublist(oldLength));
+    });
+    for (int i = oldLength; i < flatListWithHeaders.length; i++) {
       _listKey.currentState?.insertItem(i);
     }
   }
@@ -121,6 +165,231 @@ class _MessagesScreenState extends State<MessagesScreen> {
         searchQuery: query,
       );
     });
+  }
+
+  void _showFilterMenu() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (modalContext) => Container(
+        padding: const EdgeInsets.only(top: 12),
+        decoration: const BoxDecoration(
+          color: CupertinoColors.systemBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey4,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Options',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: CupertinoColors.label,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 16),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 24,
+                ),
+                onPressed: () {
+                  Navigator.pop(modalContext);
+                  _showDurationFilter();
+                },
+                child: Row(
+                  children: [
+                    const Icon(CupertinoIcons.calendar, size: 22),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Filter by Duration',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        color: CupertinoColors.label,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 24,
+                ),
+                onPressed: () {
+                  Navigator.pop(modalContext);
+                  setState(() {
+                    _selectionMode = SelectionMode.forget;
+                    _selectedIds.clear();
+                  });
+                },
+                child: Row(
+                  children: [
+                    const Icon(CupertinoIcons.delete, size: 22),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Forget Messages',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        color: CupertinoColors.label,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDurationFilter() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (modalContext) => Container(
+        padding: const EdgeInsets.only(top: 12),
+        decoration: const BoxDecoration(
+          color: CupertinoColors.systemBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey4,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Filter by Duration',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: CupertinoColors.label,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDurationOption(modalContext, 'All Time', 'all'),
+              _buildDurationOption(modalContext, 'Today', 'today'),
+              _buildDurationOption(modalContext, 'Yesterday', 'yesterday'),
+              _buildDurationOption(modalContext, 'Last 3 days', 'last 3 days'),
+              _buildDurationOption(modalContext, 'This week', 'this week'),
+              _buildDurationOption(
+                modalContext,
+                'Older than a week',
+                'older than a week',
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _onForgetPressed() {
+    if (_selectedIds.isEmpty) return;
+
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Forget Messages'),
+        content: Text(
+          'Geocent will forget these ${_selectedIds.length} messages. They will never be available for mapping or categorization again, but will remain in your native messages app.',
+        ),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            onPressed: () async {
+              final service = context.read<SpendingService>();
+              final count = _selectedIds.length;
+              final idsToForget = _selectedIds.toList();
+
+              Navigator.pop(context); // Pop dialog
+
+              try {
+                await service.forgetMessages(idsToForget);
+                setState(() {
+                  _selectedIds.clear();
+                  _selectionMode = SelectionMode.none;
+                });
+                showCustomToast('Successfully forgot $count messages');
+              } catch (e) {
+                showCustomToast('Failed to forget messages');
+              }
+            },
+            child: const Text('Forget'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDurationOption(
+    BuildContext modalContext,
+    String label,
+    String value,
+  ) {
+    final spendingService = context.read<SpendingService>();
+    final isActive = spendingService.currentDurationFilter == value;
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+      onPressed: () {
+        Navigator.pop(modalContext);
+        spendingService.setDurationFilter(value);
+      },
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              color: isActive
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.label,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          const Spacer(),
+          if (isActive)
+            const Icon(
+              CupertinoIcons.checkmark_alt,
+              size: 20,
+              color: CupertinoColors.activeBlue,
+            ),
+        ],
+      ),
+    );
   }
 
   String _getItemId(dynamic item) {
@@ -169,25 +438,12 @@ class _MessagesScreenState extends State<MessagesScreen> {
     return result;
   }
 
-  void _clearList() {
-    for (int i = _displayList.length - 1; i >= 0; i--) {
-      final removedItem = _displayList.removeAt(i);
-      _listKey.currentState?.removeItem(
-        i,
-        (context, animation) => _buildItem(removedItem, animation, false),
-        duration: const Duration(milliseconds: 200),
-      );
-    }
-  }
-
   void _onFilterChanged(String filter) async {
     if (_activeFilter == filter) return;
     setState(() {
       _activeFilter = filter;
       _selectedIds.clear();
     });
-
-    _clearList();
 
     final service = context.read<SpendingService>();
     await service.setFilter(filter);
@@ -197,11 +453,74 @@ class _MessagesScreenState extends State<MessagesScreen> {
     HapticFeedback.selectionClick();
     setState(() {
       if (_selectedIds.contains(id)) {
+        if (_selectionMode == SelectionMode.bulkMap &&
+            _selectedIds.length == 1) {
+          // Exit bulk map mode if the last item is unselected
+          _selectionMode = SelectionMode.none;
+          _anchorTransaction = null;
+        }
         _selectedIds.remove(id);
       } else {
         _selectedIds.add(id);
       }
     });
+  }
+
+  void _onLongPress(AppTransaction tx) {
+    if (_selectionMode != SelectionMode.none) return;
+    if (tx.latitude != null) return; // Only unmapped items can be bulk mapped
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selectionMode = SelectionMode.bulkMap;
+      _anchorTransaction = tx;
+      _selectedIds.add(tx.id);
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isMessageDisabled(AppTransaction tx) {
+    if (_selectionMode != SelectionMode.bulkMap || _anchorTransaction == null) {
+      return false;
+    }
+    // Constraints: same merchant, same day, needs mapping
+    final isMatchingMerchant = tx.merchant == _anchorTransaction!.merchant;
+    final isSameDay = _isSameDay(tx.timestamp, _anchorTransaction!.timestamp);
+    final needsMapping = tx.latitude == null;
+
+    return !(isMatchingMerchant && isSameDay && needsMapping);
+  }
+
+  void _onBulkMapPressed() {
+    if (_selectedIds.isEmpty) return;
+
+    final spendingService = context.read<SpendingService>();
+    final selectedTxs = spendingService.paginatedMessages
+        .where((tx) => _selectedIds.contains(tx.id))
+        .toList();
+
+    if (selectedTxs.isEmpty) return;
+
+    Navigator.of(context, rootNavigator: true)
+        .push(
+          CupertinoPageRoute(
+            builder: (context) =>
+                LocationPickerScreen(transactions: selectedTxs),
+          ),
+        )
+        .then((_) {
+          // Clear selection after returning from picker
+          if (mounted) {
+            setState(() {
+              _selectedIds.clear();
+              _selectionMode = SelectionMode.none;
+              _anchorTransaction = null;
+            });
+          }
+        });
   }
 
   void _onBulkCategorize() {
@@ -273,9 +592,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
     bool isLastInGroup,
   ) {
     if (item is String) {
+      final sectionIndex = _displayList.indexOf(item);
+      final List<AppTransaction> sectionItems = [];
+      for (int i = sectionIndex + 1; i < _displayList.length; i++) {
+        if (_displayList[i] is String) break;
+        sectionItems.add(_displayList[i] as AppTransaction);
+      }
+
+      final allSelected =
+          sectionItems.isNotEmpty &&
+          sectionItems.every((tx) => _selectedIds.contains(tx.id));
+
       return FadeTransition(
         opacity: animation,
-        child: _SectionHeader(title: item),
+        child: _SectionHeader(
+          title: item,
+          showSelectAll: _selectionMode == SelectionMode.forget,
+          allSelected: allSelected,
+          onToggleSelectAll: () {
+            setState(() {
+              if (allSelected) {
+                for (var tx in sectionItems) {
+                  _selectedIds.remove(tx.id);
+                }
+              } else {
+                for (var tx in sectionItems) {
+                  _selectedIds.add(tx.id);
+                }
+              }
+            });
+          },
+        ),
       );
     }
 
@@ -292,9 +639,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: UnmappedMessageTile(
           transaction: tx,
           showDivider: !isLastInGroup,
-          isSelectionMode: _selectedIds.isNotEmpty,
+          isSelectionMode: _selectionMode != SelectionMode.none,
           isSelected: _selectedIds.contains(tx.id),
+          isDisabled: _isMessageDisabled(tx),
           onSelectToggle: () => _toggleSelection(tx.id),
+          onLongPress: () => _onLongPress(tx),
           searchQuery: context
               .read<SpendingService>()
               .searchQuery, // Use service's search query
@@ -314,6 +663,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (!didPop && _selectedIds.isNotEmpty) {
           setState(() {
             _selectedIds.clear();
+            _selectionMode = SelectionMode.none;
+            _anchorTransaction = null;
           });
         }
       },
@@ -322,6 +673,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
         navigationBar: CupertinoNavigationBar(
           backgroundColor: Colors.white.withValues(alpha: 0.8),
           border: null,
+          leading: _selectionMode != SelectionMode.none
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () {
+                    setState(() {
+                      _selectionMode = SelectionMode.none;
+                      _selectedIds.clear();
+                      _anchorTransaction = null;
+                    });
+                  },
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: CupertinoColors.activeBlue,
+                    ),
+                  ),
+                )
+              : null,
           middle: Text(
             'Messages',
             style: GoogleFonts.spaceGrotesk(
@@ -329,7 +700,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
               fontSize: 18,
             ),
           ),
-          trailing: _selectedIds.isNotEmpty
+          trailing: _selectionMode == SelectionMode.forget
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _onForgetPressed,
+                  child: Text(
+                    'Forget',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: _selectedIds.isEmpty
+                          ? CupertinoColors.systemGrey
+                          : CupertinoColors.destructiveRed,
+                    ),
+                  ),
+                )
+              : _selectionMode == SelectionMode.bulkMap
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _onBulkMapPressed,
+                  child: Text(
+                    'Bulk Map',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: _selectedIds.isEmpty
+                          ? CupertinoColors.systemGrey
+                          : CupertinoColors.activeBlue,
+                    ),
+                  ),
+                )
+              : _selectedIds.isNotEmpty
               ? CupertinoButton(
                   padding: EdgeInsets.zero,
                   onPressed: _onBulkCategorize,
@@ -348,18 +749,37 @@ class _MessagesScreenState extends State<MessagesScreen> {
             children: [
               // Add this search bar
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                 child: TapRegion(
                   onTapOutside: (event) {
                     if (_searchFocusNode.hasFocus) {
                       _searchFocusNode.unfocus();
                     }
                   },
-                  child: CupertinoSearchTextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode, // Assign the focus node
-                    onChanged: _onSearchChanged,
-                    placeholder: 'Search messages',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoSearchTextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode, // Assign the focus node
+                          onChanged: _onSearchChanged,
+                          placeholder: 'Search messages',
+                        ),
+                      ),
+                      if (_selectionMode == SelectionMode.none)
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          onPressed: _showFilterMenu,
+                          child: Icon(
+                            CupertinoIcons.slider_horizontal_3,
+                            color:
+                                spendingService.currentDurationFilter != 'all'
+                                ? CupertinoColors.activeBlue
+                                : CupertinoColors.systemGrey,
+                            size: 22,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -400,13 +820,11 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     ),
                     // Loading indicator for initial load or pagination, only if no search is active
                     if (spendingService.isLoading && _displayList.isNotEmpty)
-                      Positioned(
+                      const Positioned(
                         bottom: 20,
                         left: 0,
                         right: 0,
-                        child: const Center(
-                          child: CupertinoActivityIndicator(),
-                        ),
+                        child: Center(child: CupertinoActivityIndicator()),
                       ),
                   ],
                 ),
@@ -487,20 +905,46 @@ class _FilterChip extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
+  final bool showSelectAll;
+  final bool allSelected;
+  final VoidCallback? onToggleSelectAll;
 
-  const _SectionHeader({required this.title});
+  const _SectionHeader({
+    required this.title,
+    this.showSelectAll = false,
+    this.allSelected = false,
+    this.onToggleSelectAll,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Text(
-        title,
-        style: GoogleFonts.spaceGrotesk(
-          fontSize: 20,
-          fontWeight: FontWeight.w800,
-          color: Colors.black,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: Colors.black,
+            ),
+          ),
+          if (showSelectAll)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: onToggleSelectAll,
+              child: Text(
+                allSelected ? 'Unselect All' : 'Select All',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: CupertinoColors.activeBlue,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

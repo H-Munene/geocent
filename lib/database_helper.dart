@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'geocent.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 7;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -20,6 +20,8 @@ class DatabaseHelper {
   static const String colLongitude = 'longitude';
   static const String colCategory = 'category';
 
+  static const String tableIgnoredTransactions = 'ignored_transactions';
+
   static const String tableSpendingLimits = 'spending_limits';
   static const String colPeriod = 'period'; // 'daily' | 'weekly' | 'monthly'
   static const String colLimitAmount = 'limit_amount';
@@ -28,6 +30,11 @@ class DatabaseHelper {
   static const String tableMerchantCategories = 'merchant_categories';
   static const String colMerchantName = 'merchant_name';
   static const String colCategoryName = 'category_name';
+
+  static const String tableBudgets = 'budgets';
+  static const String colAmountLimit = 'amount_limit';
+  static const String colLastNotifiedThreshold = 'last_notified_threshold';
+  static const String colLastNotifiedAt = 'last_notified_at';
 
   // Singleton
   DatabaseHelper._();
@@ -105,6 +112,26 @@ class DatabaseHelper {
         $colUpdatedAt    TEXT NOT NULL
       )
     ''');
+
+    // ── Budgets ──────────────────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableBudgets (
+        $colId            TEXT PRIMARY KEY,
+        $colCategoryName  TEXT UNIQUE NOT NULL,
+        $colAmountLimit   REAL NOT NULL,
+        $colPeriod        TEXT NOT NULL CHECK($colPeriod IN ('daily','weekly','monthly')),
+        $colUpdatedAt     TEXT NOT NULL,
+        $colLastNotifiedThreshold INTEGER DEFAULT 0,
+        $colLastNotifiedAt        TEXT
+      )
+    ''');
+
+    // ── Ignored Transactions ──────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableIgnoredTransactions (
+        $colId TEXT PRIMARY KEY
+      )
+    ''');
   }
 
   // Extend schema here in future versions without wiping data
@@ -120,6 +147,53 @@ class DatabaseHelper {
           $colMerchantName TEXT PRIMARY KEY,
           $colCategoryName TEXT NOT NULL,
           $colUpdatedAt    TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 4) {
+      await db.execute('''
+        CREATE TABLE $tableBudgets (
+          $colId            TEXT PRIMARY KEY,
+          $colCategoryName  TEXT UNIQUE NOT NULL,
+          $colAmountLimit   REAL NOT NULL,
+          $colPeriod        TEXT NOT NULL CHECK($colPeriod IN ('daily','weekly','monthly')),
+          $colUpdatedAt     TEXT NOT NULL
+        )
+      ''');
+    }
+    /*
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cached_hotspots (
+          id             TEXT PRIMARY KEY,
+          name           TEXT NOT NULL,
+          latitude       REAL NOT NULL,
+          longitude      REAL NOT NULL,
+          matched_category TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS sync_metadata (
+          id                 INTEGER PRIMARY KEY,
+          last_sync_lat        REAL NOT NULL,
+          last_sync_lon        REAL NOT NULL,
+          last_sync_timestamp  TEXT NOT NULL
+        )
+      ''');
+    }
+    */
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedThreshold INTEGER DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedAt TEXT',
+      );
+    }
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableIgnoredTransactions (
+          $colId TEXT PRIMARY KEY
         )
       ''');
     }

@@ -56,6 +56,24 @@ class TransactionRepository {
     );
   }
 
+  Future<void> bulkUpdateLocation(
+    List<String> ids,
+    double latitude,
+    double longitude,
+  ) async {
+    if (ids.isEmpty) return;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    await _db.rawUpdate(
+      DatabaseHelper.tableTransactions,
+      {
+        DatabaseHelper.colLatitude: latitude,
+        DatabaseHelper.colLongitude: longitude,
+      },
+      '${DatabaseHelper.colId} IN ($placeholders)',
+      ids,
+    );
+  }
+
   Future<void> updateCategory(String id, String category) async {
     await _db.rawUpdate(
       DatabaseHelper.tableTransactions,
@@ -102,6 +120,40 @@ class TransactionRepository {
     }
   }
 
+  Future<void> forgetTransactions(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      final placeholders = List.filled(ids.length, '?').join(',');
+
+      // 1. Mark as ignored
+      for (final id in ids) {
+        await txn.insert(
+          DatabaseHelper.tableIgnoredTransactions,
+          {DatabaseHelper.colId: id},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      // 2. Delete from active transactions
+      await txn.delete(
+        DatabaseHelper.tableTransactions,
+        where: '${DatabaseHelper.colId} IN ($placeholders)',
+        whereArgs: ids,
+      );
+    });
+  }
+
+  Future<bool> isIgnored(String id) async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableIgnoredTransactions,
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   Future<List<AppTransaction>> loadAll() async {
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,
@@ -134,7 +186,8 @@ class TransactionRepository {
     required String filter,
     int limit = 20,
     int offset = 0,
-    String? searchQuery, // Add this parameter
+    String? searchQuery,
+    String? durationFilter,
   }) async {
     final db = await _db.database;
     List<String> conditions = [];
@@ -167,6 +220,57 @@ class TransactionRepository {
         "REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ',', ''), '-', ''), ' ', '') LIKE ?",
       );
       whereArgs.add('%$sanitizedQuery%');
+    }
+
+    // Add duration conditions
+    if (durationFilter != null && durationFilter != 'all') {
+      final now = DateTime.now();
+      switch (durationFilter.toLowerCase()) {
+        case 'today':
+          final start = DateTime(now.year, now.month, now.day);
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'yesterday':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 1));
+          final end = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(milliseconds: 1));
+          conditions.add('${DatabaseHelper.colTimestamp} BETWEEN ? AND ?');
+          whereArgs.add(start.toIso8601String());
+          whereArgs.add(end.toIso8601String());
+          break;
+        case 'last 3 days':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 2));
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'this week':
+          final monday = now.subtract(Duration(days: now.weekday - 1));
+          final start = DateTime(monday.year, monday.month, monday.day);
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'older than a week':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 7));
+          conditions.add('${DatabaseHelper.colTimestamp} < ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+      }
     }
 
     String? finalWhereClause;
@@ -215,13 +319,24 @@ class TransactionRepository {
   }
 
   Future<bool> exists(String id) async {
-    final rows = await _db.rawQuery(
+    final db = await _db.database;
+    // Check active transactions
+    final rows = await db.query(
       DatabaseHelper.tableTransactions,
       where: '${DatabaseHelper.colId} = ?',
       whereArgs: [id],
       limit: 1,
     );
-    return rows.isNotEmpty;
+    if (rows.isNotEmpty) return true;
+
+    // Check ignored transactions
+    final ignoredRows = await db.query(
+      DatabaseHelper.tableIgnoredTransactions,
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return ignoredRows.isNotEmpty;
   }
 
   Future<double> getLimit(String period) async {

@@ -3,7 +3,7 @@
 This document provides a detailed overview of the complex rendering logic and state management strategies implemented in Geocent.
 
 ## 1. Mapbox Rendering Logic
-Geocent utilizes an advanced, high-performance rendering strategy on top of Mapbox. Instead of relying on Flutter to redraw thousands of markers—which would block the UI thread—we delegate the heavy lifting directly to the Mapbox Native GPU.
+Geocent utilizes an advanced, high-performance rendering strategy on top of Mapbox. Instead of relying on Flutter to redraw thousands of markersï¿½which would block the UI threadï¿½we delegate the heavy lifting directly to the Mapbox Native GPU.
 
 ### Dual-Manager Strategy
 We use two separate annotation managers concurrently:
@@ -28,10 +28,13 @@ Because these rules are passed down to the GPU, panning and zooming remain perfe
 Geocent uses the provider package to maintain a "Unified State" approach, primarily managed by the SpendingService.
 
 ### The SpendingService
-SpendingService acts as the single source of truth for the UI. It extends ChangeNotifier and maintains in-memory lists:
+SpendingService acts as the primary source of truth for transaction and map state. It extends ChangeNotifier and maintains in-memory lists:
 - _periodTransactions: Transactions within the current filter (e.g., Today, This Week).
 - _mappedTransactions: Transactions with valid GPS coordinates.
 - _paginatedMessages: A paginated, filterable list of all messages.
+
+### The BudgetService
+BudgetService manages the state of category-specific spending limits. It coordinates with BudgetRepository for persistence and TransactionRepository for real-time progress calculations. It recalculates percentage usage dynamically based on the requested period (Daily, Weekly, or Monthly).
 
 ### Database-to-UI Synchronization
 To avoid race conditions and stale data, the app strictly follows a unidirectional data flow:

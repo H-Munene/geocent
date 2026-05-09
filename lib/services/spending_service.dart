@@ -3,8 +3,10 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:geocent/models/category_analytics.dart';
 import 'package:geocent/models/analytics_item.dart';
+import 'package:geocent/models/spending_insight.dart';
 import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocent/services/budget_service.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
 import '../models/daily_spending.dart';
@@ -12,6 +14,10 @@ import '../repositories/transaction_repository.dart';
 
 class SpendingService extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
+  final BudgetService? _budgetService;
+
+  SpendingService({BudgetService? budgetService})
+    : _budgetService = budgetService;
 
   // ── State ──────────────────────────────────────────────────────────────────
   double _spent = 0;
@@ -35,10 +41,12 @@ class SpendingService extends ChangeNotifier {
   String _weekDateRange = '';
   List<AnalyticsItem> _categoryAnalyticsItems = [];
   List<AnalyticsItem> _recipientAnalyticsItems = [];
+  List<SpendingInsight> _insights = []; // Add this
 
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
   String _currentFilter = 'all';
+  String _currentDurationFilter = 'all'; // Add this
   String _searchQuery = ''; // Add this
   int _currentPage = 0;
   bool _hasMore = true;
@@ -105,6 +113,7 @@ class SpendingService extends ChangeNotifier {
 
   List<AppTransaction> get paginatedMessages => _paginatedMessages;
   String get currentFilter => _currentFilter;
+  String get currentDurationFilter => _currentDurationFilter; // Add this
   bool get hasMore => _hasMore;
   List<AppTransaction> get allTransactions => _allTransactions; // New getter
   String get searchQuery => _searchQuery;
@@ -122,6 +131,7 @@ class SpendingService extends ChangeNotifier {
   String get weekDateRange => _weekDateRange;
   List<AnalyticsItem> get categoryAnalyticsItems => _categoryAnalyticsItems;
   List<AnalyticsItem> get recipientAnalyticsItems => _recipientAnalyticsItems;
+  List<SpendingInsight> get insights => _insights;
 
   Color getCategoryColor(String name) {
     return _categoryColors[name] ?? CupertinoColors.systemGrey2;
@@ -253,6 +263,7 @@ class SpendingService extends ChangeNotifier {
     _tabSwitchCount++;
     _searchQuery = '';
     _currentFilter = 'all';
+    _currentDurationFilter = 'all';
     _currentPage = 0;
     _hasMore = true;
     _paginatedMessages = [];
@@ -301,7 +312,8 @@ class SpendingService extends ChangeNotifier {
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
       _repo.getCategoryComparison(),
-      _updateAnalytics(), // Added this
+      _updateAnalytics(),
+      _computeInsights(), // Add this
     ]);
 
     _periodTransactions = results[0] as List<AppTransaction>;
@@ -470,6 +482,111 @@ class SpendingService extends ChangeNotifier {
     }).toList();
   }
 
+  /// Calculates high-level insights for the animated ticker.
+  Future<void> _computeInsights() async {
+    final List<SpendingInsight> newInsights = [];
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    // 1. Highest Expense Today
+    final todaySpending = await _repo.getCategorySpending(todayStart, now);
+    final topToday = todaySpending
+        .where((s) => s['category'] != 'Unmapped')
+        .firstOrNull;
+
+    if (topToday != null) {
+      newInsights.add(
+        SpendingInsight(
+          highlight: topToday['category'] as String,
+          suffix: ' is highest expense today',
+          highlightColor: getCategoryColor(topToday['category'] as String),
+          icon:
+              getCategoryByName(topToday['category'] as String)?.icon ??
+              CupertinoIcons.graph_square,
+        ),
+      );
+    }
+
+    // 2. Highest Expense This Week
+    final topWeek = _categoryAnalyticsItems
+        .where((s) => s.category != null)
+        .firstOrNull;
+
+    if (topWeek != null) {
+      newInsights.add(
+        SpendingInsight(
+          highlight: topWeek.title,
+          suffix: ' is highest expense this week',
+          highlightColor: getCategoryColor(topWeek.title),
+          icon:
+              getCategoryByName(topWeek.title)?.icon ??
+              CupertinoIcons.chart_bar_fill,
+        ),
+      );
+    }
+
+    // 3. Spent Today
+    final double spentToday = await _repo.getTotalSpending(todayStart, now);
+    if (spentToday > 0) {
+      newInsights.add(
+        SpendingInsight(
+          prefix: 'Spent ',
+          highlight: 'KES ${spentToday.toStringAsFixed(0)}',
+          suffix: ' today',
+          highlightColor: const Color(0xFF1D1D1F),
+          icon: CupertinoIcons.creditcard_fill,
+        ),
+      );
+    }
+
+    // 4. Budget Progress & Remaining
+    if (_budgetService != null) {
+      // We check all periods to find active budgets
+      final allPeriods = ['daily', 'weekly', 'monthly'];
+      for (final period in allPeriods) {
+        final progressList = await _budgetService.getBudgetProgress(period);
+        for (final prog in progressList) {
+          // Used percentage insight
+          if (prog.totalSpentInPeriod > 0) {
+            final percentage = (prog.percentageUsed * 100).toInt();
+            newInsights.add(
+              SpendingInsight(
+                prefix: 'Used $percentage% of ',
+                highlight: prog.categoryName,
+                suffix: ' budget',
+                highlightColor: getCategoryColor(prog.categoryName),
+                icon:
+                    getCategoryByName(prog.categoryName)?.icon ??
+                    CupertinoIcons.gauge,
+              ),
+            );
+          }
+
+          // Remaining amount insight
+          final remaining = (prog.amountLimit - prog.totalSpentInPeriod).clamp(
+            0.0,
+            double.infinity,
+          );
+          if (remaining > 0) {
+            newInsights.add(
+              SpendingInsight(
+                prefix: 'KES ${remaining.toStringAsFixed(0)} left in ',
+                highlight: prog.categoryName,
+                suffix: ' $period budget',
+                highlightColor: getCategoryColor(prog.categoryName),
+                icon:
+                    getCategoryByName(prog.categoryName)?.icon ??
+                    CupertinoIcons.money_dollar_circle_fill,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    _insights = newInsights;
+  }
+
   String _getInitials(String name) {
     if (name.isEmpty) return '?';
     final parts = name.trim().split(' ');
@@ -498,6 +615,10 @@ class SpendingService extends ChangeNotifier {
 
     await _repo.save(tx);
     await refresh();
+
+    if (tx.category != null) {
+      _budgetService?.checkAndNotify(categoryName: tx.category);
+    }
   }
 
   /// Attach GPS to an existing transaction then refresh the map layer.
@@ -508,6 +629,15 @@ class SpendingService extends ChangeNotifier {
   ) async {
     await _repo.updateLocation(txId, latitude, longitude);
     // Refresh to ensure all lists (mapped, actionable) are updated and listeners notified
+    await refresh();
+  }
+
+  Future<void> bulkAttachLocation(
+    List<String> ids,
+    double latitude,
+    double longitude,
+  ) async {
+    await _repo.bulkUpdateLocation(ids, latitude, longitude);
     await refresh();
   }
 
@@ -527,6 +657,8 @@ class SpendingService extends ChangeNotifier {
 
     // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
+
+    _budgetService?.checkAndNotify(categoryName: category);
   }
 
   Future<void> bulkUpdateCategory(List<String> ids, String category) async {
@@ -543,6 +675,15 @@ class SpendingService extends ChangeNotifier {
       await _repo.upsertMerchantCategory(merchant, category);
     }
 
+    await refresh();
+    await fetchMessages(refresh: true);
+
+    _budgetService?.checkAndNotify(categoryName: category);
+  }
+
+  Future<void> forgetMessages(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _repo.forgetTransactions(ids);
     await refresh();
     await fetchMessages(refresh: true);
   }
@@ -563,6 +704,15 @@ class SpendingService extends ChangeNotifier {
     _paginatedMessages = [];
     _hasMore = true;
     // Pass the current search query when setting a new filter
+    await fetchMessages(refresh: true, searchQuery: _searchQuery);
+  }
+
+  Future<void> setDurationFilter(String filter) async {
+    if (_currentDurationFilter == filter) return;
+    _currentDurationFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
     await fetchMessages(refresh: true, searchQuery: _searchQuery);
   }
 
@@ -591,7 +741,8 @@ class SpendingService extends ChangeNotifier {
         filter: _currentFilter,
         limit: _pageSize,
         offset: _currentPage * _pageSize,
-        searchQuery: _searchQuery, // Pass the search query
+        searchQuery: _searchQuery,
+        durationFilter: _currentDurationFilter,
       );
 
       if (newMessages.length < _pageSize) {
