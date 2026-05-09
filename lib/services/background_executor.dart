@@ -4,12 +4,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart' as geo;
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../repositories/transaction_repository.dart';
 import '../repositories/budget_repository.dart';
-import '../repositories/hotspot_repository.dart';
-import '../services/mapbox_sync_service.dart';
 import '../services/native_sms_channel.dart';
 import '../services/sms_parser.dart';
 import '../services/notification_service.dart';
@@ -46,39 +43,11 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   );
 
   final repo = TransactionRepository();
-  final budgetRepo = BudgetRepository();
-  final hotspotRepo = HotspotRepository();
-  final syncService = MapboxSyncService();
 
   NativeSmsChannel.instance.register();
 
   NativeSmsChannel.instance.smsStream.listen((sms) async {
     _processIncomingSms(sms, repo, service, flutterLocalNotificationsPlugin);
-  });
-
-  // 📍 Initialize Proactive Intervention Location Stream
-  geo.Geolocator.getPositionStream(
-    locationSettings: const geo.LocationSettings(
-      accuracy: geo.LocationAccuracy.high,
-      distanceFilter: 100, // Trigger every 100m to save battery
-    ),
-  ).listen((pos) async {
-    debugPrint(
-      '[Background Isolate] New location: ${pos.latitude}, ${pos.longitude}',
-    );
-
-    // 1. Silent sync check
-    unawaited(syncService.syncHotspotsIfNecessary(pos.latitude, pos.longitude));
-
-    // 2. Evaluate Nearby Hotspots
-    _evaluateProactiveIntervention(
-      pos.latitude,
-      pos.longitude,
-      hotspotRepo,
-      budgetRepo,
-      repo,
-      flutterLocalNotificationsPlugin,
-    );
   });
 
   service.on('simulate_transaction').listen((_) async {
@@ -154,70 +123,6 @@ DateTime _getPeriodStart(String period, DateTime now) {
       return DateTime(now.year, now.month, 1);
     default:
       return DateTime(now.year, now.month, now.day);
-  }
-}
-
-Future<void> _evaluateProactiveIntervention(
-  double lat,
-  double lon,
-  HotspotRepository hotspotRepo,
-  BudgetRepository budgetRepo,
-  TransactionRepository txRepo,
-  FlutterLocalNotificationsPlugin notifications,
-) async {
-  final nearby = await hotspotRepo.getNearbyHotspots(
-    lat,
-    lon,
-    radiusInMeters: 150,
-  );
-  if (nearby.isEmpty) return;
-
-  final prefs = await SharedPreferences.getInstance();
-
-  // Group by category to avoid duplicate checks
-  final categories = nearby.map((h) => h.matchedCategory).toSet();
-
-  for (final category in categories) {
-    // 1. Cooldown Check (e.g., 3 hours)
-    final lastNotifiedKey = 'last_notified_proactive_$category';
-    final lastNotifiedStr = prefs.getString(lastNotifiedKey);
-    if (lastNotifiedStr != null) {
-      final lastNotified = DateTime.parse(lastNotifiedStr);
-      if (DateTime.now().difference(lastNotified).inHours < 3) {
-        continue;
-      }
-    }
-
-    // 2. Fetch Budget for category
-    final budgets = await budgetRepo.getAllBudgets();
-    final budget = budgets.where((b) => b.categoryName == category).firstOrNull;
-    if (budget == null) continue;
-
-    // 3. Calculate Progress
-    final now = DateTime.now();
-    final DateTime start = _getPeriodStart(budget.period, now);
-
-    final spending = await txRepo.getCategorySpending(start, now);
-    final match = spending.firstWhere(
-      (s) => s['category'] == category,
-      orElse: () => {'total_amount': 0.0},
-    );
-
-    final double totalSpent = (match['total_amount'] as num).toDouble();
-    final double percentage = totalSpent / budget.amountLimit;
-
-    // 4. Trigger Notification if > 80% (Proactive Intervention is more critical)
-    if (percentage > 0.80) {
-      await NotificationService.instance.showBudgetNotification(
-        id: 'proactive_$category'.hashCode,
-        category: category,
-        percentUsed: (percentage * 100).toInt(),
-        amountLeft: (budget.amountLimit - totalSpent).clamp(0, double.infinity),
-      );
-
-      // Update cooldown
-      await prefs.setString(lastNotifiedKey, DateTime.now().toIso8601String());
-    }
   }
 }
 

@@ -36,15 +36,6 @@ class DatabaseHelper {
   static const String colLastNotifiedThreshold = 'last_notified_threshold';
   static const String colLastNotifiedAt = 'last_notified_at';
 
-  static const String tableCachedHotspots = 'cached_hotspots';
-  static const String colName = 'name';
-  static const String colMatchedCategory = 'matched_category';
-
-  static const String tableSyncMetadata = 'sync_metadata';
-  static const String colLastSyncLat = 'last_sync_lat';
-  static const String colLastSyncLon = 'last_sync_lon';
-  static const String colLastSyncTimestamp = 'last_sync_timestamp';
-
   // Singleton
   DatabaseHelper._();
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -135,27 +126,6 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Cached Hotspots ──────────────────────────────────────────────────────
-    await db.execute('''
-      CREATE TABLE $tableCachedHotspots (
-        $colId             TEXT PRIMARY KEY,
-        $colName           TEXT NOT NULL,
-        $colLatitude       REAL NOT NULL,
-        $colLongitude      REAL NOT NULL,
-        $colMatchedCategory TEXT NOT NULL
-      )
-    ''');
-
-    // ── Sync Metadata ────────────────────────────────────────────────────────
-    await db.execute('''
-      CREATE TABLE $tableSyncMetadata (
-        $colId                 INTEGER PRIMARY KEY,
-        $colLastSyncLat        REAL NOT NULL,
-        $colLastSyncLon        REAL NOT NULL,
-        $colLastSyncTimestamp  TEXT NOT NULL
-      )
-    ''');
-
     // ── Ignored Transactions ──────────────────────────────────────────────────
     await db.execute('''
       CREATE TABLE $tableIgnoredTransactions (
@@ -191,25 +161,27 @@ class DatabaseHelper {
         )
       ''');
     }
+    /*
     if (oldVersion < 5) {
       await db.execute('''
-        CREATE TABLE $tableCachedHotspots (
-          $colId             TEXT PRIMARY KEY,
-          $colName           TEXT NOT NULL,
-          $colLatitude       REAL NOT NULL,
-          $colLongitude      REAL NOT NULL,
-          $colMatchedCategory TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS cached_hotspots (
+          id             TEXT PRIMARY KEY,
+          name           TEXT NOT NULL,
+          latitude       REAL NOT NULL,
+          longitude      REAL NOT NULL,
+          matched_category TEXT NOT NULL
         )
       ''');
       await db.execute('''
-        CREATE TABLE $tableSyncMetadata (
-          $colId                 INTEGER PRIMARY KEY,
-          $colLastSyncLat        REAL NOT NULL,
-          $colLastSyncLon        REAL NOT NULL,
-          $colLastSyncTimestamp  TEXT NOT NULL
+        CREATE TABLE IF NOT EXISTS sync_metadata (
+          id                 INTEGER PRIMARY KEY,
+          last_sync_lat        REAL NOT NULL,
+          last_sync_lon        REAL NOT NULL,
+          last_sync_timestamp  TEXT NOT NULL
         )
       ''');
     }
+    */
     if (oldVersion < 6) {
       await db.execute(
         'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedThreshold INTEGER DEFAULT 0',

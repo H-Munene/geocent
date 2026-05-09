@@ -1,3 +1,7 @@
+// THIS FILE IS DECOMMISSIONED
+// The Hotspot feature has been removed. 
+// You can safely delete this file.
+/*
 import 'package:geocent/database_helper.dart';
 import 'package:geocent/models/hotspot.dart';
 import 'package:geolocator/geolocator.dart';
@@ -101,4 +105,10 @@ class HotspotRepository {
     final db = await _db.database;
     await db.delete(DatabaseHelper.tableCachedHotspots);
   }
+
+  Future<List<Hotspot>> getAllHotspots() async {
+    final rows = await _db.rawQuery(DatabaseHelper.tableCachedHotspots);
+    return rows.map((row) => Hotspot.fromMap(row)).toList();
+  }
 }
+*/

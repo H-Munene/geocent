@@ -1,3 +1,7 @@
+// THIS FILE IS DECOMMISSIONED
+// The Hotspot feature has been removed. 
+// You can safely delete this file.
+/*
 class Hotspot {
   final String id;
   final String name;
@@ -27,8 +31,8 @@ class Hotspot {
     return Hotspot(
       id: map['id'] as String,
       name: map['name'] as String,
-      latitude: (map['latitude'] as num).toDouble(),
-      longitude: (map['longitude'] as num).toDouble(),
+      latitude: map['latitude'] as double,
+      longitude: map['longitude'] as double,
       matchedCategory: map['matched_category'] as String,
     );
   }
@@ -45,3 +49,4 @@ class SyncMetadata {
     required this.lastSyncTimestamp,
   });
 }
+*/
