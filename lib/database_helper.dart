@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'geocent.db';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 6;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -31,6 +31,17 @@ class DatabaseHelper {
 
   static const String tableBudgets = 'budgets';
   static const String colAmountLimit = 'amount_limit';
+  static const String colLastNotifiedThreshold = 'last_notified_threshold';
+  static const String colLastNotifiedAt = 'last_notified_at';
+
+  static const String tableCachedHotspots = 'cached_hotspots';
+  static const String colName = 'name';
+  static const String colMatchedCategory = 'matched_category';
+
+  static const String tableSyncMetadata = 'sync_metadata';
+  static const String colLastSyncLat = 'last_sync_lat';
+  static const String colLastSyncLon = 'last_sync_lon';
+  static const String colLastSyncTimestamp = 'last_sync_timestamp';
 
   // Singleton
   DatabaseHelper._();
@@ -116,7 +127,30 @@ class DatabaseHelper {
         $colCategoryName  TEXT UNIQUE NOT NULL,
         $colAmountLimit   REAL NOT NULL,
         $colPeriod        TEXT NOT NULL CHECK($colPeriod IN ('daily','weekly','monthly')),
-        $colUpdatedAt     TEXT NOT NULL
+        $colUpdatedAt     TEXT NOT NULL,
+        $colLastNotifiedThreshold INTEGER DEFAULT 0,
+        $colLastNotifiedAt        TEXT
+      )
+    ''');
+
+    // ── Cached Hotspots ──────────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableCachedHotspots (
+        $colId             TEXT PRIMARY KEY,
+        $colName           TEXT NOT NULL,
+        $colLatitude       REAL NOT NULL,
+        $colLongitude      REAL NOT NULL,
+        $colMatchedCategory TEXT NOT NULL
+      )
+    ''');
+
+    // ── Sync Metadata ────────────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableSyncMetadata (
+        $colId                 INTEGER PRIMARY KEY,
+        $colLastSyncLat        REAL NOT NULL,
+        $colLastSyncLon        REAL NOT NULL,
+        $colLastSyncTimestamp  TEXT NOT NULL
       )
     ''');
   }
@@ -147,6 +181,33 @@ class DatabaseHelper {
           $colUpdatedAt     TEXT NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 5) {
+      await db.execute('''
+        CREATE TABLE $tableCachedHotspots (
+          $colId             TEXT PRIMARY KEY,
+          $colName           TEXT NOT NULL,
+          $colLatitude       REAL NOT NULL,
+          $colLongitude      REAL NOT NULL,
+          $colMatchedCategory TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE $tableSyncMetadata (
+          $colId                 INTEGER PRIMARY KEY,
+          $colLastSyncLat        REAL NOT NULL,
+          $colLastSyncLon        REAL NOT NULL,
+          $colLastSyncTimestamp  TEXT NOT NULL
+        )
+      ''');
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+        'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedThreshold INTEGER DEFAULT 0',
+      );
+      await db.execute(
+        'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedAt TEXT',
+      );
     }
   }
 

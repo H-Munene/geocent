@@ -40,4 +40,21 @@ class BudgetRepository {
     );
     return rows.map(Budget.fromMap).toList();
   }
+
+  Future<void> updateNotificationState(
+    String id,
+    int threshold,
+    DateTime at,
+  ) async {
+    final db = await _db.database;
+    await db.update(
+      DatabaseHelper.tableBudgets,
+      {
+        DatabaseHelper.colLastNotifiedThreshold: threshold,
+        DatabaseHelper.colLastNotifiedAt: at.toIso8601String(),
+      },
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+    );
+  }
 }

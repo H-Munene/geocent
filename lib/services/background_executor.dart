@@ -4,21 +4,35 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart' as geo;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/budget_repository.dart';
+import '../repositories/hotspot_repository.dart';
+import '../services/mapbox_sync_service.dart';
 import '../services/native_sms_channel.dart';
 import '../services/sms_parser.dart';
+import '../services/notification_service.dart';
 import '../models/sms_message.dart';
+import '../models/app_transaction.dart';
 
 @pragma('vm:entry-point')
 void onBackgroundServiceStart(ServiceInstance service) async {
   // Use try-catch to prevent a single plugin registration error from killing the service.
-  // mapbox_maps_flutter is known to throw "This class should only be used in the main isolate"
-  // during registration in background isolates.
   try {
     DartPluginRegistrant.ensureInitialized();
   } catch (e) {
     debugPrint('[Background Isolate] Plugin registration warning: $e');
   }
+
+  // 📍 FIX: Load environment variables for the background isolate's memory space
+  try {
+    await dotenv.load(fileName: ".env");
+  } catch (e) {
+    debugPrint('[Background Isolate] Failed to load .env: $e');
+  }
+
+  await NotificationService.instance.init();
 
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
   const AndroidInitializationSettings initializationSettingsAndroid =
@@ -32,11 +46,39 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   );
 
   final repo = TransactionRepository();
+  final budgetRepo = BudgetRepository();
+  final hotspotRepo = HotspotRepository();
+  final syncService = MapboxSyncService();
 
   NativeSmsChannel.instance.register();
 
   NativeSmsChannel.instance.smsStream.listen((sms) async {
     _processIncomingSms(sms, repo, service, flutterLocalNotificationsPlugin);
+  });
+
+  // 📍 Initialize Proactive Intervention Location Stream
+  geo.Geolocator.getPositionStream(
+    locationSettings: const geo.LocationSettings(
+      accuracy: geo.LocationAccuracy.high,
+      distanceFilter: 100, // Trigger every 100m to save battery
+    ),
+  ).listen((pos) async {
+    debugPrint(
+      '[Background Isolate] New location: ${pos.latitude}, ${pos.longitude}',
+    );
+
+    // 1. Silent sync check
+    unawaited(syncService.syncHotspotsIfNecessary(pos.latitude, pos.longitude));
+
+    // 2. Evaluate Nearby Hotspots
+    _evaluateProactiveIntervention(
+      pos.latitude,
+      pos.longitude,
+      hotspotRepo,
+      budgetRepo,
+      repo,
+      flutterLocalNotificationsPlugin,
+    );
   });
 
   service.on('simulate_transaction').listen((_) async {
@@ -51,6 +93,134 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   });
 }
 
+Future<void> _checkBudgetThresholds(
+  String category,
+  BudgetRepository budgetRepo,
+  TransactionRepository txRepo,
+) async {
+  final budgets = await budgetRepo.getAllBudgets();
+  final budget = budgets.where((b) => b.categoryName == category).firstOrNull;
+  if (budget == null) return;
+
+  final DateTime now = DateTime.now();
+  final DateTime start = _getPeriodStart(budget.period, now);
+
+  final spending = await txRepo.getCategorySpending(start, now);
+  final match = spending.firstWhere(
+    (s) => s['category'] == category,
+    orElse: () => {'total_amount': 0.0},
+  );
+
+  final double totalSpent = (match['total_amount'] as num).toDouble();
+  final double percentage = totalSpent / budget.amountLimit;
+
+  int lastThreshold = budget.lastNotifiedThreshold;
+  if (budget.lastNotifiedAt != null && budget.lastNotifiedAt!.isBefore(start)) {
+    lastThreshold = 0;
+  }
+
+  int newThreshold = lastThreshold;
+  if (percentage >= 0.80 && lastThreshold < 80) {
+    newThreshold = 80;
+  } else if (percentage >= 0.50 && lastThreshold < 50) {
+    newThreshold = 50;
+  }
+
+  if (newThreshold > lastThreshold) {
+    await NotificationService.instance.showBudgetNotification(
+      id: budget.id.hashCode,
+      category: budget.categoryName,
+      percentUsed: (percentage * 100).toInt(),
+      amountLeft: (budget.amountLimit - totalSpent).clamp(0, double.infinity),
+    );
+
+    await budgetRepo.updateNotificationState(budget.id, newThreshold, now);
+  }
+}
+
+DateTime _getPeriodStart(String period, DateTime now) {
+  switch (period.toLowerCase()) {
+    case 'daily':
+      return DateTime(now.year, now.month, now.day);
+    case 'weekly':
+      final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+      final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+      return DateTime(
+        startOfCurrentWeek.year,
+        startOfCurrentWeek.month,
+        startOfCurrentWeek.day,
+      );
+    case 'monthly':
+      return DateTime(now.year, now.month, 1);
+    default:
+      return DateTime(now.year, now.month, now.day);
+  }
+}
+
+Future<void> _evaluateProactiveIntervention(
+  double lat,
+  double lon,
+  HotspotRepository hotspotRepo,
+  BudgetRepository budgetRepo,
+  TransactionRepository txRepo,
+  FlutterLocalNotificationsPlugin notifications,
+) async {
+  final nearby = await hotspotRepo.getNearbyHotspots(
+    lat,
+    lon,
+    radiusInMeters: 150,
+  );
+  if (nearby.isEmpty) return;
+
+  final prefs = await SharedPreferences.getInstance();
+
+  // Group by category to avoid duplicate checks
+  final categories = nearby.map((h) => h.matchedCategory).toSet();
+
+  for (final category in categories) {
+    // 1. Cooldown Check (e.g., 3 hours)
+    final lastNotifiedKey = 'last_notified_proactive_$category';
+    final lastNotifiedStr = prefs.getString(lastNotifiedKey);
+    if (lastNotifiedStr != null) {
+      final lastNotified = DateTime.parse(lastNotifiedStr);
+      if (DateTime.now().difference(lastNotified).inHours < 3) {
+        continue;
+      }
+    }
+
+    // 2. Fetch Budget for category
+    final budgets = await budgetRepo.getAllBudgets();
+    final budget = budgets.where((b) => b.categoryName == category).firstOrNull;
+    if (budget == null) continue;
+
+    // 3. Calculate Progress
+    final now = DateTime.now();
+    final DateTime start = _getPeriodStart(budget.period, now);
+
+    final spending = await txRepo.getCategorySpending(start, now);
+    final match = spending.firstWhere(
+      (s) => s['category'] == category,
+      orElse: () => {'total_amount': 0.0},
+    );
+
+    final double totalSpent = (match['total_amount'] as num).toDouble();
+    final double percentage = totalSpent / budget.amountLimit;
+
+    // 4. Trigger Notification if > 80% (Proactive Intervention is more critical)
+    if (percentage > 0.80) {
+      await NotificationService.instance.showBudgetNotification(
+        id: 'proactive_$category'.hashCode,
+        category: category,
+        percentUsed: (percentage * 100).toInt(),
+        amountLeft: (budget.amountLimit - totalSpent).clamp(0, double.infinity),
+      );
+
+      // Update cooldown
+      await prefs.setString(lastNotifiedKey, DateTime.now().toIso8601String());
+    }
+  }
+}
+
 Future<void> _processIncomingSms(
   SmsMessage sms,
   TransactionRepository repo,
@@ -59,8 +229,17 @@ Future<void> _processIncomingSms(
 ) async {
   debugPrint('[Background Isolate] Processing SMS from ${sms.sender}');
 
-  final tx = SmsParser.parse(sms.body);
+  AppTransaction? tx = SmsParser.parse(sms.body);
   if (tx != null && !(await repo.exists(tx.id))) {
+    // Auto-categorize based on merchant history
+    String? category = tx.category;
+    if (category == null) {
+      category = await repo.getMerchantCategory(tx.merchant);
+      if (category != null) {
+        tx = tx.copyWith(category: category);
+      }
+    }
+
     await repo.save(tx);
 
     service.invoke('transaction_saved');
@@ -71,6 +250,12 @@ Future<void> _processIncomingSms(
       tx.formattedAmount,
       tx.id,
     );
+
+    // 📍 New: Check Budget Thresholds
+    if (tx.category != null) {
+      final budgetRepo = BudgetRepository();
+      _checkBudgetThresholds(tx.category!, budgetRepo, repo);
+    }
 
     try {
       geo.Position? pos = await geo.Geolocator.getLastKnownPosition();

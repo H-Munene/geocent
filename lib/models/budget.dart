@@ -6,6 +6,8 @@ class Budget {
   final double amountLimit;
   final String period;
   final DateTime updatedAt;
+  final int lastNotifiedThreshold;
+  final DateTime? lastNotifiedAt;
 
   Budget({
     required this.id,
@@ -13,6 +15,8 @@ class Budget {
     required this.amountLimit,
     required this.period,
     required this.updatedAt,
+    this.lastNotifiedThreshold = 0,
+    this.lastNotifiedAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -22,6 +26,8 @@ class Budget {
       DatabaseHelper.colAmountLimit: amountLimit,
       DatabaseHelper.colPeriod: period,
       DatabaseHelper.colUpdatedAt: updatedAt.toIso8601String(),
+      DatabaseHelper.colLastNotifiedThreshold: lastNotifiedThreshold,
+      DatabaseHelper.colLastNotifiedAt: lastNotifiedAt?.toIso8601String(),
     };
   }
 
@@ -32,6 +38,11 @@ class Budget {
       amountLimit: (map[DatabaseHelper.colAmountLimit] as num).toDouble(),
       period: map[DatabaseHelper.colPeriod] as String,
       updatedAt: DateTime.parse(map[DatabaseHelper.colUpdatedAt] as String),
+      lastNotifiedThreshold:
+          map[DatabaseHelper.colLastNotifiedThreshold] as int? ?? 0,
+      lastNotifiedAt: map[DatabaseHelper.colLastNotifiedAt] != null
+          ? DateTime.parse(map[DatabaseHelper.colLastNotifiedAt] as String)
+          : null,
     );
   }
 
@@ -41,6 +52,8 @@ class Budget {
     double? amountLimit,
     String? period,
     DateTime? updatedAt,
+    int? lastNotifiedThreshold,
+    DateTime? lastNotifiedAt,
   }) {
     return Budget(
       id: id ?? this.id,
@@ -48,6 +61,9 @@ class Budget {
       amountLimit: amountLimit ?? this.amountLimit,
       period: period ?? this.period,
       updatedAt: updatedAt ?? this.updatedAt,
+      lastNotifiedThreshold:
+          lastNotifiedThreshold ?? this.lastNotifiedThreshold,
+      lastNotifiedAt: lastNotifiedAt ?? this.lastNotifiedAt,
     );
   }
 }

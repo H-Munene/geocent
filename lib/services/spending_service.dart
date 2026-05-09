@@ -5,6 +5,7 @@ import 'package:geocent/models/category_analytics.dart';
 import 'package:geocent/models/analytics_item.dart';
 import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocent/services/budget_service.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
 import '../models/daily_spending.dart';
@@ -12,6 +13,10 @@ import '../repositories/transaction_repository.dart';
 
 class SpendingService extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
+  final BudgetService? _budgetService;
+
+  SpendingService({BudgetService? budgetService})
+    : _budgetService = budgetService;
 
   // ── State ──────────────────────────────────────────────────────────────────
   double _spent = 0;
@@ -39,6 +44,7 @@ class SpendingService extends ChangeNotifier {
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
   String _currentFilter = 'all';
+  String _currentDurationFilter = 'all'; // Add this
   String _searchQuery = ''; // Add this
   int _currentPage = 0;
   bool _hasMore = true;
@@ -105,6 +111,7 @@ class SpendingService extends ChangeNotifier {
 
   List<AppTransaction> get paginatedMessages => _paginatedMessages;
   String get currentFilter => _currentFilter;
+  String get currentDurationFilter => _currentDurationFilter; // Add this
   bool get hasMore => _hasMore;
   List<AppTransaction> get allTransactions => _allTransactions; // New getter
   String get searchQuery => _searchQuery;
@@ -253,6 +260,7 @@ class SpendingService extends ChangeNotifier {
     _tabSwitchCount++;
     _searchQuery = '';
     _currentFilter = 'all';
+    _currentDurationFilter = 'all';
     _currentPage = 0;
     _hasMore = true;
     _paginatedMessages = [];
@@ -498,6 +506,10 @@ class SpendingService extends ChangeNotifier {
 
     await _repo.save(tx);
     await refresh();
+
+    if (tx.category != null) {
+      _budgetService?.checkAndNotify(categoryName: tx.category);
+    }
   }
 
   /// Attach GPS to an existing transaction then refresh the map layer.
@@ -527,6 +539,8 @@ class SpendingService extends ChangeNotifier {
 
     // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
+
+    _budgetService?.checkAndNotify(categoryName: category);
   }
 
   Future<void> bulkUpdateCategory(List<String> ids, String category) async {
@@ -545,6 +559,8 @@ class SpendingService extends ChangeNotifier {
 
     await refresh();
     await fetchMessages(refresh: true);
+
+    _budgetService?.checkAndNotify(categoryName: category);
   }
 
   /// Persist a new limit for the current period then refresh.
@@ -563,6 +579,15 @@ class SpendingService extends ChangeNotifier {
     _paginatedMessages = [];
     _hasMore = true;
     // Pass the current search query when setting a new filter
+    await fetchMessages(refresh: true, searchQuery: _searchQuery);
+  }
+
+  Future<void> setDurationFilter(String filter) async {
+    if (_currentDurationFilter == filter) return;
+    _currentDurationFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
     await fetchMessages(refresh: true, searchQuery: _searchQuery);
   }
 
@@ -591,7 +616,8 @@ class SpendingService extends ChangeNotifier {
         filter: _currentFilter,
         limit: _pageSize,
         offset: _currentPage * _pageSize,
-        searchQuery: _searchQuery, // Pass the search query
+        searchQuery: _searchQuery,
+        durationFilter: _currentDurationFilter,
       );
 
       if (newMessages.length < _pageSize) {

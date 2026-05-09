@@ -4,6 +4,7 @@ import 'package:geocent/models/budget_progress.dart';
 import 'package:geocent/repositories/budget_repository.dart';
 import 'package:geocent/repositories/transaction_repository.dart';
 import 'package:uuid/uuid.dart';
+import 'package:geocent/services/notification_service.dart';
 
 class BudgetService extends ChangeNotifier {
   final BudgetRepository _budgetRepo = BudgetRepository();
@@ -27,6 +28,91 @@ class BudgetService extends ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> checkAndNotify({String? categoryName}) async {
+    // If categoryName is provided, we only check that one budget.
+    // Otherwise, we check all budgets (useful for bulk updates or periodic checks).
+    final budgetsToCheck = categoryName != null
+        ? _budgets.where((b) => b.categoryName == categoryName).toList()
+        : _budgets;
+
+    if (budgetsToCheck.isEmpty) return;
+
+    final DateTime now = DateTime.now();
+
+    for (final budget in budgetsToCheck) {
+      final DateTime start = _getPeriodStart(budget.period, now);
+
+      // Calculate total spent for this category in this period
+      final categorySpending = await _txRepo.getCategorySpending(start, now);
+      final spendingMatch = categorySpending.firstWhere(
+        (s) => s['category'] == budget.categoryName,
+        orElse: () => {'total_amount': 0.0},
+      );
+
+      final double totalSpent = (spendingMatch['total_amount'] as num)
+          .toDouble();
+      final double percentage = totalSpent / budget.amountLimit;
+
+      // Determine if we need to reset notification state (new period)
+      int lastThreshold = budget.lastNotifiedThreshold;
+      if (budget.lastNotifiedAt != null &&
+          budget.lastNotifiedAt!.isBefore(start)) {
+        lastThreshold = 0;
+      }
+
+      int newThreshold = lastThreshold;
+      if (percentage >= 0.80 && lastThreshold < 80) {
+        newThreshold = 80;
+      } else if (percentage >= 0.50 && lastThreshold < 50) {
+        newThreshold = 50;
+      }
+
+      if (newThreshold > lastThreshold) {
+        // Trigger notification
+        await NotificationService.instance.showBudgetNotification(
+          id: budget.id.hashCode,
+          category: budget.categoryName,
+          percentUsed: (percentage * 100).toInt(),
+          amountLeft: (budget.amountLimit - totalSpent).clamp(
+            0,
+            double.infinity,
+          ),
+        );
+
+        // Persist new state
+        await _budgetRepo.updateNotificationState(budget.id, newThreshold, now);
+
+        // Update local state if needed (optional since we might refresh anyway)
+        final index = _budgets.indexWhere((b) => b.id == budget.id);
+        if (index != -1) {
+          _budgets[index] = _budgets[index].copyWith(
+            lastNotifiedThreshold: newThreshold,
+            lastNotifiedAt: now,
+          );
+        }
+      }
+    }
+  }
+
+  DateTime _getPeriodStart(String period, DateTime now) {
+    switch (period.toLowerCase()) {
+      case 'daily':
+        return DateTime(now.year, now.month, now.day);
+      case 'weekly':
+        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+        return DateTime(
+          startOfCurrentWeek.year,
+          startOfCurrentWeek.month,
+          startOfCurrentWeek.day,
+        );
+      case 'monthly':
+        return DateTime(now.year, now.month, 1);
+      default:
+        return DateTime(now.year, now.month, now.day);
+    }
   }
 
   Future<List<BudgetProgress>> getBudgetProgress(String period) async {

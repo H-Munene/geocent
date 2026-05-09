@@ -247,7 +247,7 @@ class _AnalyticsChartState extends State<AnalyticsChart>
                           text: 'KES\u00A0${totalSum.toInt()}\n',
                           style: GoogleFonts.spaceMono(
                             color: CupertinoColors.black,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w800,
                             fontSize: 12,
                           ),
                         ),

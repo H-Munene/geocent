@@ -134,7 +134,8 @@ class TransactionRepository {
     required String filter,
     int limit = 20,
     int offset = 0,
-    String? searchQuery, // Add this parameter
+    String? searchQuery,
+    String? durationFilter,
   }) async {
     final db = await _db.database;
     List<String> conditions = [];
@@ -167,6 +168,57 @@ class TransactionRepository {
         "REPLACE(REPLACE(REPLACE(LOWER(${DatabaseHelper.colRawMessage}), ',', ''), '-', ''), ' ', '') LIKE ?",
       );
       whereArgs.add('%$sanitizedQuery%');
+    }
+
+    // Add duration conditions
+    if (durationFilter != null && durationFilter != 'all') {
+      final now = DateTime.now();
+      switch (durationFilter.toLowerCase()) {
+        case 'today':
+          final start = DateTime(now.year, now.month, now.day);
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'yesterday':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 1));
+          final end = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(milliseconds: 1));
+          conditions.add('${DatabaseHelper.colTimestamp} BETWEEN ? AND ?');
+          whereArgs.add(start.toIso8601String());
+          whereArgs.add(end.toIso8601String());
+          break;
+        case 'last 3 days':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 2));
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'this week':
+          final monday = now.subtract(Duration(days: now.weekday - 1));
+          final start = DateTime(monday.year, monday.month, monday.day);
+          conditions.add('${DatabaseHelper.colTimestamp} >= ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+        case 'older than a week':
+          final start = DateTime(
+            now.year,
+            now.month,
+            now.day,
+          ).subtract(const Duration(days: 7));
+          conditions.add('${DatabaseHelper.colTimestamp} < ?');
+          whereArgs.add(start.toIso8601String());
+          break;
+      }
     }
 
     String? finalWhereClause;

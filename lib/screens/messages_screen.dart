@@ -27,21 +27,23 @@ class _MessagesScreenState extends State<MessagesScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
   final FocusNode _searchFocusNode = FocusNode();
+  SpendingService? _spendingService;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _spendingService = context.read<SpendingService>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadInitialData();
-      context.read<SpendingService>().addListener(_onServiceStateChanged);
+      _spendingService?.addListener(_onServiceStateChanged);
     });
   }
 
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    context.read<SpendingService>().removeListener(_onServiceStateChanged);
+    _spendingService?.removeListener(_onServiceStateChanged);
     _scrollController.dispose();
     _debounce?.cancel();
     _searchController.dispose();
@@ -69,9 +71,33 @@ class _MessagesScreenState extends State<MessagesScreen> {
 
     // Sync the animated list
     final grouped = _groupWithHeaders(messages);
-    if (grouped.length != _displayList.length) {
+    if (grouped.length != _displayList.length ||
+        _hasContentChanged(_displayList, grouped)) {
       _syncList(messages);
     }
+  }
+
+  bool _hasContentChanged(List<dynamic> oldList, List<dynamic> newList) {
+    if (oldList.length != newList.length) return true;
+    for (int i = 0; i < oldList.length; i++) {
+      final oldItem = oldList[i];
+      final newItem = newList[i];
+
+      if (oldItem.runtimeType != newItem.runtimeType) return true;
+
+      if (oldItem is String) {
+        if (oldItem != newItem) return true;
+      } else if (oldItem is AppTransaction) {
+        final newTx = newItem as AppTransaction;
+        if (oldItem.id != newTx.id ||
+            oldItem.category != newTx.category ||
+            oldItem.latitude != newTx.latitude ||
+            oldItem.longitude != newTx.longitude) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   void _onScroll() {
@@ -121,6 +147,97 @@ class _MessagesScreenState extends State<MessagesScreen> {
         searchQuery: query,
       );
     });
+  }
+
+  void _showDurationFilter() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (modalContext) => Container(
+        padding: const EdgeInsets.only(top: 12),
+        decoration: const BoxDecoration(
+          color: CupertinoColors.systemBackground,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handle
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGrey4,
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Filter by Duration',
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: CupertinoColors.label,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildDurationOption(modalContext, 'All Time', 'all'),
+              _buildDurationOption(modalContext, 'Today', 'today'),
+              _buildDurationOption(modalContext, 'Yesterday', 'yesterday'),
+              _buildDurationOption(modalContext, 'Last 3 days', 'last 3 days'),
+              _buildDurationOption(modalContext, 'This week', 'this week'),
+              _buildDurationOption(
+                modalContext,
+                'Older than a week',
+                'older than a week',
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationOption(
+    BuildContext modalContext,
+    String label,
+    String value,
+  ) {
+    final spendingService = context.read<SpendingService>();
+    final isActive = spendingService.currentDurationFilter == value;
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+      onPressed: () {
+        Navigator.pop(modalContext);
+        _clearList();
+        spendingService.setDurationFilter(value);
+      },
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 16,
+              color: isActive
+                  ? CupertinoColors.activeBlue
+                  : CupertinoColors.label,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          const Spacer(),
+          if (isActive)
+            const Icon(
+              CupertinoIcons.checkmark_alt,
+              size: 20,
+              color: CupertinoColors.activeBlue,
+            ),
+        ],
+      ),
+    );
   }
 
   String _getItemId(dynamic item) {
@@ -348,18 +465,35 @@ class _MessagesScreenState extends State<MessagesScreen> {
             children: [
               // Add this search bar
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
                 child: TapRegion(
                   onTapOutside: (event) {
                     if (_searchFocusNode.hasFocus) {
                       _searchFocusNode.unfocus();
                     }
                   },
-                  child: CupertinoSearchTextField(
-                    controller: _searchController,
-                    focusNode: _searchFocusNode, // Assign the focus node
-                    onChanged: _onSearchChanged,
-                    placeholder: 'Search messages',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: CupertinoSearchTextField(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode, // Assign the focus node
+                          onChanged: _onSearchChanged,
+                          placeholder: 'Search messages',
+                        ),
+                      ),
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        onPressed: _showDurationFilter,
+                        child: Icon(
+                          CupertinoIcons.slider_horizontal_3,
+                          color: spendingService.currentDurationFilter != 'all'
+                              ? CupertinoColors.activeBlue
+                              : CupertinoColors.systemGrey,
+                          size: 22,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

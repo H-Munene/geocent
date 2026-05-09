@@ -579,7 +579,7 @@ class _MapScreenState extends State<MapScreen> {
                         decoration: BoxDecoration(
                           color: _isAnimating
                               ? CupertinoColors.systemGrey3
-                              : const Color(0xFF1D1D1F),
+                              : CupertinoColors.white,
                           shape: BoxShape.circle,
                           boxShadow: const [
                             BoxShadow(
@@ -595,7 +595,7 @@ class _MapScreenState extends State<MapScreen> {
                               )
                             : const Icon(
                                 CupertinoIcons.play_fill,
-                                color: CupertinoColors.white,
+                                color: CupertinoColors.black,
                               ),
                       ),
                     ),

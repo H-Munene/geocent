@@ -9,6 +9,7 @@ import 'package:geocent/screens/main_screen.dart';
 import 'package:geocent/services/background_executor.dart';
 import 'package:geocent/services/budget_service.dart';
 import 'package:geocent/services/spending_service.dart';
+import 'package:geocent/services/notification_service.dart';
 import 'package:geocent/widgets/custom_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -28,14 +29,20 @@ void main() async {
   );
 
   await setup();
+  await NotificationService.instance.init();
   await getPermissions();
   await initializeBackgroundService();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SpendingService()..init()),
         ChangeNotifierProvider(create: (_) => BudgetService()..init()),
+        ChangeNotifierProxyProvider<BudgetService, SpendingService>(
+          create: (context) => SpendingService(
+            budgetService: Provider.of<BudgetService>(context, listen: false),
+          )..init(),
+          update: (context, budgetService, spendingService) => spendingService!,
+        ),
       ],
       child: const MyApp(),
     ),
