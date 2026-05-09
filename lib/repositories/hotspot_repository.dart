@@ -1,5 +1,5 @@
 // THIS FILE IS DECOMMISSIONED
-// The Hotspot feature has been removed. 
+// The Hotspot feature has been removed.
 // You can safely delete this file.
 /*
 import 'package:geocent/database_helper.dart';

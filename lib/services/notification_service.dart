@@ -40,9 +40,9 @@ class NotificationService {
     required int percentUsed,
     required double amountLeft,
   }) async {
-    final String title = percentUsed >= 80
-        ? '⚠️ Budget Warning'
-        : '📊 Budget Update';
+    final String title = percentUsed >= 100
+        ? '😭 Budget Depleted!'
+        : (percentUsed >= 80 ? '👀 Budget Warning' : '📊 Budget Update');
     final String body =
         'You have used $percentUsed% of your $category budget. KES ${amountLeft.toStringAsFixed(0)} left.';
 
@@ -51,7 +51,7 @@ class NotificationService {
           'budget_notifications',
           'Budget Alerts',
           channelDescription:
-              'Notifications for budget thresholds (50% and 80%)',
+              'Notifications for budget thresholds (50%, 80%, and 100%)',
           importance: Importance.max,
           priority: Priority.high,
         );

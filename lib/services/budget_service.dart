@@ -63,7 +63,9 @@ class BudgetService extends ChangeNotifier {
       }
 
       int newThreshold = lastThreshold;
-      if (percentage >= 0.80 && lastThreshold < 80) {
+      if (percentage >= 1.0 && lastThreshold < 100) {
+        newThreshold = 100;
+      } else if (percentage >= 0.80 && lastThreshold < 80) {
         newThreshold = 80;
       } else if (percentage >= 0.50 && lastThreshold < 50) {
         newThreshold = 50;
