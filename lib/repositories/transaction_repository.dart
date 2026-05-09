@@ -102,6 +102,40 @@ class TransactionRepository {
     }
   }
 
+  Future<void> forgetTransactions(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await _db.database;
+    await db.transaction((txn) async {
+      final placeholders = List.filled(ids.length, '?').join(',');
+
+      // 1. Mark as ignored
+      for (final id in ids) {
+        await txn.insert(
+          DatabaseHelper.tableIgnoredTransactions,
+          {DatabaseHelper.colId: id},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+
+      // 2. Delete from active transactions
+      await txn.delete(
+        DatabaseHelper.tableTransactions,
+        where: '${DatabaseHelper.colId} IN ($placeholders)',
+        whereArgs: ids,
+      );
+    });
+  }
+
+  Future<bool> isIgnored(String id) async {
+    final rows = await _db.rawQuery(
+      DatabaseHelper.tableIgnoredTransactions,
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
+  }
+
   Future<List<AppTransaction>> loadAll() async {
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,
@@ -267,13 +301,24 @@ class TransactionRepository {
   }
 
   Future<bool> exists(String id) async {
-    final rows = await _db.rawQuery(
+    final db = await _db.database;
+    // Check active transactions
+    final rows = await db.query(
       DatabaseHelper.tableTransactions,
       where: '${DatabaseHelper.colId} = ?',
       whereArgs: [id],
       limit: 1,
     );
-    return rows.isNotEmpty;
+    if (rows.isNotEmpty) return true;
+
+    // Check ignored transactions
+    final ignoredRows = await db.query(
+      DatabaseHelper.tableIgnoredTransactions,
+      where: '${DatabaseHelper.colId} = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return ignoredRows.isNotEmpty;
   }
 
   Future<double> getLimit(String period) async {

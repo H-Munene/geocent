@@ -563,6 +563,13 @@ class SpendingService extends ChangeNotifier {
     _budgetService?.checkAndNotify(categoryName: category);
   }
 
+  Future<void> forgetMessages(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _repo.forgetTransactions(ids);
+    await refresh();
+    await fetchMessages(refresh: true);
+  }
+
   /// Persist a new limit for the current period then refresh.
   Future<void> setLimit(String period, double amount) async {
     await _repo.setLimit(_toDbPeriod(period), amount);

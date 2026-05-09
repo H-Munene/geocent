@@ -86,28 +86,18 @@ class UnmappedMessageTile extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: needsMapping
-                                ? Colors.grey[100]
-                                : isSelected
+                            color: isSelected
                                 ? const Color(0xFF0071E3)
                                 : Colors.grey[200],
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: needsMapping
-                                  ? Colors.grey[300]!
-                                  : isSelected
+                              color: isSelected
                                   ? const Color(0xFF0071E3)
                                   : Colors.grey[400]!,
                               width: 2,
                             ),
                           ),
-                          child: needsMapping
-                              ? const Icon(
-                                  CupertinoIcons.clear_thick,
-                                  color: CupertinoColors.systemRed,
-                                  size: 16,
-                                )
-                              : isSelected
+                          child: isSelected
                               ? const Icon(
                                   CupertinoIcons.checkmark,
                                   color: Colors.white,
@@ -216,7 +206,7 @@ class UnmappedMessageTile extends StatelessWidget {
     if (isSelectionMode) {
       return GestureDetector(
         onTap: () {
-          if (!needsMapping && onSelectToggle != null) {
+          if (onSelectToggle != null) {
             onSelectToggle!();
           }
         },

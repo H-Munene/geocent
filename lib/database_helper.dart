@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'geocent.db';
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -19,6 +19,8 @@ class DatabaseHelper {
   static const String colLatitude = 'latitude';
   static const String colLongitude = 'longitude';
   static const String colCategory = 'category';
+
+  static const String tableIgnoredTransactions = 'ignored_transactions';
 
   static const String tableSpendingLimits = 'spending_limits';
   static const String colPeriod = 'period'; // 'daily' | 'weekly' | 'monthly'
@@ -153,6 +155,13 @@ class DatabaseHelper {
         $colLastSyncTimestamp  TEXT NOT NULL
       )
     ''');
+
+    // ── Ignored Transactions ──────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableIgnoredTransactions (
+        $colId TEXT PRIMARY KEY
+      )
+    ''');
   }
 
   // Extend schema here in future versions without wiping data
@@ -208,6 +217,13 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE $tableBudgets ADD COLUMN $colLastNotifiedAt TEXT',
       );
+    }
+    if (oldVersion < 7) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableIgnoredTransactions (
+          $colId TEXT PRIMARY KEY
+        )
+      ''');
     }
   }
 
