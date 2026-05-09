@@ -6,14 +6,15 @@ import 'package:geocent/utils/icons.dart';
 import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
+import '../widgets/category_dropdown_widget.dart';
 import '../widgets/custom_toast.dart';
 
 import 'package:google_fonts/google_fonts.dart';
 
 class LocationPickerScreen extends StatefulWidget {
-  final AppTransaction transaction;
+  final List<AppTransaction> transactions;
 
-  const LocationPickerScreen({super.key, required this.transaction});
+  const LocationPickerScreen({super.key, required this.transactions});
 
   @override
   State<LocationPickerScreen> createState() => _LocationPickerScreenState();
@@ -31,13 +32,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Future<void> _determinePosition() async {
-    if (widget.transaction.latitude != null &&
-        widget.transaction.longitude != null) {
+    // Use the first transaction's location if available
+    final firstTx = widget.transactions.first;
+    if (firstTx.latitude != null && firstTx.longitude != null) {
       setState(() {
-        _initialPosition = mp.Position(
-          widget.transaction.longitude!,
-          widget.transaction.latitude!,
-        );
+        _initialPosition = mp.Position(firstTx.longitude!, firstTx.latitude!);
       });
       return;
     }
@@ -123,18 +122,68 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
       if (!mounted) return;
       final spendingService = context.read<SpendingService>();
-      await spendingService.attachLocation(
-        widget.transaction.id,
+      final ids = widget.transactions.map((tx) => tx.id).toList();
+
+      await spendingService.bulkAttachLocation(
+        ids,
         center.lat.toDouble(),
         center.lng.toDouble(),
       );
 
+      final isReassigning = widget.transactions.any(
+        (tx) => tx.latitude != null,
+      );
+
       if (mounted) {
         setState(() => _isSaving = false);
-        // Pop first to ensure we are back on the previous screen
-        Navigator.pop(context);
-        // Then show the toast via the root navigator key
-        showCustomToast('Transaction Successfully mapped');
+
+        if (isReassigning) {
+          Navigator.pop(context);
+          showCustomToast('Location successfully reassigned');
+          return;
+        }
+
+        // Show categorization popup immediately after mapping
+        showCupertinoDialog(
+          context: context,
+          barrierDismissible: false, // Force categorization
+          builder: (dialogContext) => Center(
+            child: DefaultTextStyle(
+              style: GoogleFonts.spaceGrotesk(
+                color: CupertinoColors.label,
+                decoration: TextDecoration.none,
+              ),
+              child: CategoryDropdownWidget(
+                onCategorySelectedOverride: (categoryName) async {
+                  final navigator = Navigator.of(context);
+                  final dialogNavigator = Navigator.of(dialogContext);
+
+                  try {
+                    await spendingService.bulkUpdateCategory(ids, categoryName);
+                    if (mounted) {
+                      dialogNavigator.pop(); // Pop category picker
+                      navigator.pop(); // Pop location picker
+
+                      final count = widget.transactions.length;
+                      if (count > 1) {
+                        showCustomToast(
+                          '$count messages successfully mapped and categorized',
+                        );
+                      } else {
+                        showCustomToast(
+                          'Transaction successfully mapped and categorized',
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    debugPrint('[LocationPicker] Categorization failed: $e');
+                    showCustomToast('Failed to assign category');
+                  }
+                },
+              ),
+            ),
+          ),
+        );
       }
     } catch (e) {
       debugPrint('[LocationPicker] Error confirming location: $e');
@@ -147,7 +196,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isReassigning = widget.transaction.latitude != null;
+    final isReassigning = widget.transactions.any((tx) => tx.latitude != null);
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -165,6 +214,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             ? CupertinoActivityIndicator(color: CupertinoColors.activeBlue)
             : CupertinoButton(
                 padding: EdgeInsets.zero,
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  _onConfirm();
+                },
                 child: Text(
                   'Confirm',
                   style: GoogleFonts.spaceGrotesk(
@@ -173,10 +226,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     color: CupertinoColors.systemBlue,
                   ),
                 ),
-                onPressed: () {
-                  HapticFeedback.mediumImpact();
-                  _onConfirm();
-                },
               ),
       ),
       child: Stack(

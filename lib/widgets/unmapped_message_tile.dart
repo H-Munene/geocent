@@ -13,7 +13,9 @@ class UnmappedMessageTile extends StatelessWidget {
   final bool showDivider;
   final bool isSelectionMode;
   final bool isSelected;
+  final bool isDisabled;
   final VoidCallback? onSelectToggle;
+  final VoidCallback? onLongPress;
   final String? searchQuery;
 
   const UnmappedMessageTile({
@@ -22,7 +24,9 @@ class UnmappedMessageTile extends StatelessWidget {
     required this.showDivider,
     this.isSelectionMode = false,
     this.isSelected = false,
+    this.isDisabled = false,
     this.onSelectToggle,
+    this.onLongPress,
     this.searchQuery,
   });
 
@@ -55,9 +59,6 @@ class UnmappedMessageTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool needsMapping = transaction.latitude == null;
-    final String status = needsMapping
-        ? 'Needs mapping'
-        : 'Needs categorization';
     final String timeAgo = _getTimeAgo(transaction.timestamp);
     final String initial = transaction.merchant.isNotEmpty
         ? transaction.merchant[0].toUpperCase()
@@ -86,18 +87,28 @@ class UnmappedMessageTile extends StatelessWidget {
                           width: 40,
                           height: 40,
                           decoration: BoxDecoration(
-                            color: isSelected
+                            color: isDisabled
+                                ? Colors.grey[100]
+                                : isSelected
                                 ? const Color(0xFF0071E3)
                                 : Colors.grey[200],
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isSelected
+                              color: isDisabled
+                                  ? Colors.grey[300]!
+                                  : isSelected
                                   ? const Color(0xFF0071E3)
                                   : Colors.grey[400]!,
                               width: 2,
                             ),
                           ),
-                          child: isSelected
+                          child: isDisabled
+                              ? const Icon(
+                                  CupertinoIcons.clear,
+                                  color: CupertinoColors.systemRed,
+                                  size: 18,
+                                )
+                              : isSelected
                               ? const Icon(
                                   CupertinoIcons.checkmark,
                                   color: Colors.white,
@@ -148,47 +159,88 @@ class UnmappedMessageTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // Middle Content
+              // Transaction Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             transaction.merchant,
                             style: GoogleFonts.spaceGrotesk(
+                              fontWeight: FontWeight.w700,
                               fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF1A1A1A),
+                              color: const Color(0xFF1D1D1F),
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const SizedBox(width: 12),
                         Text(
                           transaction.formattedAmount,
                           style: GoogleFonts.spaceGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF1A1A1A),
+                            fontWeight: FontWeight.w700,
+                            fontSize: 15,
+                            color: const Color(0xFF1D1D1F),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
-                      '$status • $timeAgo',
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.grey[600],
-                      ),
+                    _buildHighlightedMessage(transaction.rawMessage),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemGrey,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                needsMapping
+                                    ? CupertinoIcons.location_fill
+                                    : transaction.category == null
+                                    ? CupertinoIcons.tag_fill
+                                    : CupertinoIcons.checkmark_alt,
+                                size: 12,
+                                color: CupertinoColors.white,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                needsMapping
+                                    ? 'Needs mapping'
+                                    : transaction.category ??
+                                          'Needs categorization',
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: CupertinoColors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          timeAgo,
+                          style: GoogleFonts.spaceGrotesk(
+                            fontSize: 12,
+                            color: CupertinoColors.systemGrey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    _buildHighlightedBody(context),
                   ],
                 ),
               ),
@@ -197,168 +249,113 @@ class UnmappedMessageTile extends StatelessWidget {
         ),
         if (showDivider)
           Padding(
-            padding: const EdgeInsets.only(left: 68), // 16 + 40 + 12
-            child: Divider(height: 1, thickness: 0.5, color: Colors.grey[200]),
+            padding: const EdgeInsets.only(left: 68),
+            child: Container(height: 0.5, color: CupertinoColors.systemGrey5),
           ),
       ],
     );
 
-    if (isSelectionMode) {
-      return GestureDetector(
-        onTap: () {
-          if (onSelectToggle != null) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (isSelectionMode) {
+          if (!isDisabled && onSelectToggle != null) {
             onSelectToggle!();
           }
-        },
-        behavior: HitTestBehavior.opaque,
-        child: content,
-      );
-    }
-
-    if (needsMapping) {
-      return GestureDetector(
-        onTap: () {
-          Navigator.of(context, rootNavigator: true).push(
-            CupertinoPageRoute(
-              builder: (context) =>
-                  LocationPickerScreen(transaction: transaction),
-            ),
-          );
-        },
-        behavior: HitTestBehavior.opaque,
-        child: content,
-      );
-    } else {
-      return GestureDetector(
-        onLongPress: () {
-          if (onSelectToggle != null) {
-            onSelectToggle!();
-          }
-        },
-        onTap: () {
-          showCupertinoDialog(
-            context: context,
-            barrierDismissible: true,
-            builder: (context) => Center(
-              child: DefaultTextStyle(
-                style: GoogleFonts.spaceGrotesk(
-                  color: CupertinoColors.label,
-                  decoration: TextDecoration.none,
-                ),
-                child: CategoryDropdownWidget(
-                  transactionId: transaction.id,
-                  currentCategory: transaction.category,
-                  onCategorySelected: () => Navigator.pop(context),
+        } else {
+          if (needsMapping) {
+            Navigator.of(context, rootNavigator: true).push(
+              CupertinoPageRoute(
+                builder: (context) =>
+                    LocationPickerScreen(transactions: [transaction]),
+              ),
+            );
+          } else if (transaction.category == null) {
+            // Show categorization popup for messages needing categorization
+            showCupertinoDialog(
+              context: context,
+              barrierDismissible: true,
+              builder: (context) => Center(
+                child: DefaultTextStyle(
+                  style: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.label,
+                    decoration: TextDecoration.none,
+                  ),
+                  child: CategoryDropdownWidget(
+                    transactionId: transaction.id,
+                    currentCategory: transaction.category,
+                    onCategorySelected: () {
+                      Navigator.pop(context);
+                    },
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-        behavior: HitTestBehavior.opaque,
-        child: content,
-      );
-    }
+            );
+          } else {
+            context.read<SpendingService>().selectTransaction(transaction.id);
+            Navigator.popUntil(context, (route) => route.isFirst);
+          }
+        }
+      },
+      onLongPress: !isSelectionMode ? onLongPress : null,
+      child: content,
+    );
   }
 
-  Widget _buildHighlightedBody(BuildContext context) {
+  Widget _buildHighlightedMessage(String text) {
     if (searchQuery == null || searchQuery!.isEmpty) {
       return Text(
-        transaction.rawMessage,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-        style: GoogleFonts.spaceGrotesk(
-          fontSize: 12,
-          fontWeight: FontWeight.w400,
-          color: Colors.grey[500],
-          height: 1.4,
-        ),
-      );
-    }
-
-    final text = transaction.rawMessage;
-    final query = searchQuery!;
-    final baseStyle = GoogleFonts.spaceGrotesk(
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      color: Colors.grey[500],
-      height: 1.4,
-    );
-    final highlightStyle = baseStyle.copyWith(
-      fontWeight: FontWeight.w700,
-      backgroundColor: CupertinoColors.activeBlue.withValues(alpha: 0.1),
-      color: CupertinoColors.activeBlue,
-    );
-
-    final normalizedText = text.toLowerCase().replaceAll(
-      RegExp(r'[,\-\s]'),
-      '',
-    );
-    final normalizedQuery = query.toLowerCase().replaceAll(
-      RegExp(r'[,\-\s]'),
-      '',
-    );
-
-    if (normalizedQuery.isEmpty || !normalizedText.contains(normalizedQuery)) {
-      return Text(
         text,
-        style: baseStyle,
-        maxLines: 3,
+        style: GoogleFonts.spaceGrotesk(
+          fontSize: 13,
+          color: CupertinoColors.secondaryLabel,
+          height: 1.3,
+        ),
+        maxLines: 2,
         overflow: TextOverflow.ellipsis,
       );
     }
 
     final List<TextSpan> spans = [];
-    int normIndex = 0;
-    int currentPos = 0;
+    final String lowercaseText = text.toLowerCase();
+    final String lowercaseQuery = searchQuery!.toLowerCase();
 
-    while (currentPos < text.length) {
-      final startIndex = normalizedText.indexOf(normalizedQuery, normIndex);
-      if (startIndex == -1) {
-        spans.add(TextSpan(text: text.substring(currentPos)));
+    int start = 0;
+    while (true) {
+      final int index = lowercaseText.indexOf(lowercaseQuery, start);
+      if (index == -1) {
+        spans.add(TextSpan(text: text.substring(start)));
         break;
       }
 
-      // Find actual start and end in original text
-      int? matchStart;
-      int? matchEnd;
-      int tempNormIndex = normIndex;
-
-      for (int i = currentPos; i < text.length; i++) {
-        final char = text[i];
-        if (RegExp(r'[,\-\s]').hasMatch(char)) {
-          continue;
-        }
-        if (tempNormIndex == startIndex) {
-          matchStart = i;
-        }
-        tempNormIndex++;
-        if (tempNormIndex == startIndex + normalizedQuery.length) {
-          matchEnd = i + 1;
-          break;
-        }
+      if (index > start) {
+        spans.add(TextSpan(text: text.substring(start, index)));
       }
 
-      if (matchStart != null && matchEnd != null) {
-        if (matchStart > currentPos) {
-          spans.add(TextSpan(text: text.substring(currentPos, matchStart)));
-        }
-        spans.add(
-          TextSpan(
-            text: text.substring(matchStart, matchEnd),
-            style: highlightStyle,
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + lowercaseQuery.length),
+          style: const TextStyle(
+            backgroundColor: Color(0x40FFD700),
+            color: Color(0xFF1D1D1F),
+            fontWeight: FontWeight.w600,
           ),
-        );
-        currentPos = matchEnd;
-        normIndex = startIndex + normalizedQuery.length;
-      } else {
-        spans.add(TextSpan(text: text.substring(currentPos)));
-        break;
-      }
+        ),
+      );
+
+      start = index + lowercaseQuery.length;
     }
 
     return RichText(
-      text: TextSpan(style: baseStyle, children: spans),
-      maxLines: 3,
+      text: TextSpan(
+        style: GoogleFonts.spaceGrotesk(
+          fontSize: 13,
+          color: CupertinoColors.secondaryLabel,
+          height: 1.3,
+        ),
+        children: spans,
+      ),
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
   }

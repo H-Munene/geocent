@@ -523,6 +523,15 @@ class SpendingService extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> bulkAttachLocation(
+    List<String> ids,
+    double latitude,
+    double longitude,
+  ) async {
+    await _repo.bulkUpdateLocation(ids, latitude, longitude);
+    await refresh();
+  }
+
   /// Update the category of an existing transaction then refresh state.
   Future<void> updateCategory(String txId, String category) async {
     await _repo.updateCategory(txId, category);

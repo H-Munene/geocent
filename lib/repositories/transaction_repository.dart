@@ -56,6 +56,24 @@ class TransactionRepository {
     );
   }
 
+  Future<void> bulkUpdateLocation(
+    List<String> ids,
+    double latitude,
+    double longitude,
+  ) async {
+    if (ids.isEmpty) return;
+    final placeholders = List.filled(ids.length, '?').join(',');
+    await _db.rawUpdate(
+      DatabaseHelper.tableTransactions,
+      {
+        DatabaseHelper.colLatitude: latitude,
+        DatabaseHelper.colLongitude: longitude,
+      },
+      '${DatabaseHelper.colId} IN ($placeholders)',
+      ids,
+    );
+  }
+
   Future<void> updateCategory(String id, String category) async {
     await _db.rawUpdate(
       DatabaseHelper.tableTransactions,

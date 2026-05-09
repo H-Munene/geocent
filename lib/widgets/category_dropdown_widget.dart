@@ -107,36 +107,41 @@ class CategoryDropdownWidget extends StatelessWidget {
               ),
             ),
             Container(height: 1, color: CupertinoColors.systemGrey5),
-            if (transactionId != null)
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-
-                  showCupertinoSheet(
-                    showDragHandle: true,
-                    context: context,
-                    builder: (context) =>
-                        CreateCategorySheet(transactionId: transactionId!),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                showCupertinoSheet(
+                  showDragHandle: true,
+                  context: context,
+                  builder: (sheetContext) => CreateCategorySheet(
+                    transactionId: transactionId,
+                    onCategoryCreated: (name) {
+                      if (onCategorySelectedOverride != null) {
+                        onCategorySelectedOverride!(name);
+                      } else if (onCategorySelected != null) {
+                        onCategorySelected!();
+                      }
+                    },
                   ),
-                  width: double.infinity,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '+ Create New',
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0071E3),
-                    ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                width: double.infinity,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '+ Create New',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0071E3),
                   ),
                 ),
               ),
+            ),
           ],
         ),
       ),

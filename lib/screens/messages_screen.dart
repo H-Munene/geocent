@@ -9,8 +9,9 @@ import '../services/spending_service.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/custom_toast.dart';
 import '../widgets/unmapped_message_tile.dart';
+import 'location_picker_screen.dart';
 
-enum SelectionMode { none, categorize, forget }
+enum SelectionMode { none, categorize, forget, bulkMap }
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -26,6 +27,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
   String _activeFilter = 'all';
   final Set<String> _selectedIds = {};
   SelectionMode _selectionMode = SelectionMode.none;
+  AppTransaction? _anchorTransaction;
 
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
@@ -451,11 +453,74 @@ class _MessagesScreenState extends State<MessagesScreen> {
     HapticFeedback.selectionClick();
     setState(() {
       if (_selectedIds.contains(id)) {
+        if (_selectionMode == SelectionMode.bulkMap &&
+            _selectedIds.length == 1) {
+          // Exit bulk map mode if the last item is unselected
+          _selectionMode = SelectionMode.none;
+          _anchorTransaction = null;
+        }
         _selectedIds.remove(id);
       } else {
         _selectedIds.add(id);
       }
     });
+  }
+
+  void _onLongPress(AppTransaction tx) {
+    if (_selectionMode != SelectionMode.none) return;
+    if (tx.latitude != null) return; // Only unmapped items can be bulk mapped
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _selectionMode = SelectionMode.bulkMap;
+      _anchorTransaction = tx;
+      _selectedIds.add(tx.id);
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isMessageDisabled(AppTransaction tx) {
+    if (_selectionMode != SelectionMode.bulkMap || _anchorTransaction == null) {
+      return false;
+    }
+    // Constraints: same merchant, same day, needs mapping
+    final isMatchingMerchant = tx.merchant == _anchorTransaction!.merchant;
+    final isSameDay = _isSameDay(tx.timestamp, _anchorTransaction!.timestamp);
+    final needsMapping = tx.latitude == null;
+
+    return !(isMatchingMerchant && isSameDay && needsMapping);
+  }
+
+  void _onBulkMapPressed() {
+    if (_selectedIds.isEmpty) return;
+
+    final spendingService = context.read<SpendingService>();
+    final selectedTxs = spendingService.paginatedMessages
+        .where((tx) => _selectedIds.contains(tx.id))
+        .toList();
+
+    if (selectedTxs.isEmpty) return;
+
+    Navigator.of(context, rootNavigator: true)
+        .push(
+          CupertinoPageRoute(
+            builder: (context) =>
+                LocationPickerScreen(transactions: selectedTxs),
+          ),
+        )
+        .then((_) {
+          // Clear selection after returning from picker
+          if (mounted) {
+            setState(() {
+              _selectedIds.clear();
+              _selectionMode = SelectionMode.none;
+              _anchorTransaction = null;
+            });
+          }
+        });
   }
 
   void _onBulkCategorize() {
@@ -576,7 +641,9 @@ class _MessagesScreenState extends State<MessagesScreen> {
           showDivider: !isLastInGroup,
           isSelectionMode: _selectionMode != SelectionMode.none,
           isSelected: _selectedIds.contains(tx.id),
+          isDisabled: _isMessageDisabled(tx),
           onSelectToggle: () => _toggleSelection(tx.id),
+          onLongPress: () => _onLongPress(tx),
           searchQuery: context
               .read<SpendingService>()
               .searchQuery, // Use service's search query
@@ -596,6 +663,8 @@ class _MessagesScreenState extends State<MessagesScreen> {
         if (!didPop && _selectedIds.isNotEmpty) {
           setState(() {
             _selectedIds.clear();
+            _selectionMode = SelectionMode.none;
+            _anchorTransaction = null;
           });
         }
       },
@@ -611,6 +680,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     setState(() {
                       _selectionMode = SelectionMode.none;
                       _selectedIds.clear();
+                      _anchorTransaction = null;
                     });
                   },
                   child: Text(
@@ -642,6 +712,21 @@ class _MessagesScreenState extends State<MessagesScreen> {
                       color: _selectedIds.isEmpty
                           ? CupertinoColors.systemGrey
                           : CupertinoColors.destructiveRed,
+                    ),
+                  ),
+                )
+              : _selectionMode == SelectionMode.bulkMap
+              ? CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _onBulkMapPressed,
+                  child: Text(
+                    'Bulk Map',
+                    style: GoogleFonts.spaceGrotesk(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: _selectedIds.isEmpty
+                          ? CupertinoColors.systemGrey
+                          : CupertinoColors.activeBlue,
                     ),
                   ),
                 )
@@ -681,7 +766,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                           placeholder: 'Search messages',
                         ),
                       ),
-                      if (_selectionMode != SelectionMode.forget)
+                      if (_selectionMode == SelectionMode.none)
                         CupertinoButton(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           onPressed: _showFilterMenu,
