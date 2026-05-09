@@ -116,6 +116,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
     if (!mounted) return;
     final List<dynamic> flatListWithHeaders = _groupWithHeaders(newMessages);
 
+    // 1. If the list is completely different or shorter, do a full refresh
     if (flatListWithHeaders.length < _displayList.length ||
         (flatListWithHeaders.isNotEmpty &&
             _displayList.isNotEmpty &&
@@ -132,6 +133,17 @@ class _MessagesScreenState extends State<MessagesScreen> {
       return;
     }
 
+    // 2. If length is the same, synchronize the contents of the existing items
+    if (flatListWithHeaders.length == _displayList.length) {
+      setState(() {
+        for (int i = 0; i < flatListWithHeaders.length; i++) {
+          _displayList[i] = flatListWithHeaders[i];
+        }
+      });
+      return;
+    }
+
+    // 3. Otherwise, append new items (pagination)
     for (int i = _displayList.length; i < flatListWithHeaders.length; i++) {
       _displayList.add(flatListWithHeaders[i]);
       _listKey.currentState?.insertItem(i);
