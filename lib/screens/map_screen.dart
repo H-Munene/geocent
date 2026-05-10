@@ -36,7 +36,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
@@ -71,14 +71,12 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
     _positionTracking();
 
     _searchFocusNode.addListener(_onSearchFocusChanged);
     _searchController.addListener(_onSearchTextChanged);
-
-    // Simulate new transactions on startup for the dynamic island
-    _simulateNewTransactions();
 
     // Listen for background service events
     _bgServiceSub = FlutterBackgroundService().on('transaction_saved').listen((
@@ -89,9 +87,22 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
 
-    FlutterBackgroundService().on('location_attached').listen((_) {
+    FlutterBackgroundService().on('location_attached').listen((event) async {
       if (mounted) {
-        context.read<SpendingService>().refresh();
+        final spending = context.read<SpendingService>();
+        // Explicitly await refresh to ensure the new transaction is in mappedTransactions
+        await spending.refresh();
+
+        if (event != null && event['id'] != null) {
+          final txId = event['id'].toString();
+          if (mounted) {
+            final mappedTxs = spending.mappedTransactions;
+            final txIndex = mappedTxs.indexWhere((t) => t.id == txId);
+            if (txIndex != -1) {
+              _showDynamicIslandForTransaction(mappedTxs[txIndex]);
+            }
+          }
+        }
       }
     });
 
@@ -99,10 +110,14 @@ class _MapScreenState extends State<MapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SpendingService>().addListener(_handleSelectedTransaction);
     });
+
+    // Check for recently mapped transactions on app startup
+    _checkRecentTransactions();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.removeListener(_onSearchTextChanged);
     _searchFocusNode.dispose();
@@ -119,6 +134,38 @@ class _MapScreenState extends State<MapScreen> {
     spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data and check for recent transactions whenever we return to the foreground
+      context.read<SpendingService>().refresh().then((_) {
+        _checkRecentTransactions();
+      });
+    }
+  }
+
+  Future<void> _checkRecentTransactions() async {
+    // Slight delay to ensure Provider context is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+
+    // Wait for the SpendingService to finish its initial data fetch
+    while (spending.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+
+    final now = DateTime.now();
+    // Scan for any mapped transactions that occurred in the last 5 minutes
+    for (final tx in spending.mappedTransactions) {
+      if (now.difference(tx.timestamp).inMinutes <= 5) {
+        _showDynamicIslandForTransaction(tx);
+      }
+    }
   }
 
   void _onSearchFocusChanged() {
@@ -447,8 +494,8 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   AnimatedContainer(
                     // Reduced duration for faster closing/opening transitions
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOutBack,
+                    duration: const Duration(milliseconds: 550),
+                    curve: Curves.easeOutBack,
                     decoration: BoxDecoration(
                       color: CupertinoColors.white,
                       borderRadius: BorderRadius.circular(
@@ -457,7 +504,7 @@ class _MapScreenState extends State<MapScreen> {
                       boxShadow: [
                         BoxShadow(
                           color: CupertinoColors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
+                          blurRadius: _showDynamicIsland ? 24 : 10,
                           offset: const Offset(0, 4),
                         ),
                       ],
@@ -468,11 +515,11 @@ class _MapScreenState extends State<MapScreen> {
                       ),
                       child: AnimatedSize(
                         // Match the duration of AnimatedSwitcher for synchronized scaling and fading
-                        duration: const Duration(milliseconds: 400),
+                        duration: const Duration(milliseconds: 550),
                         curve: Curves.easeInOutCubic,
                         alignment: Alignment.topCenter,
                         child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 400),
+                          duration: const Duration(milliseconds: 550),
                           // Custom layoutBuilder to stack children top-aligned,
                           // preventing the container from holding its large size during crossfade.
                           layoutBuilder:
@@ -1499,37 +1546,36 @@ class _MapScreenState extends State<MapScreen> {
     return double.tryParse(clean) ?? 0.0;
   }
 
-  void _simulateNewTransactions() {
-    _newTransactions = [
-      AppTransaction(
-        id: 'mock1',
-        merchant: 'Uber',
-        amount: 850.0,
-        timestamp: DateTime.now(),
-        rawMessage: 'Payment to Uber Ksh 850.00',
-        source: TransactionSource.mpesa,
-        type: TransactionType.payment,
-        category: 'Transport',
-      ),
-      AppTransaction(
-        id: 'mock2',
-        merchant: 'Naivas',
-        amount: 3200.0,
-        timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-        rawMessage: 'Payment to Naivas Supermarket Ksh 3,200.00',
-        source: TransactionSource.mpesa,
-        type: TransactionType.payment,
-        category: 'Groceries',
-      ),
-    ];
+  Future<void> _showDynamicIslandForTransaction(AppTransaction tx) async {
+    // Check if we've already shown the island for this transaction
+    final prefs = await SharedPreferences.getInstance();
+    final shownList = prefs.getStringList('seen_island_tx_ids') ?? [];
 
-    Future.delayed(const Duration(milliseconds: 1500), () {
+    if (shownList.contains(tx.id)) return; // Already shown
+
+    // Mark as shown
+    shownList.add(tx.id);
+    // Keep list size bounded to prevent infinite growth
+    if (shownList.length > 50) {
+      shownList.removeRange(0, shownList.length - 50);
+    }
+    await prefs.setStringList('seen_island_tx_ids', shownList);
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_newTransactions.any((t) => t.id == tx.id)) {
+        _newTransactions.insert(0, tx);
+      }
+      _showDynamicIsland = true;
+    });
+
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
-        setState(() => _showDynamicIsland = true);
-
-        Future.delayed(const Duration(seconds: 5), () {
-          if (mounted) {
-            setState(() => _showDynamicIsland = false);
+        setState(() {
+          _newTransactions.remove(tx);
+          if (_newTransactions.isEmpty) {
+            _showDynamicIsland = false;
           }
         });
       }
@@ -1537,6 +1583,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Widget _buildIslandContent() {
+    final spending = context.read<SpendingService>();
     return Container(
       key: const ValueKey('island'),
       width: double.infinity,
@@ -1548,13 +1595,15 @@ class _MapScreenState extends State<MapScreen> {
           Row(
             children: [
               const Icon(
-                CupertinoIcons.bell_fill,
+                CupertinoIcons.location_solid,
                 color: CupertinoColors.activeBlue,
                 size: 18,
               ),
               const SizedBox(width: 8),
               Text(
-                'New Transactions Mapped',
+                _newTransactions.length > 1
+                    ? 'New Transactions Mapped'
+                    : 'New Transaction Mapped',
                 style: GoogleFonts.spaceGrotesk(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -1564,32 +1613,56 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          ..._newTransactions.map(
-            (tx) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+          ..._newTransactions.map((tx) {
+            final cat = spending.getCategoryByName(tx.category);
+            final catColor = cat != null
+                ? spending.getCategoryColor(cat.name)
+                : CupertinoColors.systemGrey;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    tx.merchant,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: CupertinoColors.black,
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: catColor.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: cat != null && cat.icon is IconData
+                        ? Icon(cat.icon as IconData, color: catColor, size: 16)
+                        : HugeIcon(
+                            icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
+                            color: catColor,
+                            size: 16,
+                          ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      tx.merchant,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: CupertinoColors.black,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     tx.formattedAmount,
                     style: GoogleFonts.spaceGrotesk(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: CupertinoColors.black,
                     ),
                   ),
                 ],
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );

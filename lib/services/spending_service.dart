@@ -37,7 +37,7 @@ class SpendingService extends ChangeNotifier {
   List<DailySpending> _weeklyAnalytics = [];
   double _weeklyTrendPercentage = 0;
   bool _isSpendingIncreased = false;
-  double _dailyAverage = 0;
+  double _spentThisWeek = 0;
   String _weekDateRange = '';
   List<AnalyticsItem> _categoryAnalyticsItems = [];
   List<AnalyticsItem> _recipientAnalyticsItems = [];
@@ -127,7 +127,7 @@ class SpendingService extends ChangeNotifier {
   List<DailySpending> get weeklyAnalytics => _weeklyAnalytics;
   double get weeklyTrendPercentage => _weeklyTrendPercentage;
   bool get isSpendingIncreased => _isSpendingIncreased;
-  double get dailyAverage => _dailyAverage;
+  double get spentThisWeek => _spentThisWeek;
   String get weekDateRange => _weekDateRange;
   List<AnalyticsItem> get categoryAnalyticsItems => _categoryAnalyticsItems;
   List<AnalyticsItem> get recipientAnalyticsItems => _recipientAnalyticsItems;
@@ -396,7 +396,8 @@ class SpendingService extends ChangeNotifier {
       "Fri",
       "Sat",
     ];
-    double totalMappedThisWeek = 0;
+    double totalMappedThisWeek =
+        0; // Not used anymore but kept if needed for categories
 
     for (int i = 0; i < 7; i++) {
       final date = currentWeekStart.add(Duration(days: i));
@@ -414,7 +415,7 @@ class SpendingService extends ChangeNotifier {
           unmapped += amount;
         } else {
           categories[category] = amount;
-          totalMappedThisWeek += amount;
+          // totalMappedThisWeek += amount; // Removed division
         }
       }
 
@@ -446,9 +447,8 @@ class SpendingService extends ChangeNotifier {
     }
     _isSpendingIncreased = currentTotal > previousTotal;
 
-    // 3. Daily Average (Total mapped spending / days elapsed)
-    final int daysElapsed = now.difference(currentWeekStart).inDays + 1;
-    _dailyAverage = totalMappedThisWeek / daysElapsed;
+    // 3. Spent This Week (Total spending since Sunday)
+    _spentThisWeek = currentTotal;
 
     // 4. Process List Items (Category)
     _categoryAnalyticsItems = currentCategories.map((m) {

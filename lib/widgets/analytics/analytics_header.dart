@@ -3,13 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_popup/flutter_popup.dart';
 
 class AnalyticsHeader extends StatelessWidget {
-  final String dailyAverage;
+  final String spentThisWeek;
   final String trendPercentage;
   final bool isTrendPositive;
 
   const AnalyticsHeader({
     super.key,
-    required this.dailyAverage,
+    required this.spentThisWeek,
     required this.trendPercentage,
     this.isTrendPositive = false,
   });
@@ -27,7 +27,7 @@ class AnalyticsHeader extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  'Daily average',
+                  'Spent this week',
                   style: GoogleFonts.spaceGrotesk(
                     color: CupertinoColors.systemGrey,
                     fontSize: 14,
@@ -39,7 +39,7 @@ class AnalyticsHeader extends StatelessWidget {
                   content: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Text(
-                      "Calculated by dividing your total mapped spending this week by the number of days elapsed",
+                      "The sum of all spending since the beginning of this week",
                       style: GoogleFonts.spaceGrotesk(fontSize: 12),
                     ),
                   ),
@@ -54,7 +54,7 @@ class AnalyticsHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              dailyAverage,
+              spentThisWeek,
               style: GoogleFonts.spaceGrotesk(
                 color: CupertinoColors.black,
                 fontWeight: FontWeight.w900,

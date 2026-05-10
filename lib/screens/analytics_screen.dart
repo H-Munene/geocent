@@ -62,8 +62,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     AnalyticsHeader(
-                      dailyAverage:
-                          'KES ${spendingService.dailyAverage.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}',
+                      spentThisWeek:
+                          'KES ${spendingService.spentThisWeek.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}',
                       trendPercentage:
                           '${spendingService.weeklyTrendPercentage.toInt()}%',
                       isTrendPositive: spendingService.isSpendingIncreased,

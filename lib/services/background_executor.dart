@@ -169,7 +169,7 @@ Future<void> _processIncomingSms(
           DateTime.now().difference(pos.timestamp).inMinutes > 10) {
         pos = await geo.Geolocator.getCurrentPosition(
           locationSettings: const geo.LocationSettings(
-            accuracy: geo.LocationAccuracy.medium,
+            accuracy: geo.LocationAccuracy.high,
             timeLimit: Duration(seconds: 40),
           ),
         );
