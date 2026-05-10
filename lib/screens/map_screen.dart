@@ -312,9 +312,139 @@ class _MapScreenState extends State<MapScreen> {
               top: topPadding,
               left: 16,
               right: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 56),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_isSearching)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12, left: 12),
+                            child: Row(
+                              children: [
+                                CupertinoActivityIndicator(radius: 8),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Searching...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: CupertinoColors.systemGrey,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: spending.categories.map((cat) {
+                              final isSelected = _selectedCategory == cat.name;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      if (_selectedCategory == cat.name) {
+                                        _selectedCategory = null;
+                                      } else {
+                                        _selectedCategory = cat.name;
+                                      }
+                                    });
+
+                                    // If we just selected a category, show the sheet with its messages
+                                    if (_selectedCategory != null) {
+                                      // Capture the navigator before the async gap
+                                      final navigator = Navigator.of(context);
+
+                                      final results = await spending
+                                          .getMessagesByCategory(cat.name);
+
+                                      if (!mounted) return;
+
+                                      showCupertinoSheet(
+                                        context: navigator.context,
+                                        builder: (context) =>
+                                            CategoryMessagesSheet(
+                                              results: results,
+                                              categoryName: cat.name,
+                                              onMessageSelected: (tx) {
+                                                spending.selectTransaction(
+                                                  tx.id,
+                                                );
+                                              },
+                                            ),
+                                      );
+                                    }
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? spending.getCategoryColor(cat.name)
+                                          : CupertinoColors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? spending.getCategoryColor(
+                                                cat.name,
+                                              )
+                                            : CupertinoColors.systemGrey5,
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: CupertinoColors.black
+                                              .withValues(alpha: 0.05),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        HugeIcon(
+                                          icon: cat.icon,
+                                          color: isSelected
+                                              ? CupertinoColors.white
+                                              : CupertinoColors.black,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          cat.name,
+                                          style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 13,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: isSelected
+                                                ? CupertinoColors.white
+                                                : CupertinoColors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   AnimatedContainer(
                     // Reduced duration for faster closing/opening transitions
                     duration: const Duration(milliseconds: 300),
@@ -413,125 +543,6 @@ class _MapScreenState extends State<MapScreen> {
                               : _buildSearchBarContent(),
                         ),
                       ),
-                    ),
-                  ),
-                  if (_isSearching)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8, left: 12),
-                      child: Row(
-                        children: [
-                          CupertinoActivityIndicator(radius: 8),
-                          SizedBox(width: 8),
-                          Text(
-                            'Searching...',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: CupertinoColors.systemGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: spending.categories.map((cat) {
-                        final isSelected = _selectedCategory == cat.name;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
-                            onTap: () async {
-                              HapticFeedback.lightImpact();
-                              setState(() {
-                                if (_selectedCategory == cat.name) {
-                                  _selectedCategory = null;
-                                } else {
-                                  _selectedCategory = cat.name;
-                                }
-                              });
-
-                              // If we just selected a category, show the sheet with its messages
-                              if (_selectedCategory != null) {
-                                // Capture the navigator before the async gap
-                                final navigator = Navigator.of(context);
-
-                                final results = await spending
-                                    .getMessagesByCategory(cat.name);
-
-                                if (!mounted) return;
-
-                                showCupertinoSheet(
-                                  context: navigator.context,
-                                  builder: (context) => CategoryMessagesSheet(
-                                    results: results,
-                                    categoryName: cat.name,
-                                    onMessageSelected: (tx) {
-                                      spending.selectTransaction(tx.id);
-                                    },
-                                  ),
-                                );
-                              }
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? spending.getCategoryColor(cat.name)
-                                    : CupertinoColors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? spending.getCategoryColor(cat.name)
-                                      : CupertinoColors.systemGrey5,
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: CupertinoColors.black.withValues(
-                                      alpha: 0.05,
-                                    ),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  HugeIcon(
-                                    icon: cat.icon,
-                                    color: isSelected
-                                        ? CupertinoColors.white
-                                        : CupertinoColors.black,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    cat.name,
-                                    style: GoogleFonts.spaceGrotesk(
-                                      fontSize: 13,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: isSelected
-                                          ? CupertinoColors.white
-                                          : CupertinoColors.black,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
                     ),
                   ),
                 ],
