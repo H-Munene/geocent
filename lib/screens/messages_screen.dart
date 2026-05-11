@@ -783,7 +783,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
                   ),
                 ),
               ),
-              _buildFilterBar(),
+              _buildFilterBar(spendingService),
               Expanded(
                 child: Stack(
                   children: [
@@ -836,7 +836,15 @@ class _MessagesScreenState extends State<MessagesScreen> {
     );
   }
 
-  Widget _buildFilterBar() {
+  Widget _buildFilterBar(SpendingService spendingService) {
+    String durationLabel = 'All';
+    if (spendingService.currentDurationFilter != 'all') {
+      durationLabel = spendingService.currentDurationFilter
+          .split(' ')
+          .map((word) => word[0].toUpperCase() + word.substring(1))
+          .join(' ');
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: SingleChildScrollView(
@@ -845,7 +853,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         child: Row(
           children: [
             _FilterChip(
-              label: 'All',
+              label: durationLabel,
               isActive: _activeFilter == 'all',
               onTap: () => _onFilterChanged('all'),
             ),

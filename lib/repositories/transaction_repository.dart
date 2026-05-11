@@ -247,26 +247,17 @@ class TransactionRepository {
           whereArgs.add(end.toIso8601String());
           break;
         case 'last 3 days':
-          final start = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(const Duration(days: 2));
+          final start = now.subtract(const Duration(days: 3));
           conditions.add('${DatabaseHelper.colTimestamp} >= ?');
           whereArgs.add(start.toIso8601String());
           break;
         case 'this week':
-          final monday = now.subtract(Duration(days: now.weekday - 1));
-          final start = DateTime(monday.year, monday.month, monday.day);
+          final start = now.subtract(const Duration(days: 7));
           conditions.add('${DatabaseHelper.colTimestamp} >= ?');
           whereArgs.add(start.toIso8601String());
           break;
         case 'older than a week':
-          final start = DateTime(
-            now.year,
-            now.month,
-            now.day,
-          ).subtract(const Duration(days: 7));
+          final start = now.subtract(const Duration(days: 7));
           conditions.add('${DatabaseHelper.colTimestamp} < ?');
           whereArgs.add(start.toIso8601String());
           break;

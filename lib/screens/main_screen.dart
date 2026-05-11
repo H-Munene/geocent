@@ -133,8 +133,9 @@ class MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: buildBudgetsIcon(const Icon(CupertinoIcons.chart_pie)),
-            activeIcon:
-                buildBudgetsIcon(const Icon(CupertinoIcons.chart_pie_fill)),
+            activeIcon: buildBudgetsIcon(
+              const Icon(CupertinoIcons.chart_pie_fill),
+            ),
             label: 'Budgets',
           ),
           const BottomNavigationBarItem(

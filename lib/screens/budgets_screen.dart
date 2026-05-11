@@ -26,8 +26,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final budgets = budgetService.budgets;
 
     Widget buildSegment(String period) {
-      final count =
-          budgets.where((b) => b.period == period.toLowerCase()).length;
+      final count = budgets
+          .where((b) => b.period == period.toLowerCase())
+          .length;
       final isSelected = _selectedPeriod == period;
 
       return Padding(
