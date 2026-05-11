@@ -36,7 +36,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
@@ -55,6 +55,10 @@ class _MapScreenState extends State<MapScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   bool _showAnalytics = true;
 
+  bool _showDynamicIsland = false;
+  List<AppTransaction> _newTransactions = [];
+  Timer? _txDisplayTimer;
+
   String? _selectedCategory;
   String? _selectedTxId;
 
@@ -68,6 +72,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
     _positionTracking();
 
@@ -83,9 +88,22 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
 
-    FlutterBackgroundService().on('location_attached').listen((_) {
+    FlutterBackgroundService().on('location_attached').listen((event) async {
       if (mounted) {
-        context.read<SpendingService>().refresh();
+        final spending = context.read<SpendingService>();
+        // Explicitly await refresh to ensure the new transaction is in mappedTransactions
+        await spending.refresh();
+
+        if (event != null && event['id'] != null) {
+          final txId = event['id'].toString();
+          if (mounted) {
+            final mappedTxs = spending.mappedTransactions;
+            final txIndex = mappedTxs.indexWhere((t) => t.id == txId);
+            if (txIndex != -1) {
+              _showDynamicIslandForTransaction(mappedTxs[txIndex]);
+            }
+          }
+        }
       }
     });
 
@@ -93,10 +111,14 @@ class _MapScreenState extends State<MapScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SpendingService>().addListener(_handleSelectedTransaction);
     });
+
+    // Check for recently mapped transactions on app startup
+    _checkRecentTransactions();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.removeListener(_onSearchTextChanged);
     _searchFocusNode.dispose();
@@ -104,6 +126,7 @@ class _MapScreenState extends State<MapScreen> {
 
     userPositionStream?.cancel();
     _bgServiceSub?.cancel();
+    _txDisplayTimer?.cancel();
     mapboxMapController?.dispose();
     _smsService?.dispose();
 
@@ -113,6 +136,38 @@ class _MapScreenState extends State<MapScreen> {
     spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data and check for recent transactions whenever we return to the foreground
+      context.read<SpendingService>().refresh().then((_) {
+        _checkRecentTransactions();
+      });
+    }
+  }
+
+  Future<void> _checkRecentTransactions() async {
+    // Slight delay to ensure Provider context is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+
+    // Wait for the SpendingService to finish its initial data fetch
+    while (spending.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+
+    final now = DateTime.now();
+    // Scan for any mapped transactions that occurred in the last 5 minutes
+    for (final tx in spending.mappedTransactions) {
+      if (now.difference(tx.timestamp).inMinutes <= 5) {
+        _showDynamicIslandForTransaction(tx);
+      }
+    }
   }
 
   void _onSearchFocusChanged() {
@@ -306,216 +361,234 @@ class _MapScreenState extends State<MapScreen> {
               top: topPadding,
               left: 16,
               right: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Stack(
+                clipBehavior: Clip.none,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      boxShadow: [
-                        BoxShadow(
-                          color: CupertinoColors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.centerRight,
+                  Padding(
+                    padding: const EdgeInsets.only(top: 46),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        TapRegion(
-                          onTapOutside: (event) {
-                            if (_searchFocusNode.hasFocus) {
-                              _searchFocusNode.unfocus();
-                            }
-                          },
-                          child: CupertinoSearchTextField(
-                            controller: _searchController,
-                            focusNode: _searchFocusNode,
-                            suffixIcon: _isSearching
-                                ? const Icon(CupertinoIcons.clear_thick_circled)
-                                : const Icon(CupertinoIcons.search),
-                            suffixMode: OverlayVisibilityMode.editing,
-                            onSubmitted: (value) async {
-                              if (value.trim().isEmpty) return;
-
-                              setState(() => _isSearching = true);
-
-                              try {
-                                final spendingService = context
-                                    .read<SpendingService>();
-                                final results = await spendingService
-                                    .searchMessages(value);
-
-                                if (!context.mounted) return;
-
-                                FocusScope.of(context).unfocus();
-
-                                showCupertinoSheet(
-                                  context: context,
-                                  builder: (context) => SearchMessagesSheet(
-                                    results: results,
-                                    query: value,
-                                    onMessageSelected: (tx) {
-                                      spendingService.selectTransaction(tx.id);
-                                    },
+                        if (_isSearching)
+                          const Padding(
+                            padding: EdgeInsets.only(bottom: 12, left: 12),
+                            child: Row(
+                              children: [
+                                CupertinoActivityIndicator(radius: 8),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Searching...',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: CupertinoColors.systemGrey,
                                   ),
-                                );
-                              } catch (e) {
-                                debugPrint('Search error: $e');
-                              } finally {
-                                if (mounted) {
-                                  setState(() => _isSearching = false);
-                                }
-                              }
-                            },
-                            placeholder: _showAnalytics
-                                ? ''
-                                : 'Search transactions...',
-                            style: GoogleFonts.spaceGrotesk(
-                              fontSize: 15,
-                              color: const Color(0xFF1D1D1F),
-                            ),
-                            backgroundColor: CupertinoColors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 40,
-                          right: 40,
-                          child: IgnorePointer(
-                            child: AnimatedOpacity(
-                              opacity: _showAnalytics ? 1.0 : 0.0,
-                              duration: const Duration(milliseconds: 300),
-                              child: const SizedBox(
-                                height: 44,
-                                child: Center(
-                                  child: AnimatedSpendingAnalytics(),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          child: Row(
+                            children: spending.categories.map((cat) {
+                              final isSelected = _selectedCategory == cat.name;
+                              return Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: GestureDetector(
+                                  onTap: () async {
+                                    HapticFeedback.lightImpact();
+                                    setState(() {
+                                      if (_selectedCategory == cat.name) {
+                                        _selectedCategory = null;
+                                      } else {
+                                        _selectedCategory = cat.name;
+                                      }
+                                    });
+
+                                    // If we just selected a category, show the sheet with its messages
+                                    if (_selectedCategory != null) {
+                                      // Capture the navigator before the async gap
+                                      final navigator = Navigator.of(context);
+
+                                      final results = await spending
+                                          .getMessagesByCategory(cat.name);
+
+                                      if (!mounted) return;
+
+                                      showCupertinoSheet(
+                                        context: navigator.context,
+                                        builder: (context) =>
+                                            CategoryMessagesSheet(
+                                              results: results,
+                                              categoryName: cat.name,
+                                              onMessageSelected: (tx) {
+                                                spending.selectTransaction(
+                                                  tx.id,
+                                                );
+                                              },
+                                            ),
+                                      );
+                                    }
+                                  },
+                                  child: AnimatedContainer(
+                                    duration: const Duration(milliseconds: 200),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? spending.getCategoryColor(cat.name)
+                                          : CupertinoColors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? spending.getCategoryColor(
+                                                cat.name,
+                                              )
+                                            : CupertinoColors.systemGrey5,
+                                        width: 1,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: CupertinoColors.black
+                                              .withValues(alpha: 0.05),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        HugeIcon(
+                                          icon: cat.icon,
+                                          color: isSelected
+                                              ? CupertinoColors.white
+                                              : CupertinoColors.black,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          cat.name,
+                                          style: GoogleFonts.spaceGrotesk(
+                                            fontSize: 13,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w700
+                                                : FontWeight.w500,
+                                            color: isSelected
+                                                ? CupertinoColors.white
+                                                : CupertinoColors.black,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }).toList(),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (_isSearching)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8, left: 12),
-                      child: Row(
-                        children: [
-                          CupertinoActivityIndicator(radius: 8),
-                          SizedBox(width: 8),
-                          Text(
-                            'Searching...',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: CupertinoColors.systemGrey,
-                            ),
-                          ),
-                        ],
+                  AnimatedContainer(
+                    // Reduced duration for faster closing/opening transitions
+                    duration: const Duration(milliseconds: 550),
+                    curve: Curves.easeOutBack,
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(
+                        _showDynamicIsland ? 32 : 14,
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: CupertinoColors.black.withValues(alpha: 0.1),
+                          blurRadius: _showDynamicIsland ? 24 : 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 12),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: spending.categories.map((cat) {
-                        final isSelected = _selectedCategory == cat.name;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
-                            onTap: () async {
-                              HapticFeedback.lightImpact();
-                              setState(() {
-                                if (_selectedCategory == cat.name) {
-                                  _selectedCategory = null;
-                                } else {
-                                  _selectedCategory = cat.name;
-                                }
-                              });
-
-                              // If we just selected a category, show the sheet with its messages
-                              if (_selectedCategory != null) {
-                                final results = await spending
-                                    .getMessagesByCategory(cat.name);
-
-                                if (!context.mounted) return;
-
-                                showCupertinoSheet(
-                                  context: context,
-                                  builder: (context) => CategoryMessagesSheet(
-                                    results: results,
-                                    categoryName: cat.name,
-                                    onMessageSelected: (tx) {
-                                      spending.selectTransaction(tx.id);
-                                    },
-                                  ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(
+                        _showDynamicIsland ? 32 : 14,
+                      ),
+                      child: AnimatedSize(
+                        // Match the duration of AnimatedSwitcher for synchronized scaling and fading
+                        duration: const Duration(milliseconds: 550),
+                        curve: Curves.easeInOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 550),
+                          // Custom layoutBuilder to stack children top-aligned,
+                          // preventing the container from holding its large size during crossfade.
+                          layoutBuilder:
+                              (
+                                Widget? currentChild,
+                                List<Widget> previousChildren,
+                              ) {
+                                return Stack(
+                                  alignment: Alignment.topCenter,
+                                  children: <Widget>[
+                                    ...previousChildren,
+                                    ?currentChild,
+                                  ],
                                 );
-                              }
-                            },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? spending.getCategoryColor(cat.name)
-                                    : CupertinoColors.white.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? spending.getCategoryColor(cat.name)
-                                      : CupertinoColors.systemGrey5,
-                                  width: 1,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: CupertinoColors.black.withValues(
-                                      alpha: 0.05,
+                              },
+                          // Custom transition for blur effect and delayed search bar appearance
+                          transitionBuilder:
+                              (Widget child, Animation<double> animation) {
+                                final isIsland =
+                                    child.key == const ValueKey('island');
+
+                                if (isIsland) {
+                                  final blurCurve = CurvedAnimation(
+                                    parent: animation,
+                                    curve: const Interval(
+                                      0.0,
+                                      0.8,
+                                      curve: Curves.easeIn,
                                     ),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  HugeIcon(
-                                    icon: cat.icon,
-                                    color: isSelected
-                                        ? CupertinoColors.white
-                                        : CupertinoColors.black,
-                                    size: 16,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    cat.name,
-                                    style: GoogleFonts.spaceGrotesk(
-                                      fontSize: 13,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: isSelected
-                                          ? CupertinoColors.white
-                                          : CupertinoColors.black,
+                                  );
+                                  return AnimatedBuilder(
+                                    animation: blurCurve,
+                                    builder: (context, child) {
+                                      final blurAmount =
+                                          (1.0 - blurCurve.value) * 15.0;
+                                      return ImageFiltered(
+                                        imageFilter: ui.ImageFilter.blur(
+                                          sigmaX: blurAmount,
+                                          sigmaY: blurAmount,
+                                        ),
+                                        child: child!,
+                                      );
+                                    },
+                                    child: child,
+                                  );
+                                } else {
+                                  // Search bar only fades in during the very last 10%
+                                  // (animation 0.0 → 0.1 on the incoming child = nearly closed)
+                                  final delayedOpacity = CurvedAnimation(
+                                    parent: animation,
+                                    curve: const Interval(
+                                      0.9,
+                                      1.0,
+                                      curve: Curves.easeIn,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
+                                  );
+                                  return FadeTransition(
+                                    opacity: delayedOpacity,
+                                    child: child,
+                                  );
+                                }
+                              },
+                          child: _showDynamicIsland
+                              ? _buildIslandContent()
+                              : _buildSearchBarContent(),
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -524,7 +597,7 @@ class _MapScreenState extends State<MapScreen> {
 
             // FABs moved into the stack as Positioned widgets
             Positioned(
-              bottom: 90,
+              bottom: 40,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -938,7 +1011,7 @@ class _MapScreenState extends State<MapScreen> {
         enabled: true,
         position: mp.OrnamentPosition.BOTTOM_RIGHT,
         marginTop: 0,
-        marginBottom: 270, // Positioned above the FABs
+        marginBottom: 210, // Positioned above the FABs
         marginLeft: 0,
         marginRight: 16,
       ),
@@ -946,7 +1019,7 @@ class _MapScreenState extends State<MapScreen> {
 
     controller.scaleBar.updateSettings(
       mp.ScaleBarSettings(
-        enabled: true,
+        enabled: false,
         position: mp.OrnamentPosition.BOTTOM_RIGHT,
         marginBottom: 60, // Positioned just above the tab bar
         marginRight: 16,
@@ -1104,17 +1177,20 @@ class _MapScreenState extends State<MapScreen> {
                                               final ids = place.transactions
                                                   .map((tx) => tx.id)
                                                   .toList();
+                                              final dialogNavigator =
+                                                  Navigator.of(dialogContext);
+                                              final sheetNavigator =
+                                                  Navigator.of(context);
+
                                               await spending.bulkUpdateCategory(
                                                 ids,
                                                 categoryName,
                                               );
-                                              if (context.mounted) {
-                                                Navigator.pop(
-                                                  dialogContext,
-                                                ); // Pop picker
-                                                Navigator.pop(
-                                                  context,
-                                                ); // Pop sheet
+                                              if (mounted) {
+                                                dialogNavigator
+                                                    .pop(); // Pop picker
+                                                sheetNavigator
+                                                    .pop(); // Pop sheet
                                                 showCustomToast(
                                                   '${place.transactions.length} messages successfully categorized',
                                                 );
@@ -1467,5 +1543,308 @@ class _MapScreenState extends State<MapScreen> {
       '',
     );
     return double.tryParse(clean) ?? 0.0;
+  }
+
+  Future<void> _showDynamicIslandForTransaction(AppTransaction tx) async {
+    // Check if we've already shown the island for this transaction
+    final prefs = await SharedPreferences.getInstance();
+    final shownList = prefs.getStringList('seen_island_tx_ids') ?? [];
+
+    if (shownList.contains(tx.id)) return; // Already shown
+
+    // Mark as shown
+    shownList.add(tx.id);
+    // Keep list size bounded to prevent infinite growth
+    if (shownList.length > 50) {
+      shownList.removeRange(0, shownList.length - 50);
+    }
+    await prefs.setStringList('seen_island_tx_ids', shownList);
+
+    if (!mounted) return;
+
+    setState(() {
+      if (!_newTransactions.any((t) => t.id == tx.id)) {
+        _newTransactions.add(tx);
+      }
+    });
+    _processTransactionQueue();
+  }
+
+  void _processTransactionQueue() {
+    if (_newTransactions.isEmpty) {
+      if (_showDynamicIsland) {
+        setState(() {
+          _showDynamicIsland = false;
+        });
+      }
+      return;
+    }
+
+    if (_txDisplayTimer?.isActive ?? false) return;
+
+    setState(() {
+      _showDynamicIsland = true;
+    });
+
+    _txDisplayTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() {
+          if (_newTransactions.isNotEmpty) {
+            _newTransactions.removeAt(0);
+          }
+        });
+        _txDisplayTimer = null;
+        _processTransactionQueue();
+      }
+    });
+  }
+
+  Widget _buildIslandContent() {
+    if (_newTransactions.isEmpty) return const SizedBox.shrink();
+
+    // Show the most recent transaction
+    final tx = _newTransactions.first;
+
+    return Container(
+      key: const ValueKey('island'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16.0),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final inAnimation =
+              Tween<Offset>(
+                begin: const Offset(0.0, 1.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
+
+          final outAnimation =
+              Tween<Offset>(
+                begin: const Offset(0.0, -1.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
+
+          if (child.key == ValueKey(tx.id)) {
+            return SlideTransition(
+              position: inAnimation,
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          } else {
+            return SlideTransition(
+              position: outAnimation,
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          }
+        },
+        child: _buildTransactionCard(tx),
+      ),
+    );
+  }
+
+  Widget _buildSearchBarContent() {
+    return Container(
+      key: const ValueKey('search'),
+      child: Stack(
+        alignment: Alignment.centerRight,
+        children: [
+          TapRegion(
+            onTapOutside: (event) {
+              if (_searchFocusNode.hasFocus) {
+                _searchFocusNode.unfocus();
+              }
+            },
+            child: CupertinoSearchTextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              suffixIcon: _isSearching
+                  ? const Icon(CupertinoIcons.clear_thick_circled)
+                  : const Icon(CupertinoIcons.search),
+              suffixMode: OverlayVisibilityMode.editing,
+              onSubmitted: (value) async {
+                if (value.trim().isEmpty) return;
+
+                setState(() => _isSearching = true);
+
+                try {
+                  final spendingService = context.read<SpendingService>();
+                  final results = await spendingService.searchMessages(value);
+
+                  if (!mounted) return;
+
+                  FocusScope.of(context).unfocus();
+
+                  showCupertinoSheet(
+                    context: context,
+                    builder: (context) => SearchMessagesSheet(
+                      results: results,
+                      query: value,
+                      onMessageSelected: (tx) {
+                        spendingService.selectTransaction(tx.id);
+                      },
+                    ),
+                  );
+                } catch (e) {
+                  debugPrint('Search error: $e');
+                } finally {
+                  if (mounted) {
+                    setState(() => _isSearching = false);
+                  }
+                }
+              },
+              placeholder: _showAnalytics ? '' : 'Search transactions...',
+              style: GoogleFonts.spaceGrotesk(
+                fontSize: 15,
+                color: const Color(0xFF1D1D1F),
+              ),
+              backgroundColor: Colors.transparent,
+              borderRadius: BorderRadius.zero,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+          ),
+          Positioned(
+            left: 40,
+            right: 40,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: _showAnalytics ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 300),
+                child: const SizedBox(
+                  height: 44,
+                  child: Center(child: AnimatedSpendingAnalytics()),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    int hour = time.hour;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour -= 12;
+    }
+    return '$hour:$minute $period';
+  }
+
+  Widget _buildTransactionCard(AppTransaction tx) {
+    final spending = context.read<SpendingService>();
+    final cat = spending.getCategoryByName(tx.category);
+
+    return Container(
+      key: ValueKey(tx.id),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top Section
+          Row(
+            children: [
+              // Category Icon (electric blue)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: cat != null && cat.icon is IconData
+                    ? Icon(
+                        cat.icon as IconData,
+                        color: const Color(0xFF007AFF),
+                        size: 20,
+                      )
+                    : HugeIcon(
+                        icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
+                        color: const Color(0xFF007AFF),
+                        size: 20,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tx.merchant,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1C1C1E),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Mapped Location',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA)),
+          ),
+          // Bottom Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.clock,
+                    color: Color(0xFF007AFF),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatTime(tx.timestamp),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.creditcard,
+                    color: Color(0xFF007AFF),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    tx.formattedAmount,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

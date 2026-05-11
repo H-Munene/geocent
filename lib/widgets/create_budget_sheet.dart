@@ -146,7 +146,7 @@ class _CreateBudgetSheetState extends State<CreateBudgetSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text('Amount Limit (Ksh)'),
+          const Text('Amount Limit (KES)'),
           const SizedBox(height: 8),
           CupertinoTextField(
             controller: _amountController,

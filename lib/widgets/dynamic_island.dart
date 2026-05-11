@@ -29,8 +29,8 @@ class DynamicIsland extends StatelessWidget {
     required this.onPeriodSelected,
   });
 
-  String _formatKsh(double val) =>
-      'Ksh ${val.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
+  String _formatKES(double val) =>
+      'KES ${val.toStringAsFixed(0).replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}';
 
   @override
   Widget build(BuildContext context) {
@@ -301,7 +301,7 @@ class DynamicIsland extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              _formatKsh(spent),
+                              _formatKES(spent),
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
@@ -329,7 +329,7 @@ class DynamicIsland extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              isLimitSet ? _formatKsh(limit) : 'Not Set',
+                              isLimitSet ? _formatKES(limit) : 'Not Set',
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
@@ -373,7 +373,7 @@ class DynamicIsland extends StatelessWidget {
                           const SizedBox(height: 3),
                           Text(
                             isLimitSet
-                                ? '${_formatKsh(remaining)} left'
+                                ? '${_formatKES(remaining)} left'
                                 : 'N/A',
                             style: const TextStyle(
                               color: Color(0xFF4488FF),

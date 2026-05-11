@@ -8,6 +8,7 @@ import '../utils/icons.dart';
 
 import 'package:provider/provider.dart';
 import '../services/spending_service.dart';
+import '../services/budget_service.dart';
 
 final GlobalKey<MainScreenState> mainScreenKey = GlobalKey<MainScreenState>();
 
@@ -46,6 +47,71 @@ class MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spendingService = context.watch<SpendingService>();
+    final budgetService = context.watch<BudgetService>();
+
+    final int actionableCount = spendingService.allTransactions
+        .where((tx) => tx.latitude == null || tx.category == null)
+        .length;
+
+    Widget buildMessagesIcon(Widget iconWidget) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          if (actionableCount > 0)
+            Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemRed,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  actionableCount > 99 ? '99+' : '$actionableCount',
+                  style: const TextStyle(
+                    color: CupertinoColors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
+    Widget buildBudgetsIcon(Widget iconWidget) {
+      final bool hasBudgets = budgetService.budgets.isNotEmpty;
+      final bool anyExceeded = budgetService.anyExceeded;
+
+      if (!hasBudgets) return iconWidget;
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: anyExceeded
+                    ? CupertinoColors.systemRed
+                    : CupertinoColors.systemGreen,
+                shape: BoxShape.circle,
+                border: Border.all(color: CupertinoColors.white, width: 1.5),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return CupertinoTabScaffold(
       key: mainScreenKey,
       controller: _tabController,
@@ -61,13 +127,15 @@ class MainScreenState extends State<MainScreen> {
             label: 'Map',
           ),
           BottomNavigationBarItem(
-            icon: unmap,
-            activeIcon: unmapActive,
+            icon: buildMessagesIcon(unmap),
+            activeIcon: buildMessagesIcon(unmapActive),
             label: 'Messages',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(CupertinoIcons.chart_pie),
-            activeIcon: Icon(CupertinoIcons.chart_pie_fill),
+          BottomNavigationBarItem(
+            icon: buildBudgetsIcon(const Icon(CupertinoIcons.chart_pie)),
+            activeIcon: buildBudgetsIcon(
+              const Icon(CupertinoIcons.chart_pie_fill),
+            ),
             label: 'Budgets',
           ),
           const BottomNavigationBarItem(

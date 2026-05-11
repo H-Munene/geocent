@@ -12,9 +12,11 @@ class BudgetService extends ChangeNotifier {
 
   List<Budget> _budgets = [];
   bool _isLoading = false;
+  bool _anyExceeded = false;
 
   List<Budget> get budgets => _budgets;
   bool get isLoading => _isLoading;
+  bool get anyExceeded => _anyExceeded;
 
   Future<void> init() async {
     await refresh();
@@ -25,9 +27,36 @@ class BudgetService extends ChangeNotifier {
     notifyListeners();
 
     _budgets = await _budgetRepo.getAllBudgets();
+    await updateExceededStatus();
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> updateExceededStatus() async {
+    if (_budgets.isEmpty) {
+      if (_anyExceeded) {
+        _anyExceeded = false;
+        notifyListeners();
+      }
+      return;
+    }
+
+    final allPeriods = ['daily', 'weekly', 'monthly'];
+    bool foundExceeded = false;
+
+    for (final period in allPeriods) {
+      final progressList = await getBudgetProgress(period);
+      if (progressList.any((p) => p.percentageUsed >= 1.0)) {
+        foundExceeded = true;
+        break;
+      }
+    }
+
+    if (_anyExceeded != foundExceeded) {
+      _anyExceeded = foundExceeded;
+      notifyListeners();
+    }
   }
 
   Future<void> checkAndNotify({String? categoryName}) async {

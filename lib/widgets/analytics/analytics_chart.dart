@@ -313,10 +313,18 @@ class _AnalyticsChartState extends State<AnalyticsChart>
                       getTitlesWidget: (value, meta) {
                         if (value == 0) return const SizedBox.shrink();
 
+                        String text;
+                        if (value >= 1000) {
+                          text =
+                              'KES ${(value / 1000).toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}k';
+                        } else {
+                          text = 'KES ${value.toInt()}';
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: Text(
-                            'Ksh ${(value / 1000).toStringAsFixed(value < 1000 ? 1 : 0)}k',
+                            text,
                             style: GoogleFonts.spaceGrotesk(
                               color: CupertinoColors.systemGrey,
                               fontSize: 11,
