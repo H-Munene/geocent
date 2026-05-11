@@ -323,6 +323,9 @@ class SpendingService extends ChangeNotifier {
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
     _allTransactions = await _repo.loadAll(); // Load all transactions
 
+    // Update budget exceeded status
+    await _budgetService?.updateExceededStatus();
+
     _isLoading = false;
     notifyListeners();
 
