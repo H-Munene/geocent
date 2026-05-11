@@ -399,8 +399,6 @@ class SpendingService extends ChangeNotifier {
       "Fri",
       "Sat",
     ];
-    double totalMappedThisWeek =
-        0; // Not used anymore but kept if needed for categories
 
     for (int i = 0; i < 7; i++) {
       final date = currentWeekStart.add(Duration(days: i));
