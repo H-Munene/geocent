@@ -27,6 +27,7 @@ import '../widgets/category_messages_sheet.dart';
 import '../widgets/custom_toast.dart';
 import '../widgets/map_style_picker_modal.dart';
 import '../widgets/search_messages_sheet.dart';
+import '../widgets/timeline_sheet.dart';
 import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -69,12 +70,6 @@ class _MapScreenState extends State<MapScreen>
 
   // Timeline Scrubber State
   final GlobalKey _fabKey = GlobalKey();
-  bool _isTimelineOpen = false;
-  List<AppTransaction> _timelineTransactions = [];
-  int _highlightedTimelineIndex = -1;
-  int _timelineFlyVersion = 0;
-  late AnimationController _timelineAnimController;
-  late Animation<double> _timelineProgress;
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -82,14 +77,6 @@ class _MapScreenState extends State<MapScreen>
   @override
   void initState() {
     super.initState();
-    _timelineAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _timelineProgress = CurvedAnimation(
-      parent: _timelineAnimController,
-      curve: Curves.easeOutBack,
-    );
 
     WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
@@ -137,7 +124,6 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   void dispose() {
-    _timelineAnimController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.removeListener(_onSearchTextChanged);
@@ -675,53 +661,43 @@ class _MapScreenState extends State<MapScreen>
                   ),
                   const SizedBox(height: 12),
                   if (_places.isNotEmpty)
-                    GestureDetector(
-                      onLongPressStart: _isAnimating ? null : _onTimelineStart,
-                      child: CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        onPressed: _isAnimating
-                            ? null
-                            : () {
-                                HapticFeedback.mediumImpact();
-                                if (_isTimelineOpen) {
-                                  _closeTimeline();
-                                } else {
-                                  _animateAnnotations();
-                                }
-                              },
-                        child: Container(
-                          key: _fabKey,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: _isAnimating
-                                ? CupertinoColors.systemGrey3
-                                : CupertinoColors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x26000000),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: _isAnimating
-                              ? const CupertinoActivityIndicator(
-                                  color: CupertinoColors.white,
-                                )
-                              : Icon(
-                                  _isTimelineOpen
-                                      ? CupertinoIcons.xmark
-                                      : CupertinoIcons.play_fill,
-                                  color: CupertinoColors.black,
-                                ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: _isAnimating
+                          ? null
+                          : () {
+                              HapticFeedback.mediumImpact();
+                              _showTimelineSheet();
+                            },
+                      child: Container(
+                        key: _fabKey,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _isAnimating
+                              ? CupertinoColors.systemGrey3
+                              : CupertinoColors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x26000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
                         ),
+                        child: _isAnimating
+                            ? const CupertinoActivityIndicator(
+                                color: CupertinoColors.white,
+                              )
+                            : const Icon(
+                                CupertinoIcons.play_fill,
+                                color: CupertinoColors.black,
+                              ),
                       ),
                     ),
                 ],
               ),
             ),
-            if (_isTimelineOpen) _buildTimelineOverlay(),
             if (_popupPosition != null && _selectedPlace != null)
               Positioned(
                 left: _popupPosition!.x,
@@ -1492,70 +1468,20 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  // ── Timeline Scrubber ──────────────────────────────────────────────────────
+  // ── Timeline ──────────────────────────────────────────────────────────────
 
-  void _onTimelineStart(LongPressStartDetails details) {
-    HapticFeedback.mediumImpact();
-    final now = DateTime.now();
-    final spending = context.read<SpendingService>();
-    final todayTxs = spending.mappedTransactions
-        .where(
-          (tx) =>
-              tx.timestamp.year == now.year &&
-              tx.timestamp.month == now.month &&
-              tx.timestamp.day == now.day,
-        )
-        .toList();
-    todayTxs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-    if (todayTxs.isEmpty) {
-      showCustomToast('No mapped transactions today');
-      return;
-    }
-
-    setState(() {
-      _timelineTransactions = todayTxs;
-      _isTimelineOpen = true;
-      _highlightedTimelineIndex = -1;
-    });
-    _timelineAnimController.forward(from: 0.0);
-  }
-
-  void _handleScrub(Offset localPosition, double totalWidth) {
-    if (!_isTimelineOpen || _timelineTransactions.isEmpty) return;
-
-    // Calculate index based on horizontal position
-    final double step = totalWidth / _timelineTransactions.length;
-    int newIndex = (localPosition.dx / step).floor().clamp(
-      0,
-      _timelineTransactions.length - 1,
+  void _showTimelineSheet() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => TimelineSheet(
+        onTransactionSelected: (tx) {
+          _flyToAndShowPopup(tx);
+        },
+      ),
     );
-
-    if (newIndex != _highlightedTimelineIndex) {
-      HapticFeedback.selectionClick();
-      setState(() {
-        _highlightedTimelineIndex = newIndex;
-      });
-      _flyToAndShowPopup(_timelineTransactions[newIndex]);
-    }
-  }
-
-  void _closeTimeline() {
-    if (!_isTimelineOpen) return;
-    _timelineAnimController.reverse().then((_) {
-      if (mounted) {
-        setState(() {
-          _isTimelineOpen = false;
-          _highlightedTimelineIndex = -1;
-          _timelineTransactions = [];
-        });
-      }
-    });
   }
 
   void _flyToAndShowPopup(AppTransaction tx) async {
-    final version = ++_timelineFlyVersion;
-
     MapPlace? targetPlace;
     for (final place in _places) {
       if (place.transactions.any((t) => t.id == tx.id)) {
@@ -1581,7 +1507,7 @@ class _MapScreenState extends State<MapScreen>
     );
 
     await Future.delayed(const Duration(milliseconds: 450));
-    if (version != _timelineFlyVersion || !mounted) return;
+    if (!mounted) return;
 
     final screenCoord = await mapboxMapController?.pixelForCoordinate(
       mp.Point(
@@ -1598,157 +1524,6 @@ class _MapScreenState extends State<MapScreen>
       await _updateAnnotationPriority();
       _popupKey.currentState?.show();
     }
-  }
-
-  Widget _buildTimelineOverlay() {
-    final spending = context.read<SpendingService>();
-    final bottomPadding = MediaQuery.of(context).padding.bottom + 80;
-
-    return AnimatedBuilder(
-      animation: _timelineProgress,
-      builder: (context, child) {
-        final opacity = _timelineProgress.value.clamp(0.0, 1.0);
-        final translateY = (1.0 - _timelineProgress.value) * 40.0;
-
-        return Positioned(
-          bottom: bottomPadding,
-          left: 16,
-          right: 16,
-          child: Opacity(
-            opacity: opacity,
-            child: Transform.translate(
-              offset: Offset(0, translateY),
-              child: Container(
-                height: 80,
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: CupertinoColors.black.withValues(alpha: 0.1),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onPanStart: (details) => _handleScrub(
-                        details.localPosition,
-                        constraints.maxWidth,
-                      ),
-                      onPanUpdate: (details) => _handleScrub(
-                        details.localPosition,
-                        constraints.maxWidth,
-                      ),
-                      onTapDown: (details) => _handleScrub(
-                        details.localPosition,
-                        constraints.maxWidth,
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // The Track
-                          Container(
-                            height: 2,
-                            decoration: BoxDecoration(
-                              color: CupertinoColors.systemGrey5,
-                              borderRadius: BorderRadius.circular(1),
-                            ),
-                          ),
-                          // The Items
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: List.generate(
-                              _timelineTransactions.length,
-                              (index) {
-                                final tx = _timelineTransactions[index];
-                                final isHighlighted =
-                                    index == _highlightedTimelineIndex;
-                                final cat = spending.getCategoryByName(
-                                  tx.category,
-                                );
-                                final color = spending.getCategoryColor(
-                                  tx.category ?? '',
-                                );
-
-                                return Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    AnimatedScale(
-                                      duration: const Duration(
-                                        milliseconds: 200,
-                                      ),
-                                      scale: isHighlighted ? 1.3 : 1.0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(6),
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: CupertinoColors.white,
-                                            width: 1.5,
-                                          ),
-                                          boxShadow: [
-                                            if (isHighlighted)
-                                              BoxShadow(
-                                                color: color.withValues(
-                                                  alpha: 0.4,
-                                                ),
-                                                blurRadius: 8,
-                                                offset: const Offset(0, 3),
-                                              ),
-                                          ],
-                                        ),
-                                        child:
-                                            cat != null && cat.icon is IconData
-                                            ? Icon(
-                                                cat.icon as IconData,
-                                                color: Colors.white,
-                                                size: 14,
-                                              )
-                                            : HugeIcon(
-                                                icon:
-                                                    cat?.icon ??
-                                                    HugeIcons
-                                                        .strokeRoundedTag01,
-                                                color: Colors.white,
-                                                size: 14,
-                                              ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _formatTime(tx.timestamp).split(' ')[0],
-                                      style: GoogleFonts.spaceGrotesk(
-                                        fontSize: 10,
-                                        fontWeight: isHighlighted
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: isHighlighted
-                                            ? CupertinoColors.black
-                                            : CupertinoColors.systemGrey,
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
