@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -36,7 +37,8 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
+class _MapScreenState extends State<MapScreen>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
@@ -66,12 +68,31 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
 
+  // Radial Menu State
+  final GlobalKey _fabKey = GlobalKey();
+  bool _isRadialOpen = false;
+  Offset _radialCenter = Offset.zero;
+  List<AppTransaction> _radialTransactions = [];
+  int _highlightedRadialIndex = -1;
+  int _radialFlyVersion = 0;
+  late AnimationController _radialAnimController;
+  late Animation<double> _radialProgress;
+
   // Initialised once onMapCreated fires
   SmsService? _smsService;
 
   @override
   void initState() {
     super.initState();
+    _radialAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _radialProgress = CurvedAnimation(
+      parent: _radialAnimController,
+      curve: Curves.easeOutBack,
+    );
+
     WidgetsBinding.instance.addObserver(this);
     _loadMapStyle();
     _positionTracking();
@@ -118,6 +139,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _radialAnimController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.removeListener(_onSearchTextChanged);
@@ -597,7 +619,9 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
             // FABs moved into the stack as Positioned widgets
             Positioned(
-              bottom: 40,
+              // bottom: 40,
+              bottom: 70,
+
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -655,42 +679,60 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                   ),
                   const SizedBox(height: 12),
                   if (_places.isNotEmpty)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: _isAnimating
+                    GestureDetector(
+                      onLongPressStart: _isAnimating ? null : _onRadialStart,
+                      onLongPressMoveUpdate: _isAnimating
                           ? null
-                          : () {
-                              HapticFeedback.mediumImpact();
-                              _animateAnnotations();
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: _isAnimating
-                              ? CupertinoColors.systemGrey3
-                              : CupertinoColors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x26000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: _isAnimating
-                            ? const CupertinoActivityIndicator(
-                                color: CupertinoColors.white,
-                              )
-                            : const Icon(
-                                CupertinoIcons.play_fill,
-                                color: CupertinoColors.black,
+                          : _onRadialUpdate,
+                      onLongPressEnd: _isAnimating ? null : _onRadialEnd,
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        onPressed: _isAnimating
+                            ? null
+                            : () {
+                                HapticFeedback.mediumImpact();
+                                if (_isRadialOpen) {
+                                  _closeRadialMenu();
+                                } else {
+                                  _animateAnnotations();
+                                }
+                              },
+                        child: Container(
+                          key: _fabKey,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: _isAnimating
+                                ? CupertinoColors.systemGrey3
+                                : CupertinoColors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x26000000),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
                               ),
+                            ],
+                          ),
+                          child: _isAnimating
+                              ? const CupertinoActivityIndicator(
+                                  color: CupertinoColors.white,
+                                )
+                              : Icon(
+                                  _isRadialOpen
+                                      ? CupertinoIcons.xmark
+                                      : CupertinoIcons.play_fill,
+                                  color: CupertinoColors.black,
+                                ),
+                        ),
                       ),
                     ),
                 ],
               ),
             ),
+            if (_isRadialOpen)
+              Positioned.fill(
+                child: IgnorePointer(child: _buildRadialOverlay()),
+              ),
             if (_popupPosition != null && _selectedPlace != null)
               Positioned(
                 left: _popupPosition!.x,
@@ -1459,6 +1501,241 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         }
       }
     }
+  }
+
+  // ── Radial Menu ────────────────────────────────────────────────────────────
+
+  void _onRadialStart(LongPressStartDetails details) {
+    HapticFeedback.mediumImpact();
+    final now = DateTime.now();
+    final spending = context.read<SpendingService>();
+    final todayTxs = spending.mappedTransactions
+        .where(
+          (tx) =>
+              tx.timestamp.year == now.year &&
+              tx.timestamp.month == now.month &&
+              tx.timestamp.day == now.day,
+        )
+        .toList();
+    todayTxs.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    if (todayTxs.isEmpty) {
+      showCustomToast('No mapped transactions today');
+      return;
+    }
+
+    final RenderBox? fabBox =
+        _fabKey.currentContext?.findRenderObject() as RenderBox?;
+    if (fabBox != null) {
+      _radialCenter = fabBox.localToGlobal(fabBox.size.center(Offset.zero));
+    } else {
+      _radialCenter = details.globalPosition;
+    }
+
+    setState(() {
+      _radialTransactions = todayTxs;
+      _isRadialOpen = true;
+      _highlightedRadialIndex = -1;
+    });
+    _radialAnimController.forward(from: 0.0);
+  }
+
+  void _onRadialUpdate(LongPressMoveUpdateDetails details) {
+    if (!_isRadialOpen || _radialTransactions.isEmpty) return;
+
+    final touchPos = details.globalPosition;
+    int newIndex = _getRadialIndex(touchPos, _radialTransactions.length);
+
+    if (newIndex != -1 && newIndex != _highlightedRadialIndex) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        _highlightedRadialIndex = newIndex;
+      });
+      _flyToAndShowPopup(_radialTransactions[newIndex]);
+    }
+  }
+
+  void _onRadialEnd(LongPressEndDetails details) {
+    // No longer closes on end - it locks open
+  }
+
+  void _closeRadialMenu() {
+    if (!_isRadialOpen) return;
+    _radialAnimController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _isRadialOpen = false;
+          _highlightedRadialIndex = -1;
+          _radialTransactions = [];
+        });
+      }
+    });
+  }
+
+  Offset _getRadialItemCenterLocal(int index, int total, Offset center) {
+    double radius = 80.0;
+    double startAngle = math.pi / 2; // 6 o'clock
+    double angleStep = total > 1 ? math.pi / math.max(total - 1, 4) : 0;
+    double angle = startAngle + index * angleStep;
+
+    return Offset(
+      center.dx + radius * math.cos(angle),
+      center.dy + radius * math.sin(angle),
+    );
+  }
+
+  int _getRadialIndex(Offset touchPosition, int total) {
+    for (int i = 0; i < total; i++) {
+      double radius = 80.0;
+      double startAngle = math.pi / 2;
+      double angleStep = total > 1 ? math.pi / math.max(total - 1, 4) : 0;
+      double angle = startAngle + i * angleStep;
+
+      final center = Offset(
+        _radialCenter.dx + radius * math.cos(angle),
+        _radialCenter.dy + radius * math.sin(angle),
+      );
+
+      if ((center - touchPosition).distance < 45.0) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  void _flyToAndShowPopup(AppTransaction tx) async {
+    final version = ++_radialFlyVersion;
+
+    MapPlace? targetPlace;
+    for (final place in _places) {
+      if (place.transactions.any((t) => t.id == tx.id)) {
+        targetPlace = place;
+        break;
+      }
+    }
+    if (targetPlace == null) return;
+
+    setState(() {
+      _selectedPlace = null;
+      _popupPosition = null;
+    });
+
+    await mapboxMapController?.flyTo(
+      mp.CameraOptions(
+        zoom: 17,
+        center: mp.Point(
+          coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
+        ),
+      ),
+      mp.MapAnimationOptions(duration: 400),
+    );
+
+    await Future.delayed(const Duration(milliseconds: 450));
+    if (version != _radialFlyVersion || !mounted) return;
+
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(
+      mp.Point(
+        coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
+      ),
+    );
+
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = targetPlace;
+        _popupPosition = screenCoord;
+        _selectedTxId = tx.id;
+      });
+      await _updateAnnotationPriority();
+      _popupKey.currentState?.show();
+    }
+  }
+
+  Widget _buildRadialOverlay() {
+    final RenderBox? rb = context.findRenderObject() as RenderBox?;
+    if (rb == null) return const SizedBox.shrink();
+
+    final localCenter = rb.globalToLocal(_radialCenter);
+    final spending = context.read<SpendingService>();
+
+    return AnimatedBuilder(
+      animation: _radialProgress,
+      builder: (context, child) {
+        return Stack(
+          clipBehavior: Clip.none,
+          children: List.generate(_radialTransactions.length, (i) {
+            final tx = _radialTransactions[i];
+            final isHighlighted = i == _highlightedRadialIndex;
+            final cat = spending.getCategoryByName(tx.category);
+            final color = spending.getCategoryColor(tx.category ?? '');
+
+            final targetCenter = _getRadialItemCenterLocal(
+              i,
+              _radialTransactions.length,
+              localCenter,
+            );
+            final center = Offset.lerp(
+              localCenter,
+              targetCenter,
+              _radialProgress.value,
+            )!;
+
+            final size =
+                (isHighlighted ? 56.0 : 44.0) *
+                _radialProgress.value.clamp(0.01, 1.0);
+            final opacity = _radialProgress.value.clamp(0.0, 1.0);
+
+            return Positioned(
+              left: center.dx,
+              top: center.dy,
+              child: FractionalTranslation(
+                translation: const Offset(-0.5, -0.5),
+                child: Opacity(
+                  opacity: opacity,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutBack,
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: CupertinoColors.white,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.4),
+                          blurRadius: isHighlighted ? 12 : 6,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: cat != null && cat.icon is IconData
+                          ? Icon(
+                              cat.icon as IconData,
+                              color: Colors.white,
+                              size:
+                                  (isHighlighted ? 26.0 : 20.0) *
+                                  _radialProgress.value.clamp(0.1, 1.0),
+                            )
+                          : HugeIcon(
+                              icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
+                              color: Colors.white,
+                              size:
+                                  (isHighlighted ? 26.0 : 20.0) *
+                                  _radialProgress.value.clamp(0.1, 1.0),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
   }
 
   // ── Animate FAB ────────────────────────────────────────────────────────────
