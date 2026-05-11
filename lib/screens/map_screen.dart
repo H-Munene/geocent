@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -68,15 +67,14 @@ class _MapScreenState extends State<MapScreen>
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
 
-  // Radial Menu State
+  // Timeline Scrubber State
   final GlobalKey _fabKey = GlobalKey();
-  bool _isRadialOpen = false;
-  Offset _radialCenter = Offset.zero;
-  List<AppTransaction> _radialTransactions = [];
-  int _highlightedRadialIndex = -1;
-  int _radialFlyVersion = 0;
-  late AnimationController _radialAnimController;
-  late Animation<double> _radialProgress;
+  bool _isTimelineOpen = false;
+  List<AppTransaction> _timelineTransactions = [];
+  int _highlightedTimelineIndex = -1;
+  int _timelineFlyVersion = 0;
+  late AnimationController _timelineAnimController;
+  late Animation<double> _timelineProgress;
 
   // Initialised once onMapCreated fires
   SmsService? _smsService;
@@ -84,12 +82,12 @@ class _MapScreenState extends State<MapScreen>
   @override
   void initState() {
     super.initState();
-    _radialAnimController = AnimationController(
+    _timelineAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
-    _radialProgress = CurvedAnimation(
-      parent: _radialAnimController,
+    _timelineProgress = CurvedAnimation(
+      parent: _timelineAnimController,
       curve: Curves.easeOutBack,
     );
 
@@ -139,7 +137,7 @@ class _MapScreenState extends State<MapScreen>
 
   @override
   void dispose() {
-    _radialAnimController.dispose();
+    _timelineAnimController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _searchFocusNode.removeListener(_onSearchFocusChanged);
     _searchController.removeListener(_onSearchTextChanged);
@@ -619,9 +617,7 @@ class _MapScreenState extends State<MapScreen>
 
             // FABs moved into the stack as Positioned widgets
             Positioned(
-              // bottom: 40,
-              bottom: 70,
-
+              bottom: 40,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -680,19 +676,15 @@ class _MapScreenState extends State<MapScreen>
                   const SizedBox(height: 12),
                   if (_places.isNotEmpty)
                     GestureDetector(
-                      onLongPressStart: _isAnimating ? null : _onRadialStart,
-                      onLongPressMoveUpdate: _isAnimating
-                          ? null
-                          : _onRadialUpdate,
-                      onLongPressEnd: _isAnimating ? null : _onRadialEnd,
+                      onLongPressStart: _isAnimating ? null : _onTimelineStart,
                       child: CupertinoButton(
                         padding: EdgeInsets.zero,
                         onPressed: _isAnimating
                             ? null
                             : () {
                                 HapticFeedback.mediumImpact();
-                                if (_isRadialOpen) {
-                                  _closeRadialMenu();
+                                if (_isTimelineOpen) {
+                                  _closeTimeline();
                                 } else {
                                   _animateAnnotations();
                                 }
@@ -718,7 +710,7 @@ class _MapScreenState extends State<MapScreen>
                                   color: CupertinoColors.white,
                                 )
                               : Icon(
-                                  _isRadialOpen
+                                  _isTimelineOpen
                                       ? CupertinoIcons.xmark
                                       : CupertinoIcons.play_fill,
                                   color: CupertinoColors.black,
@@ -729,10 +721,7 @@ class _MapScreenState extends State<MapScreen>
                 ],
               ),
             ),
-            if (_isRadialOpen)
-              Positioned.fill(
-                child: IgnorePointer(child: _buildRadialOverlay()),
-              ),
+            if (_isTimelineOpen) _buildTimelineOverlay(),
             if (_popupPosition != null && _selectedPlace != null)
               Positioned(
                 left: _popupPosition!.x,
@@ -1503,9 +1492,9 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  // ── Radial Menu ────────────────────────────────────────────────────────────
+  // ── Timeline Scrubber ──────────────────────────────────────────────────────
 
-  void _onRadialStart(LongPressStartDetails details) {
+  void _onTimelineStart(LongPressStartDetails details) {
     HapticFeedback.mediumImpact();
     final now = DateTime.now();
     final spending = context.read<SpendingService>();
@@ -1524,87 +1513,48 @@ class _MapScreenState extends State<MapScreen>
       return;
     }
 
-    final RenderBox? fabBox =
-        _fabKey.currentContext?.findRenderObject() as RenderBox?;
-    if (fabBox != null) {
-      _radialCenter = fabBox.localToGlobal(fabBox.size.center(Offset.zero));
-    } else {
-      _radialCenter = details.globalPosition;
-    }
-
     setState(() {
-      _radialTransactions = todayTxs;
-      _isRadialOpen = true;
-      _highlightedRadialIndex = -1;
+      _timelineTransactions = todayTxs;
+      _isTimelineOpen = true;
+      _highlightedTimelineIndex = -1;
     });
-    _radialAnimController.forward(from: 0.0);
+    _timelineAnimController.forward(from: 0.0);
   }
 
-  void _onRadialUpdate(LongPressMoveUpdateDetails details) {
-    if (!_isRadialOpen || _radialTransactions.isEmpty) return;
+  void _handleScrub(Offset localPosition, double totalWidth) {
+    if (!_isTimelineOpen || _timelineTransactions.isEmpty) return;
 
-    final touchPos = details.globalPosition;
-    int newIndex = _getRadialIndex(touchPos, _radialTransactions.length);
+    // Calculate index based on horizontal position
+    final double step = totalWidth / _timelineTransactions.length;
+    int newIndex = (localPosition.dx / step).floor().clamp(
+      0,
+      _timelineTransactions.length - 1,
+    );
 
-    if (newIndex != -1 && newIndex != _highlightedRadialIndex) {
+    if (newIndex != _highlightedTimelineIndex) {
       HapticFeedback.selectionClick();
       setState(() {
-        _highlightedRadialIndex = newIndex;
+        _highlightedTimelineIndex = newIndex;
       });
-      _flyToAndShowPopup(_radialTransactions[newIndex]);
+      _flyToAndShowPopup(_timelineTransactions[newIndex]);
     }
   }
 
-  void _onRadialEnd(LongPressEndDetails details) {
-    // No longer closes on end - it locks open
-  }
-
-  void _closeRadialMenu() {
-    if (!_isRadialOpen) return;
-    _radialAnimController.reverse().then((_) {
+  void _closeTimeline() {
+    if (!_isTimelineOpen) return;
+    _timelineAnimController.reverse().then((_) {
       if (mounted) {
         setState(() {
-          _isRadialOpen = false;
-          _highlightedRadialIndex = -1;
-          _radialTransactions = [];
+          _isTimelineOpen = false;
+          _highlightedTimelineIndex = -1;
+          _timelineTransactions = [];
         });
       }
     });
   }
 
-  Offset _getRadialItemCenterLocal(int index, int total, Offset center) {
-    double radius = 80.0;
-    double startAngle = math.pi / 2; // 6 o'clock
-    double angleStep = total > 1 ? math.pi / math.max(total - 1, 4) : 0;
-    double angle = startAngle + index * angleStep;
-
-    return Offset(
-      center.dx + radius * math.cos(angle),
-      center.dy + radius * math.sin(angle),
-    );
-  }
-
-  int _getRadialIndex(Offset touchPosition, int total) {
-    for (int i = 0; i < total; i++) {
-      double radius = 80.0;
-      double startAngle = math.pi / 2;
-      double angleStep = total > 1 ? math.pi / math.max(total - 1, 4) : 0;
-      double angle = startAngle + i * angleStep;
-
-      final center = Offset(
-        _radialCenter.dx + radius * math.cos(angle),
-        _radialCenter.dy + radius * math.sin(angle),
-      );
-
-      if ((center - touchPosition).distance < 45.0) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   void _flyToAndShowPopup(AppTransaction tx) async {
-    final version = ++_radialFlyVersion;
+    final version = ++_timelineFlyVersion;
 
     MapPlace? targetPlace;
     for (final place in _places) {
@@ -1631,7 +1581,7 @@ class _MapScreenState extends State<MapScreen>
     );
 
     await Future.delayed(const Duration(milliseconds: 450));
-    if (version != _radialFlyVersion || !mounted) return;
+    if (version != _timelineFlyVersion || !mounted) return;
 
     final screenCoord = await mapboxMapController?.pixelForCoordinate(
       mp.Point(
@@ -1650,89 +1600,152 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  Widget _buildRadialOverlay() {
-    final RenderBox? rb = context.findRenderObject() as RenderBox?;
-    if (rb == null) return const SizedBox.shrink();
-
-    final localCenter = rb.globalToLocal(_radialCenter);
+  Widget _buildTimelineOverlay() {
     final spending = context.read<SpendingService>();
+    final bottomPadding = MediaQuery.of(context).padding.bottom + 80;
 
     return AnimatedBuilder(
-      animation: _radialProgress,
+      animation: _timelineProgress,
       builder: (context, child) {
-        return Stack(
-          clipBehavior: Clip.none,
-          children: List.generate(_radialTransactions.length, (i) {
-            final tx = _radialTransactions[i];
-            final isHighlighted = i == _highlightedRadialIndex;
-            final cat = spending.getCategoryByName(tx.category);
-            final color = spending.getCategoryColor(tx.category ?? '');
+        final opacity = _timelineProgress.value.clamp(0.0, 1.0);
+        final translateY = (1.0 - _timelineProgress.value) * 40.0;
 
-            final targetCenter = _getRadialItemCenterLocal(
-              i,
-              _radialTransactions.length,
-              localCenter,
-            );
-            final center = Offset.lerp(
-              localCenter,
-              targetCenter,
-              _radialProgress.value,
-            )!;
-
-            final size =
-                (isHighlighted ? 56.0 : 44.0) *
-                _radialProgress.value.clamp(0.01, 1.0);
-            final opacity = _radialProgress.value.clamp(0.0, 1.0);
-
-            return Positioned(
-              left: center.dx,
-              top: center.dy,
-              child: FractionalTranslation(
-                translation: const Offset(-0.5, -0.5),
-                child: Opacity(
-                  opacity: opacity,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOutBack,
-                    width: size,
-                    height: size,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: CupertinoColors.white,
-                        width: 2,
+        return Positioned(
+          bottom: bottomPadding,
+          left: 16,
+          right: 16,
+          child: Opacity(
+            opacity: opacity,
+            child: Transform.translate(
+              offset: Offset(0, translateY),
+              child: Container(
+                height: 80,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white.withValues(alpha: 0.9),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: CupertinoColors.black.withValues(alpha: 0.1),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onPanStart: (details) => _handleScrub(
+                        details.localPosition,
+                        constraints.maxWidth,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: color.withValues(alpha: 0.4),
-                          blurRadius: isHighlighted ? 12 : 6,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: cat != null && cat.icon is IconData
-                          ? Icon(
-                              cat.icon as IconData,
-                              color: Colors.white,
-                              size:
-                                  (isHighlighted ? 26.0 : 20.0) *
-                                  _radialProgress.value.clamp(0.1, 1.0),
-                            )
-                          : HugeIcon(
-                              icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
-                              color: Colors.white,
-                              size:
-                                  (isHighlighted ? 26.0 : 20.0) *
-                                  _radialProgress.value.clamp(0.1, 1.0),
+                      onPanUpdate: (details) => _handleScrub(
+                        details.localPosition,
+                        constraints.maxWidth,
+                      ),
+                      onTapDown: (details) => _handleScrub(
+                        details.localPosition,
+                        constraints.maxWidth,
+                      ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // The Track
+                          Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.systemGrey5,
+                              borderRadius: BorderRadius.circular(1),
                             ),
-                    ),
-                  ),
+                          ),
+                          // The Items
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: List.generate(
+                              _timelineTransactions.length,
+                              (index) {
+                                final tx = _timelineTransactions[index];
+                                final isHighlighted =
+                                    index == _highlightedTimelineIndex;
+                                final cat = spending.getCategoryByName(
+                                  tx.category,
+                                );
+                                final color = spending.getCategoryColor(
+                                  tx.category ?? '',
+                                );
+
+                                return Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    AnimatedScale(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      scale: isHighlighted ? 1.3 : 1.0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(6),
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: CupertinoColors.white,
+                                            width: 1.5,
+                                          ),
+                                          boxShadow: [
+                                            if (isHighlighted)
+                                              BoxShadow(
+                                                color: color.withValues(
+                                                  alpha: 0.4,
+                                                ),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 3),
+                                              ),
+                                          ],
+                                        ),
+                                        child:
+                                            cat != null && cat.icon is IconData
+                                            ? Icon(
+                                                cat.icon as IconData,
+                                                color: Colors.white,
+                                                size: 14,
+                                              )
+                                            : HugeIcon(
+                                                icon:
+                                                    cat?.icon ??
+                                                    HugeIcons
+                                                        .strokeRoundedTag01,
+                                                color: Colors.white,
+                                                size: 14,
+                                              ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _formatTime(tx.timestamp).split(' ')[0],
+                                      style: GoogleFonts.spaceGrotesk(
+                                        fontSize: 10,
+                                        fontWeight: isHighlighted
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
+                                        color: isHighlighted
+                                            ? CupertinoColors.black
+                                            : CupertinoColors.systemGrey,
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
-            );
-          }),
+            ),
+          ),
         );
       },
     );
