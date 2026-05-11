@@ -46,6 +46,40 @@ class MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final spendingService = context.watch<SpendingService>();
+    final int actionableCount = spendingService.allTransactions
+        .where((tx) => tx.latitude == null || tx.category == null)
+        .length;
+
+    Widget buildMessagesIcon(Widget iconWidget) {
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          iconWidget,
+          if (actionableCount > 0)
+            Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemRed,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  actionableCount > 99 ? '99+' : '$actionableCount',
+                  style: const TextStyle(
+                    color: CupertinoColors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+
     return CupertinoTabScaffold(
       key: mainScreenKey,
       controller: _tabController,
@@ -61,8 +95,8 @@ class MainScreenState extends State<MainScreen> {
             label: 'Map',
           ),
           BottomNavigationBarItem(
-            icon: unmap,
-            activeIcon: unmapActive,
+            icon: buildMessagesIcon(unmap),
+            activeIcon: buildMessagesIcon(unmapActive),
             label: 'Messages',
           ),
           const BottomNavigationBarItem(

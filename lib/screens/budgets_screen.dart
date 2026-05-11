@@ -22,6 +22,42 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Widget build(BuildContext context) {
     // Watch SpendingService to rebuild when transactions are categorized
     context.watch<SpendingService>();
+    final budgetService = context.watch<BudgetService>();
+    final budgets = budgetService.budgets;
+
+    Widget buildSegment(String period) {
+      final count =
+          budgets.where((b) => b.period == period.toLowerCase()).length;
+      final isSelected = _selectedPeriod == period;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(period),
+            if (count > 0 && !isSelected) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGreen,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
 
     return CupertinoPageScaffold(
       backgroundColor: Colors.white,
@@ -58,19 +94,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     _selectedPeriod = value;
                   });
                 },
-                children: const {
-                  'Daily': Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Daily'),
-                  ),
-                  'Weekly': Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Weekly'),
-                  ),
-                  'Monthly': Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text('Monthly'),
-                  ),
+                children: {
+                  'Daily': buildSegment('Daily'),
+                  'Weekly': buildSegment('Weekly'),
+                  'Monthly': buildSegment('Monthly'),
                 },
               ),
             ),
