@@ -70,9 +70,9 @@ class AppTransaction {
 
   bool get hasLocation => latitude != null && longitude != null;
 
-  /// e.g. "Ksh 1,450"
+  /// e.g. "KES 1,450"
   String get formattedAmount =>
-      'Ksh ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
+      'KES ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
 
   /// Returns a copy with coordinates attached (used after GPS resolves).
   AppTransaction withLocation(double lat, double lng) => AppTransaction(

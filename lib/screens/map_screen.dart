@@ -57,6 +57,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
   bool _showDynamicIsland = false;
   List<AppTransaction> _newTransactions = [];
+  Timer? _txDisplayTimer;
 
   String? _selectedCategory;
   String? _selectedTxId;
@@ -125,6 +126,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
     userPositionStream?.cancel();
     _bgServiceSub?.cancel();
+    _txDisplayTimer?.cancel();
     mapboxMapController?.dispose();
     _smsService?.dispose();
 
@@ -363,7 +365,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 clipBehavior: Clip.none,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.only(top: 56),
+                    padding: const EdgeInsets.only(top: 46),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -555,15 +557,12 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                                     builder: (context, child) {
                                       final blurAmount =
                                           (1.0 - blurCurve.value) * 15.0;
-                                      return Opacity(
-                                        opacity: blurCurve.value,
-                                        child: ImageFiltered(
-                                          imageFilter: ui.ImageFilter.blur(
-                                            sigmaX: blurAmount,
-                                            sigmaY: blurAmount,
-                                          ),
-                                          child: child!,
+                                      return ImageFiltered(
+                                        imageFilter: ui.ImageFilter.blur(
+                                          sigmaX: blurAmount,
+                                          sigmaY: blurAmount,
                                         ),
+                                        child: child!,
                                       );
                                     },
                                     child: child,
@@ -598,7 +597,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
             // FABs moved into the stack as Positioned widgets
             Positioned(
-              bottom: 90,
+              bottom: 40,
               right: 16,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1012,7 +1011,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         enabled: true,
         position: mp.OrnamentPosition.BOTTOM_RIGHT,
         marginTop: 0,
-        marginBottom: 270, // Positioned above the FABs
+        marginBottom: 210, // Positioned above the FABs
         marginLeft: 0,
         marginRight: 16,
       ),
@@ -1020,7 +1019,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
     controller.scaleBar.updateSettings(
       mp.ScaleBarSettings(
-        enabled: true,
+        enabled: false,
         position: mp.OrnamentPosition.BOTTOM_RIGHT,
         marginBottom: 60, // Positioned just above the tab bar
         marginRight: 16,
@@ -1565,105 +1564,83 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
 
     setState(() {
       if (!_newTransactions.any((t) => t.id == tx.id)) {
-        _newTransactions.insert(0, tx);
+        _newTransactions.add(tx);
       }
+    });
+    _processTransactionQueue();
+  }
+
+  void _processTransactionQueue() {
+    if (_newTransactions.isEmpty) {
+      if (_showDynamicIsland) {
+        setState(() {
+          _showDynamicIsland = false;
+        });
+      }
+      return;
+    }
+
+    if (_txDisplayTimer?.isActive ?? false) return;
+
+    setState(() {
       _showDynamicIsland = true;
     });
 
-    Future.delayed(const Duration(seconds: 5), () {
+    _txDisplayTimer = Timer(const Duration(seconds: 4), () {
       if (mounted) {
         setState(() {
-          _newTransactions.remove(tx);
-          if (_newTransactions.isEmpty) {
-            _showDynamicIsland = false;
+          if (_newTransactions.isNotEmpty) {
+            _newTransactions.removeAt(0);
           }
         });
+        _txDisplayTimer = null;
+        _processTransactionQueue();
       }
     });
   }
 
   Widget _buildIslandContent() {
-    final spending = context.read<SpendingService>();
+    if (_newTransactions.isEmpty) return const SizedBox.shrink();
+
+    // Show the most recent transaction
+    final tx = _newTransactions.first;
+
     return Container(
       key: const ValueKey('island'),
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                CupertinoIcons.location_solid,
-                color: CupertinoColors.activeBlue,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _newTransactions.length > 1
-                    ? 'New Transactions Mapped'
-                    : 'New Transaction Mapped',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: CupertinoColors.black,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ..._newTransactions.map((tx) {
-            final cat = spending.getCategoryByName(tx.category);
-            final catColor = cat != null
-                ? spending.getCategoryColor(cat.name)
-                : CupertinoColors.systemGrey;
+      padding: const EdgeInsets.all(16.0),
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 500),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          final inAnimation =
+              Tween<Offset>(
+                begin: const Offset(0.0, 1.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: catColor.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
-                    ),
-                    child: cat != null && cat.icon is IconData
-                        ? Icon(cat.icon as IconData, color: catColor, size: 16)
-                        : HugeIcon(
-                            icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
-                            color: catColor,
-                            size: 16,
-                          ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      tx.merchant,
-                      style: GoogleFonts.spaceGrotesk(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.black,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    tx.formattedAmount,
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: CupertinoColors.black,
-                    ),
-                  ),
-                ],
-              ),
+          final outAnimation =
+              Tween<Offset>(
+                begin: const Offset(0.0, -1.0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+              );
+
+          if (child.key == ValueKey(tx.id)) {
+            return SlideTransition(
+              position: inAnimation,
+              child: FadeTransition(opacity: animation, child: child),
             );
-          }),
-        ],
+          } else {
+            return SlideTransition(
+              position: outAnimation,
+              child: FadeTransition(opacity: animation, child: child),
+            );
+          }
+        },
+        child: _buildTransactionCard(tx),
       ),
     );
   }
@@ -1741,6 +1718,130 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 ),
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    int hour = time.hour;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    if (hour == 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour -= 12;
+    }
+    return '$hour:$minute $period';
+  }
+
+  Widget _buildTransactionCard(AppTransaction tx) {
+    final spending = context.read<SpendingService>();
+    final cat = spending.getCategoryByName(tx.category);
+
+    return Container(
+      key: ValueKey(tx.id),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Top Section
+          Row(
+            children: [
+              // Category Icon (electric blue)
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF007AFF).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: cat != null && cat.icon is IconData
+                    ? Icon(
+                        cat.icon as IconData,
+                        color: const Color(0xFF007AFF),
+                        size: 20,
+                      )
+                    : HugeIcon(
+                        icon: cat?.icon ?? HugeIcons.strokeRoundedTag01,
+                        color: const Color(0xFF007AFF),
+                        size: 20,
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tx.merchant,
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1C1C1E),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Mapped Location',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA)),
+          ),
+          // Bottom Section
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.clock,
+                    color: Color(0xFF007AFF),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    _formatTime(tx.timestamp),
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.creditcard,
+                    color: Color(0xFF007AFF),
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    tx.formattedAmount,
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF1C1C1E),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

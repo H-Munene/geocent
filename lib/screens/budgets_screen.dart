@@ -4,6 +4,7 @@ import 'package:geocent/models/budget_progress.dart';
 import 'package:geocent/services/budget_service.dart';
 import 'package:geocent/services/spending_service.dart';
 import 'package:geocent/widgets/create_budget_sheet.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 
@@ -23,24 +24,32 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     context.watch<SpendingService>();
 
     return CupertinoPageScaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
-      child: CustomScrollView(
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text('Budgets'),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              child: const Icon(CupertinoIcons.add_circled, size: 28),
-              onPressed: () {
-                showCupertinoModalPopup(
-                  context: context,
-                  builder: (context) => const CreateBudgetSheet(),
-                );
-              },
-            ),
+      backgroundColor: Colors.white,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: Colors.white.withValues(alpha: 0.8),
+        border: null,
+        middle: Text(
+          'Budgets',
+          style: GoogleFonts.spaceGrotesk(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
           ),
-          SliverToBoxAdapter(
-            child: Padding(
+        ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.add_circled, size: 28),
+          onPressed: () {
+            showCupertinoModalPopup(
+              context: context,
+              builder: (context) => const CreateBudgetSheet(),
+            );
+          },
+        ),
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
               padding: const EdgeInsets.all(16.0),
               child: CupertinoSegmentedControl<String>(
                 groupValue: _selectedPeriod,
@@ -65,57 +74,54 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 },
               ),
             ),
-          ),
-          FutureBuilder<List<BudgetProgress>>(
-            future: context.watch<BudgetService>().getBudgetProgress(
-              _selectedPeriod,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting &&
-                  !snapshot.hasData) {
-                return const SliverFillRemaining(
-                  child: Center(child: CupertinoActivityIndicator()),
-                );
-              }
+            Expanded(
+              child: FutureBuilder<List<BudgetProgress>>(
+                future: context.watch<BudgetService>().getBudgetProgress(
+                  _selectedPeriod,
+                ),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const Center(child: CupertinoActivityIndicator());
+                  }
 
-              final progressItems = snapshot.data ?? [];
+                  final progressItems = snapshot.data ?? [];
 
-              if (progressItems.isEmpty) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: Text(
-                      'No budgets set for this period.\nTap + to add one.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: CupertinoColors.systemGrey),
-                    ),
-                  ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate((context, index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: GestureDetector(
-                        onTap: () {
-                          showCupertinoModalPopup(
-                            context: context,
-                            builder: (context) => CreateBudgetSheet(
-                              budget: progressItems[index].budget,
-                            ),
-                          );
-                        },
-                        child: BudgetCard(progress: progressItems[index]),
+                  if (progressItems.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No budgets set for this period.\nTap + to add one.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: CupertinoColors.systemGrey),
                       ),
                     );
-                  }, childCount: progressItems.length),
-                ),
-              );
-            },
-          ),
-        ],
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: progressItems.length,
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: GestureDetector(
+                          onTap: () {
+                            showCupertinoModalPopup(
+                              context: context,
+                              builder: (context) => CreateBudgetSheet(
+                                budget: progressItems[index].budget,
+                              ),
+                            );
+                          },
+                          child: BudgetCard(progress: progressItems[index]),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -144,6 +150,10 @@ class BudgetCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: CupertinoColors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: CupertinoColors.systemGrey4.withValues(alpha: 0.35),
+          width: 0.8,
+        ),
         boxShadow: [
           BoxShadow(
             color: CupertinoColors.systemGrey.withValues(alpha: 0.1),
@@ -184,7 +194,7 @@ class BudgetCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                'Ksh ${progress.totalSpentInPeriod.toInt()} / ${progress.amountLimit.toInt()}',
+                'KES ${progress.totalSpentInPeriod.toInt()} / ${progress.amountLimit.toInt()}',
                 style: TextStyle(
                   fontSize: 14,
                   color: CupertinoColors.systemGrey.withValues(alpha: 0.8),

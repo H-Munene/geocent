@@ -52,7 +52,7 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 
   service.on('simulate_transaction').listen((_) async {
     const mockSms =
-        'Confirmed. Ksh5,200.00 paid to ARTCAFFE. On 12/5/26 at 1:45 PM.';
+        'Confirmed. KES 5,200.00 paid to ARTCAFFE. On 12/5/26 at 1:45 PM.';
     _processIncomingSms(
       const SmsMessage(sender: 'MPESA', body: mockSms),
       repo,
