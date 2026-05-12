@@ -59,10 +59,7 @@ class TimelineSheet extends StatelessWidget {
                 ),
                 CupertinoButton(
                   padding: EdgeInsets.zero,
-                  child: const Icon(
-                    CupertinoIcons.xmark_circle_fill,
-                    color: CupertinoColors.systemGrey,
-                  ),
+                  child: const Icon(CupertinoIcons.xmark),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

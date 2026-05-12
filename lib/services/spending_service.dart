@@ -7,14 +7,19 @@ import 'package:geocent/models/spending_insight.dart';
 import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geocent/services/budget_service.dart';
+import 'package:geocent/services/hotspot_service.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
 import '../models/daily_spending.dart';
+import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/hotspot_repository.dart';
 
 class SpendingService extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
   final BudgetService? _budgetService;
+  final HotspotService _hotspotService = HotspotService();
+  final HotspotRepository _hotspotRepo = HotspotRepository();
 
   SpendingService({BudgetService? budgetService})
     : _budgetService = budgetService;
@@ -30,6 +35,9 @@ class SpendingService extends ChangeNotifier {
   String? _selectedTxId;
   bool _isLoading = false;
   List<AppTransaction> _allTransactions = [];
+  bool _isHotspotDataSufficient = false;
+  int _newGeocodedCount = 0;
+  List<Hotspot> _hotspots = [];
 
   int _tabSwitchCount = 0;
 
@@ -117,6 +125,10 @@ class SpendingService extends ChangeNotifier {
   bool get hasMore => _hasMore;
   List<AppTransaction> get allTransactions => _allTransactions; // New getter
   String get searchQuery => _searchQuery;
+
+  bool get isHotspotDataSufficient => _isHotspotDataSufficient;
+
+  List<Hotspot> get hotspots => _hotspots;
 
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
@@ -313,16 +325,32 @@ class SpendingService extends ChangeNotifier {
       _repo.getLimit(dbPeriod),
       _repo.getCategoryComparison(),
       _updateAnalytics(),
-      _computeInsights(), // Add this
+      _computeInsights(),
+      _hotspotService.isDataSufficient(),
+      _hotspotRepo.getAllHotspots(),
     ]);
-
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
     _categoryComparison = results[3] as List<CategoryAnalytics>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
     _allTransactions = await _repo.loadAll(); // Load all transactions
+    _isHotspotDataSufficient = results[6] as bool;
+    _hotspots = results[7] as List<Hotspot>;
 
+    // 📍 Upgrade Migration: If the user already has enough historical data
+    // but no hotspots exist yet, run the clustering immediately on startup.
+    if (_isHotspotDataSufficient && _hotspots.isEmpty) {
+      await _hotspotService.runClustering();
+      _hotspots = await _hotspotRepo.getAllHotspots();
+    }
+
+    // Update budget exceeded status
+
+    if (_isHotspotDataSufficient && _hotspots.isEmpty) {
+      await _hotspotService.runClustering();
+      _hotspots = await _hotspotRepo.getAllHotspots();
+    }
     // Update budget exceeded status
     await _budgetService?.updateExceededStatus();
 
@@ -631,6 +659,12 @@ class SpendingService extends ChangeNotifier {
     await _repo.updateLocation(txId, latitude, longitude);
     // Refresh to ensure all lists (mapped, actionable) are updated and listeners notified
     await refresh();
+
+    _newGeocodedCount++;
+    if (_newGeocodedCount >= 10) {
+      _newGeocodedCount = 0;
+      _hotspotService.runClustering();
+    }
   }
 
   Future<void> bulkAttachLocation(
@@ -640,6 +674,12 @@ class SpendingService extends ChangeNotifier {
   ) async {
     await _repo.bulkUpdateLocation(ids, latitude, longitude);
     await refresh();
+
+    _newGeocodedCount += ids.length;
+    if (_newGeocodedCount >= 10) {
+      _newGeocodedCount = 0;
+      _hotspotService.runClustering();
+    }
   }
 
   /// Update the category of an existing transaction then refresh state.

@@ -13,10 +13,18 @@ class BudgetService extends ChangeNotifier {
   List<Budget> _budgets = [];
   bool _isLoading = false;
   bool _anyExceeded = false;
+  final Map<String, bool> _exceededPeriods = {
+    'daily': false,
+    'weekly': false,
+    'monthly': false,
+  };
 
   List<Budget> get budgets => _budgets;
   bool get isLoading => _isLoading;
   bool get anyExceeded => _anyExceeded;
+
+  bool isPeriodExceeded(String period) =>
+      _exceededPeriods[period.toLowerCase()] ?? false;
 
   Future<void> init() async {
     await refresh();
@@ -35,25 +43,38 @@ class BudgetService extends ChangeNotifier {
 
   Future<void> updateExceededStatus() async {
     if (_budgets.isEmpty) {
+      bool changed = false;
       if (_anyExceeded) {
         _anyExceeded = false;
-        notifyListeners();
+        changed = true;
       }
+      _exceededPeriods.updateAll((key, value) {
+        if (value) changed = true;
+        return false;
+      });
+      if (changed) notifyListeners();
       return;
     }
 
     final allPeriods = ['daily', 'weekly', 'monthly'];
     bool foundExceeded = false;
+    bool periodsChanged = false;
 
     for (final period in allPeriods) {
       final progressList = await getBudgetProgress(period);
-      if (progressList.any((p) => p.percentageUsed >= 1.0)) {
+      final isExceeded = progressList.any((p) => p.percentageUsed >= 1.0);
+
+      if (_exceededPeriods[period] != isExceeded) {
+        _exceededPeriods[period] = isExceeded;
+        periodsChanged = true;
+      }
+
+      if (isExceeded) {
         foundExceeded = true;
-        break;
       }
     }
 
-    if (_anyExceeded != foundExceeded) {
+    if (_anyExceeded != foundExceeded || periodsChanged) {
       _anyExceeded = foundExceeded;
       notifyListeners();
     }

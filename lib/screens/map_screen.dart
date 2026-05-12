@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +16,11 @@ import 'package:flutter_popup/flutter_popup.dart';
 import '../models/call_out_result.dart';
 import '../models/map_place.dart';
 import '../models/app_transaction.dart';
+import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
+import '../services/geofence_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/timeline_sheet.dart';
 import '../widgets/category_messages_sheet.dart';
@@ -26,6 +30,7 @@ import '../widgets/map/map_category_filters.dart';
 import '../widgets/map/map_search_header.dart';
 import '../widgets/map/grouped_transactions_sheet.dart';
 import '../widgets/map/transaction_popup_content.dart';
+import '../widgets/custom_toast.dart';
 import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -45,6 +50,8 @@ class _MapScreenState extends State<MapScreen>
   mp.MapboxMap? mapboxMapController;
   StreamSubscription? userPositionStream;
   StreamSubscription? _bgServiceSub;
+  gl.Position? _lastGeofenceRegistrationPoint;
+  final GeofenceService _geofenceService = GeofenceService();
 
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
@@ -122,6 +129,7 @@ class _MapScreenState extends State<MapScreen>
     // Remove listener to prevent memory leaks
     final spending = Provider.of<SpendingService>(context, listen: false);
     spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_refreshHotspots);
     spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
@@ -297,6 +305,13 @@ class _MapScreenState extends State<MapScreen>
     }).toList();
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -305,7 +320,9 @@ class _MapScreenState extends State<MapScreen>
     final spending = context.watch<SpendingService>();
 
     // Sync places with spending service mapped transactions
-    final saved = spending.mappedTransactions;
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
+        .toList();
     _places = _groupTransactions(saved);
 
     return CupertinoPageScaffold(
@@ -455,6 +472,7 @@ class _MapScreenState extends State<MapScreen>
         ),
       );
       if (!mounted) return;
+      _checkGeofenceRegistration(position);
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
           zoom: 17,
@@ -471,6 +489,57 @@ class _MapScreenState extends State<MapScreen>
 
   // ── Location tracking ──────────────────────────────────────────────────────
 
+  void _checkGeofenceRegistration(gl.Position currentPosition) {
+    if (_lastGeofenceRegistrationPoint == null) {
+      _registerGeofences(currentPosition);
+      return;
+    }
+
+    final distance = gl.Geolocator.distanceBetween(
+      _lastGeofenceRegistrationPoint!.latitude,
+      _lastGeofenceRegistrationPoint!.longitude,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    // Re-registration rule: moves more than 2km from the last registration point
+    if (distance > 2000) {
+      _registerGeofences(currentPosition);
+    }
+  }
+
+  void _registerGeofences(gl.Position pivot) {
+    _lastGeofenceRegistrationPoint = pivot;
+    if (!mounted) return;
+    final spending = context.read<SpendingService>();
+    final hotspots = List<Hotspot>.from(spending.hotspots);
+
+    if (hotspots.isEmpty) return;
+
+    // Sort by distance to pivot and take top 100 to stay within Android limits
+    hotspots.sort((a, b) {
+      final distA = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        a.latitude,
+        a.longitude,
+      );
+      final distB = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        b.latitude,
+        b.longitude,
+      );
+      return distA.compareTo(distB);
+    });
+
+    final nearestHotspots = hotspots.take(100).toList();
+    _geofenceService.registerHotspots(nearestHotspots);
+    debugPrint(
+      '[MapScreen] Registered ${nearestHotspots.length} hotspots near user',
+    );
+  }
+
   Future<void> _positionTracking() async {
     final bool serviceEnabled = await gl.Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -486,20 +555,21 @@ class _MapScreenState extends State<MapScreen>
             distanceFilter: 50,
           ),
         ).listen((gl.Position? position) {
-          if (position != null &&
-              mapboxMapController != null &&
-              !_isAnimating) {
-            mapboxMapController?.setCamera(
-              mp.CameraOptions(
-                zoom: 17,
-                center: mp.Point(
-                  coordinates: mp.Position(
-                    position.longitude,
-                    position.latitude,
+          if (position != null) {
+            _checkGeofenceRegistration(position);
+            if (mapboxMapController != null && !_isAnimating) {
+              mapboxMapController?.setCamera(
+                mp.CameraOptions(
+                  zoom: 17,
+                  center: mp.Point(
+                    coordinates: mp.Position(
+                      position.longitude,
+                      position.latitude,
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
+            }
           }
         });
   }
@@ -519,6 +589,7 @@ class _MapScreenState extends State<MapScreen>
             if (mounted) {
               _applyStyleLayerExpressions();
               _refreshAnnotations();
+              _refreshHotspots();
             }
           });
         },
@@ -701,7 +772,190 @@ class _MapScreenState extends State<MapScreen>
     await _smsService!.init();
 
     spending.addListener(_refreshAnnotations);
+    spending.addListener(_refreshHotspots);
     _refreshAnnotations();
+    _refreshHotspots();
+  }
+
+  Future<void> _refreshHotspots() async {
+    if (mapboxMapController == null) return;
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+    final transactions = spending.mappedTransactions;
+
+    if (!spending.isHotspotDataSufficient) {
+      _showHotspotDataNotification();
+    }
+
+    // Use try-catch to avoid breaking the UI if style operations fail
+    try {
+      if (transactions.isEmpty) {
+        if (await mapboxMapController!.style.styleLayerExists(
+          'hotspots-heatmap',
+        )) {
+          await mapboxMapController!.style.removeStyleLayer('hotspots-heatmap');
+        }
+        if (await mapboxMapController!.style.styleSourceExists(
+          'hotspots-source',
+        )) {
+          await mapboxMapController!.style.removeStyleSource('hotspots-source');
+        }
+        return;
+      }
+
+      final now = DateTime.now();
+      final geojson = {
+        'type': 'FeatureCollection',
+        'features': transactions.map((tx) {
+          final daysAgo = now.difference(tx.timestamp).inDays;
+          // lambda = 0.02 -> weight halves roughly every 35 days
+          final decayedAmount = tx.amount * math.exp(-0.02 * daysAgo);
+
+          return {
+            'type': 'Feature',
+            'properties': {
+              'amount': tx.amount,
+              'decayed_amount': decayedAmount,
+            },
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [tx.longitude, tx.latitude],
+            },
+          };
+        }).toList(),
+      };
+
+      // Ensure we remove the layer before removing the source if we were to recreate them,
+      // but here we'll try to update if possible.
+      if (await mapboxMapController!.style.styleSourceExists(
+        'hotspots-source',
+      )) {
+        // Correct way to update GeoJSON data in Mapbox
+        await mapboxMapController!.style.setStyleSourceProperty(
+          'hotspots-source',
+          'data',
+          jsonEncode(geojson),
+        );
+      } else {
+        await mapboxMapController!.style.addSource(
+          mp.GeoJsonSource(id: 'hotspots-source', data: jsonEncode(geojson)),
+        );
+      }
+
+      if (!await mapboxMapController!.style.styleLayerExists(
+        'hotspots-heatmap',
+      )) {
+        // Create heatmap layer with defaults
+        final heatmapLayer = mp.HeatmapLayer(
+          id: 'hotspots-heatmap',
+          sourceId: 'hotspots-source',
+        );
+
+        // Insert below the annotation layers
+        try {
+          if (_dotManager != null) {
+            await mapboxMapController!.style.addLayerAt(
+              heatmapLayer,
+              mp.LayerPosition(below: _dotManager!.id),
+            );
+          } else {
+            await mapboxMapController!.style.addLayer(heatmapLayer);
+          }
+        } catch (e) {
+          await mapboxMapController!.style.addLayer(heatmapLayer);
+        }
+      }
+
+      // Configure heatmap styling using expressions via setStyleLayerProperty
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-intensity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0,
+          1,
+          13,
+          3,
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-color',
+        [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0,
+          'rgba(33,102,172,0)',
+          0.2,
+          'rgb(103,169,207)',
+          0.4,
+          'rgb(209,229,240)',
+          0.6,
+          'rgb(253,219,199)',
+          0.8,
+          'rgb(239,138,98)',
+          1,
+          'rgb(178,24,43)',
+        ],
+      );
+
+      // Apply zoom-interpolated radius
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-radius',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          10,
+          20,
+          13,
+          60,
+          15,
+          120,
+          17,
+          240,
+        ],
+      );
+
+      // Add heatmap-weight based on decayed amount
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-weight',
+        [
+          'interpolate',
+          ['linear'],
+          ['get', 'decayed_amount'],
+          0,
+          0.1, // Minimum weight so even small transactions contribute
+          500,
+          0.5,
+          2000,
+          1.0,
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-opacity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          7,
+          1,
+          15,
+          0.6,
+        ],
+      );
+    } catch (e) {
+      debugPrint('[MapScreen] Failed to refresh hotspots: $e');
+    }
   }
 
   void _onMarkerTapped(String annotationId, mp.Point geometry) async {
@@ -789,7 +1043,9 @@ class _MapScreenState extends State<MapScreen>
     // clobbering each other (race conditions).
     final int currentVersion = ++_annotationUpdateVersion;
 
-    final saved = spending.mappedTransactions;
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
+        .toList();
     final newPlaces = _groupTransactions(saved);
 
     // If a newer refresh has started, abort this outdated one.
@@ -932,6 +1188,24 @@ class _MapScreenState extends State<MapScreen>
       });
       await _updateAnnotationPriority();
       _popupKey.currentState?.show();
+    }
+  }
+
+  static bool _hasCheckedHotspotNotification = false;
+
+  Future<void> _showHotspotDataNotification() async {
+    if (_hasCheckedHotspotNotification) return;
+    _hasCheckedHotspotNotification = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasShown = prefs.getBool('hotspot_notification_shown') ?? false;
+
+    if (!hasShown) {
+      await prefs.setBool('hotspot_notification_shown', true);
+      if (!mounted) return;
+      showCustomToast(
+        'GeoCent will start identifying your spending patterns after a few more transactions.',
+      );
     }
   }
 

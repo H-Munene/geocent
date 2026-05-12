@@ -39,12 +39,18 @@ class NotificationService {
     required String category,
     required int percentUsed,
     required double amountLeft,
+    String? locationContext,
   }) async {
     final String title = percentUsed >= 100
         ? '😭 Budget Depleted!'
         : (percentUsed >= 80 ? '👀 Budget Warning' : '📊 Budget Update');
-    final String body =
+
+    String body =
         'You have used $percentUsed% of your $category budget. KES ${amountLeft.toStringAsFixed(0)} left.';
+
+    if (locationContext != null) {
+      body += ' (Near $locationContext)';
+    }
 
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(

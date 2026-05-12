@@ -6,8 +6,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
+import '../utils/lottie_files.dart';
 import '../widgets/category_dropdown_widget.dart';
 import '../widgets/custom_toast.dart';
+import '../widgets/empty_state_widget.dart';
 import '../widgets/unmapped_message_tile.dart';
 import 'location_picker_screen.dart';
 
@@ -791,16 +793,26 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     if (spendingService.isLoading && _displayList.isEmpty)
                       const Center(child: CupertinoActivityIndicator())
                     else if (messages.isEmpty && !spendingService.isLoading)
-                      Center(
-                        child: Text(
-                          spendingService.searchQuery.isEmpty
-                              ? 'No messages found'
-                              : 'No results for "${spendingService.searchQuery}"',
-                          style: GoogleFonts.spaceGrotesk(
-                            color: CupertinoColors.systemGrey,
-                            fontSize: 16,
-                          ),
-                        ),
+                      EmptyStateWidget(
+                        animationPath:
+                            (spendingService.searchQuery.isNotEmpty ||
+                                (_activeFilter == 'all' &&
+                                    spendingService.currentDurationFilter !=
+                                        'all'))
+                            ? emptyLottieAnimation
+                            : doneLottieAnimation,
+                        message: spendingService.searchQuery.isNotEmpty
+                            ? 'No results for "${spendingService.searchQuery}"'
+                            : (_activeFilter == 'all' &&
+                                  spendingService.currentDurationFilter !=
+                                      'all')
+                            ? 'No messages found'
+                            : 'No messages needing action',
+                        repeat:
+                            !(spendingService.searchQuery.isEmpty &&
+                                (_activeFilter != 'all' ||
+                                    spendingService.currentDurationFilter ==
+                                        'all')),
                       ),
                     AnimatedList(
                       key: _listKey,

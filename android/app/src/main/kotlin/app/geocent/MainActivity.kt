@@ -10,5 +10,6 @@ class MainActivity : FlutterActivity() {
         // Register our native SMS plugin so the channel is available
         // as soon as the Flutter engine starts.
         flutterEngine.plugins.add(SmsPlugin())
+        flutterEngine.plugins.add(GeofencePlugin())
     }
 }

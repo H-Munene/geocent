@@ -7,6 +7,17 @@ import '../models/app_transaction.dart';
 class TransactionRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
 
+  Future<int> countGeocodedTransactions() async {
+    final db = await _db.database;
+    final result = await db.rawQuery('''
+      SELECT COUNT(*) as count
+      FROM ${DatabaseHelper.tableTransactions}
+      WHERE ${DatabaseHelper.colLatitude} IS NOT NULL 
+        AND ${DatabaseHelper.colLongitude} IS NOT NULL
+    ''');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<List<CategoryAnalytics>> getCategoryComparison() async {
     final db = await _db.database;
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
