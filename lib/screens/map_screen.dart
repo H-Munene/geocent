@@ -305,6 +305,13 @@ class _MapScreenState extends State<MapScreen>
     }).toList();
   }
 
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
+  }
+
   // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
@@ -313,7 +320,9 @@ class _MapScreenState extends State<MapScreen>
     final spending = context.watch<SpendingService>();
 
     // Sync places with spending service mapped transactions
-    final saved = spending.mappedTransactions;
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
+        .toList();
     _places = _groupTransactions(saved);
 
     return CupertinoPageScaffold(
@@ -1034,7 +1043,9 @@ class _MapScreenState extends State<MapScreen>
     // clobbering each other (race conditions).
     final int currentVersion = ++_annotationUpdateVersion;
 
-    final saved = spending.mappedTransactions;
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
+        .toList();
     final newPlaces = _groupTransactions(saved);
 
     // If a newer refresh has started, abort this outdated one.
@@ -1180,10 +1191,22 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _showHotspotDataNotification() {
-    showCustomToast(
-      'GeoCent will start identifying your spending patterns after a few more transactions.',
-    );
+  static bool _hasCheckedHotspotNotification = false;
+
+  Future<void> _showHotspotDataNotification() async {
+    if (_hasCheckedHotspotNotification) return;
+    _hasCheckedHotspotNotification = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasShown = prefs.getBool('hotspot_notification_shown') ?? false;
+
+    if (!hasShown) {
+      await prefs.setBool('hotspot_notification_shown', true);
+      if (!mounted) return;
+      showCustomToast(
+        'GeoCent will start identifying your spending patterns after a few more transactions.',
+      );
+    }
   }
 
   double _getSortKey(MapPlace place) {
