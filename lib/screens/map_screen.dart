@@ -772,7 +772,7 @@ class _MapScreenState extends State<MapScreen>
     if (!mounted) return;
 
     final spending = context.read<SpendingService>();
-    final hotspots = spending.hotspots;
+    final transactions = spending.mappedTransactions;
 
     if (!spending.isHotspotDataSufficient) {
       _showHotspotDataNotification();
@@ -780,7 +780,7 @@ class _MapScreenState extends State<MapScreen>
 
     // Use try-catch to avoid breaking the UI if style operations fail
     try {
-      if (hotspots.isEmpty) {
+      if (transactions.isEmpty) {
         if (await mapboxMapController!.style.styleLayerExists(
           'hotspots-heatmap',
         )) {
@@ -796,17 +796,14 @@ class _MapScreenState extends State<MapScreen>
 
       final geojson = {
         'type': 'FeatureCollection',
-        'features': hotspots
+        'features': transactions
             .map(
-              (h) => {
+              (tx) => {
                 'type': 'Feature',
-                'properties': {
-                  'avg_spend': h.avgSpend,
-                  'total_spend': h.totalSpend,
-                },
+                'properties': {'amount': tx.amount},
                 'geometry': {
                   'type': 'Point',
-                  'coordinates': [h.longitude, h.latitude],
+                  'coordinates': [tx.longitude, tx.latitude],
                 },
               },
             )
@@ -840,73 +837,106 @@ class _MapScreenState extends State<MapScreen>
         );
 
         // Insert below the annotation layers
-        await mapboxMapController!.style.addLayer(heatmapLayer);
-
-        // Configure heatmap styling using expressions via setStyleLayerProperty
-        await mapboxMapController!.style.setStyleLayerProperty(
-          'hotspots-heatmap',
-          'heatmap-intensity',
-          [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0,
-            1,
-            9,
-            3,
-          ],
-        );
-
-        await mapboxMapController!.style.setStyleLayerProperty(
-          'hotspots-heatmap',
-          'heatmap-color',
-          [
-            'interpolate',
-            ['linear'],
-            ['heatmap-density'],
-            0,
-            'rgba(33,102,172,0)',
-            0.2,
-            'rgb(103,169,207)',
-            0.4,
-            'rgb(209,229,240)',
-            0.6,
-            'rgb(253,219,199)',
-            0.8,
-            'rgb(239,138,98)',
-            1,
-            'rgb(178,24,43)',
-          ],
-        );
-
-        await mapboxMapController!.style.setStyleLayerProperty(
-          'hotspots-heatmap',
-          'heatmap-radius',
-          [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            0,
-            2,
-            9,
-            20,
-          ],
-        );
-
-        await mapboxMapController!.style.setStyleLayerProperty(
-          'hotspots-heatmap',
-          'heatmap-opacity',
-          [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            7,
-            1,
-            9,
-            0.6,
-          ],
-        );
+        try {
+          if (_dotManager != null) {
+            await mapboxMapController!.style.addLayerAt(
+              heatmapLayer,
+              mp.LayerPosition(below: _dotManager!.id),
+            );
+          } else {
+            await mapboxMapController!.style.addLayer(heatmapLayer);
+          }
+        } catch (e) {
+          await mapboxMapController!.style.addLayer(heatmapLayer);
+        }
       }
+
+      // Configure heatmap styling using expressions via setStyleLayerProperty
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-intensity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          0,
+          1,
+          13,
+          3,
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-color',
+        [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0,
+          'rgba(33,102,172,0)',
+          0.2,
+          'rgb(103,169,207)',
+          0.4,
+          'rgb(209,229,240)',
+          0.6,
+          'rgb(253,219,199)',
+          0.8,
+          'rgb(239,138,98)',
+          1,
+          'rgb(178,24,43)',
+        ],
+      );
+
+      // Apply zoom-interpolated radius
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-radius',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          10,
+          20,
+          13,
+          60,
+          15,
+          120,
+          17,
+          240,
+        ],
+      );
+
+      // Add heatmap-weight based on amount
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-weight',
+        [
+          'interpolate',
+          ['linear'],
+          ['get', 'amount'],
+          0,
+          0.1, // Minimum weight so even small transactions contribute
+          500,
+          0.5,
+          2000,
+          1.0,
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-opacity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          7,
+          1,
+          15,
+          0.6,
+        ],
+      );
     } catch (e) {
       debugPrint('[MapScreen] Failed to refresh hotspots: $e');
     }

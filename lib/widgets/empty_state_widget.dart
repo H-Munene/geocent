@@ -2,8 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 
-import '../utils/lottie_files.dart';
-
 class EmptyStateWidget extends StatelessWidget {
   final String animationPath;
   final String message;
@@ -20,11 +18,9 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isDoneAnimation = animationPath == doneLottieAnimation;
-
     // We reduce the layout height of the animation container to pull the text closer.
     // This allows the Center widget to accurately center the combined Lottie + Text group.
-    final double layoutHeight = animationSize - (isDoneAnimation ? 25 : 20);
+    final double layoutHeight = animationSize - 25;
 
     return Center(
       child: Column(
