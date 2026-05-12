@@ -4,7 +4,7 @@ import 'package:path/path.dart';
 
 class DatabaseHelper {
   static const String _dbName = 'geocent.db';
-  static const int _dbVersion = 7;
+  static const int _dbVersion = 8;
 
   // Table & column constants
   static const String tableTransactions = 'transactions';
@@ -35,6 +35,13 @@ class DatabaseHelper {
   static const String colAmountLimit = 'amount_limit';
   static const String colLastNotifiedThreshold = 'last_notified_threshold';
   static const String colLastNotifiedAt = 'last_notified_at';
+
+  static const String tableHotspots = 'hotspots';
+  static const String colStableKey = 'stable_key';
+  static const String colRadius = 'radius';
+  static const String colAvgSpend = 'avg_spend';
+  static const String colTotalSpend = 'total_spend';
+  static const String colTransactionCount = 'transaction_count';
 
   // Singleton
   DatabaseHelper._();
@@ -132,6 +139,21 @@ class DatabaseHelper {
         $colId TEXT PRIMARY KEY
       )
     ''');
+
+    // ── Hotspots ──────────────────────────────────────────────────────────────
+    await db.execute('''
+      CREATE TABLE $tableHotspots (
+        $colId              TEXT PRIMARY KEY,
+        $colStableKey       TEXT NOT NULL,
+        $colLatitude        REAL NOT NULL,
+        $colLongitude       REAL NOT NULL,
+        $colRadius          REAL NOT NULL,
+        $colAvgSpend        REAL NOT NULL,
+        $colTotalSpend      REAL NOT NULL,
+        $colTransactionCount INTEGER NOT NULL,
+        $colLastNotifiedAt  TEXT
+      )
+    ''');
   }
 
   // Extend schema here in future versions without wiping data
@@ -194,6 +216,21 @@ class DatabaseHelper {
       await db.execute('''
         CREATE TABLE IF NOT EXISTS $tableIgnoredTransactions (
           $colId TEXT PRIMARY KEY
+        )
+      ''');
+    }
+    if (oldVersion < 8) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS $tableHotspots (
+          $colId              TEXT PRIMARY KEY,
+          $colStableKey       TEXT NOT NULL,
+          $colLatitude        REAL NOT NULL,
+          $colLongitude       REAL NOT NULL,
+          $colRadius          REAL NOT NULL,
+          $colAvgSpend        REAL NOT NULL,
+          $colTotalSpend      REAL NOT NULL,
+          $colTransactionCount INTEGER NOT NULL,
+          $colLastNotifiedAt  TEXT
         )
       ''');
     }

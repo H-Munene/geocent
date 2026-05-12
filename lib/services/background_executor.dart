@@ -10,8 +10,12 @@ import '../repositories/budget_repository.dart';
 import '../services/native_sms_channel.dart';
 import '../services/sms_parser.dart';
 import '../services/notification_service.dart';
+import '../services/geofence_service.dart';
+import '../repositories/hotspot_repository.dart';
 import '../models/sms_message.dart';
 import '../models/app_transaction.dart';
+
+String? _activeGeofenceId;
 
 @pragma('vm:entry-point')
 void onBackgroundServiceStart(ServiceInstance service) async {
@@ -44,6 +48,25 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 
   final repo = TransactionRepository();
 
+  final geofenceService = GeofenceService();
+
+  // 📍 Phase 5: Rehydration
+  _activeGeofenceId = await geofenceService.getActiveGeofenceId();
+  debugPrint(
+    '[Background Isolate] Rehydrated active geofence: $_activeGeofenceId',
+  );
+
+  geofenceService.onGeofenceTransition = (id, transition) async {
+    if (transition == 'DWELL') {
+      _activeGeofenceId = id;
+      _handleGeofenceDwell(id, repo, flutterLocalNotificationsPlugin);
+    } else if (transition == 'EXIT') {
+      if (_activeGeofenceId == id) {
+        _activeGeofenceId = null;
+      }
+    }
+  };
+
   NativeSmsChannel.instance.register();
 
   NativeSmsChannel.instance.smsStream.listen((sms) async {
@@ -65,8 +88,9 @@ void onBackgroundServiceStart(ServiceInstance service) async {
 Future<void> _checkBudgetThresholds(
   String category,
   BudgetRepository budgetRepo,
-  TransactionRepository txRepo,
-) async {
+  TransactionRepository txRepo, {
+  String? activeGeofenceId,
+}) async {
   final budgets = await budgetRepo.getAllBudgets();
   final budget = budgets.where((b) => b.categoryName == category).firstOrNull;
   if (budget == null) return;
@@ -96,11 +120,17 @@ Future<void> _checkBudgetThresholds(
   }
 
   if (newThreshold > lastThreshold) {
+    String? locationContext;
+    if (activeGeofenceId != null) {
+      locationContext = 'your spending hotspot';
+    }
+
     await NotificationService.instance.showBudgetNotification(
       id: budget.id.hashCode,
       category: budget.categoryName,
       percentUsed: (percentage * 100).toInt(),
       amountLeft: (budget.amountLimit - totalSpent).clamp(0, double.infinity),
+      locationContext: locationContext,
     );
 
     await budgetRepo.updateNotificationState(budget.id, newThreshold, now);
@@ -159,7 +189,12 @@ Future<void> _processIncomingSms(
     // 📍 New: Check Budget Thresholds
     if (tx.category != null) {
       final budgetRepo = BudgetRepository();
-      _checkBudgetThresholds(tx.category!, budgetRepo, repo);
+      _checkBudgetThresholds(
+        tx.category!,
+        budgetRepo,
+        repo,
+        activeGeofenceId: _activeGeofenceId,
+      );
     }
 
     try {
@@ -208,4 +243,48 @@ void _showTransactionNotification(
     body: '$amount spent at $merchant',
     notificationDetails: platformChannelSpecifics,
   );
+}
+
+Future<void> _handleGeofenceDwell(
+  String stableKey,
+  TransactionRepository repo,
+  FlutterLocalNotificationsPlugin notifications,
+) async {
+  final hotspotRepo = HotspotRepository();
+  final hotspots = await hotspotRepo.getAllHotspots();
+  final hotspot = hotspots.where((h) => h.stableKey == stableKey).firstOrNull;
+
+  if (hotspot == null) return;
+
+  // 📍 Phase 4: Cooldown logic (6 hours)
+  final now = DateTime.now();
+  if (hotspot.lastNotifiedAt != null &&
+      now.difference(hotspot.lastNotifiedAt!).inHours < 6) {
+    debugPrint('[Background Isolate] Cooldown active for hotspot $stableKey');
+    return;
+  }
+
+  // Fire notification
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+        'geocent_hotspot',
+        'Hotspots',
+        channelDescription: 'Spending hotspot alerts',
+        importance: Importance.high,
+        priority: Priority.high,
+      );
+  const NotificationDetails platformChannelSpecifics = NotificationDetails(
+    android: androidPlatformChannelSpecifics,
+  );
+
+  await notifications.show(
+    id: stableKey.hashCode,
+    title: 'Spending Alert',
+    body:
+        "You've spent an average of Ksh ${hotspot.avgSpend.toStringAsFixed(0)} in this area.",
+    notificationDetails: platformChannelSpecifics,
+  );
+
+  // Update cooldown
+  await hotspotRepo.updateLastNotified(stableKey, now);
 }

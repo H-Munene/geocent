@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
+import '../utils/lottie_files.dart';
+import 'empty_state_widget.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
 import 'custom_toast.dart';
@@ -119,30 +121,9 @@ class _CategoryMessagesSheetState extends State<CategoryMessagesSheet> {
               const SizedBox(height: 8),
               Expanded(
                 child: widget.results.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                CupertinoIcons.square_list,
-                                size: 48,
-                                color: CupertinoColors.systemGrey4,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No messages under "${widget.categoryName}"',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: CupertinoColors.systemGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    ? EmptyStateWidget(
+                        animationPath: emptyLottieAnimation,
+                        message: 'No messages under "${widget.categoryName}"',
                       )
                     : ListView.builder(
                         controller: scrollController,

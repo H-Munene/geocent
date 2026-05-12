@@ -1,114 +1,82 @@
-// THIS FILE IS DECOMMISSIONED
-// The Hotspot feature has been removed.
-// You can safely delete this file.
-/*
 import 'package:geocent/database_helper.dart';
 import 'package:geocent/models/hotspot.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:sqflite/sqflite.dart';
 
 class HotspotRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
 
-  Future<void> batchInsertHotspots(List<Hotspot> hotspots) async {
+  Future<void> saveHotspots(List<Hotspot> hotspots) async {
     final db = await _db.database;
-    final batch = db.batch();
+    await db.transaction((txn) async {
+      // Get all current stable keys to see what to delete later if needed
+      // Or just use ConflictAlgorithm.replace if stable_key is UNIQUE.
+      // But stable_key is not the PRIMARY KEY (id is).
 
-    for (final hotspot in hotspots) {
-      batch.insert(
-        DatabaseHelper.tableCachedHotspots,
-        hotspot.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
-    }
+      for (final hotspot in hotspots) {
+        // Check if exists by stable_key to preserve last_notified_at
+        final existing = await txn.query(
+          DatabaseHelper.tableHotspots,
+          where: '${DatabaseHelper.colStableKey} = ?',
+          whereArgs: [hotspot.stableKey],
+          limit: 1,
+        );
 
-    await batch.commit(noResult: true);
-  }
+        DateTime? lastNotifiedAt = hotspot.lastNotifiedAt;
+        if (existing.isNotEmpty) {
+          final String? lnAt =
+              existing.first[DatabaseHelper.colLastNotifiedAt] as String?;
+          if (lnAt != null) {
+            lastNotifiedAt = DateTime.parse(lnAt);
+          }
 
-  Future<void> updateSyncMetadata(double lat, double lon) async {
-    final db = await _db.database;
-    await db.insert(
-      DatabaseHelper.tableSyncMetadata,
-      {
-        DatabaseHelper.colId: 1,
-        DatabaseHelper.colLastSyncLat: lat,
-        DatabaseHelper.colLastSyncLon: lon,
-        DatabaseHelper.colLastSyncTimestamp: DateTime.now().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-  }
-
-  Future<SyncMetadata?> getSyncMetadata() async {
-    final rows = await _db.rawQuery(
-      DatabaseHelper.tableSyncMetadata,
-      where: '${DatabaseHelper.colId} = ?',
-      whereArgs: [1],
-    );
-
-    if (rows.isEmpty) return null;
-
-    final row = rows.first;
-    return SyncMetadata(
-      lastSyncLat: (row[DatabaseHelper.colLastSyncLat] as num).toDouble(),
-      lastSyncLon: (row[DatabaseHelper.colLastSyncLon] as num).toDouble(),
-      lastSyncTimestamp: DateTime.parse(
-        row[DatabaseHelper.colLastSyncTimestamp] as String,
-      ),
-    );
-  }
-
-  Future<List<Hotspot>> getNearbyHotspots(
-    double lat,
-    double lon, {
-    double radiusInMeters = 150,
-  }) async {
-    // 1. Calculate Bounding Box (Fast SQLite Pre-filter)
-    // Approx 111,000 meters per degree
-    final double latDelta = radiusInMeters / 111000.0;
-    // Nairobi is near equator, so lonDelta is similar.
-    final double lonDelta = radiusInMeters / 111000.0;
-
-    final double minLat = lat - latDelta;
-    final double maxLat = lat + latDelta;
-    final double minLon = lon - lonDelta;
-    final double maxLon = lon + lonDelta;
-
-    final List<Map<String, dynamic>> candidateRows = await _db.rawQuery(
-      DatabaseHelper.tableCachedHotspots,
-      where:
-          '${DatabaseHelper.colLatitude} BETWEEN ? AND ? AND '
-          '${DatabaseHelper.colLongitude} BETWEEN ? AND ?',
-      whereArgs: [minLat, maxLat, minLon, maxLon],
-    );
-
-    // 2. Exact Filtering in Dart using Haversine
-    final List<Hotspot> result = [];
-    for (final row in candidateRows) {
-      final hotspot = Hotspot.fromMap(row);
-      final double distance = Geolocator.distanceBetween(
-        lat,
-        lon,
-        hotspot.latitude,
-        hotspot.longitude,
-      );
-
-      if (distance <= radiusInMeters) {
-        result.add(hotspot);
+          // Update existing
+          await txn.update(
+            DatabaseHelper.tableHotspots,
+            hotspot.copyWith(lastNotifiedAt: lastNotifiedAt).toMap(),
+            where: '${DatabaseHelper.colStableKey} = ?',
+            whereArgs: [hotspot.stableKey],
+          );
+        } else {
+          // Insert new
+          await txn.insert(
+            DatabaseHelper.tableHotspots,
+            hotspot.toMap(),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
       }
-    }
 
-    return result;
-  }
-
-  Future<void> clearAllHotspots() async {
-    final db = await _db.database;
-    await db.delete(DatabaseHelper.tableCachedHotspots);
+      // Delete orphaned hotspots that are no longer valid (e.g. user moved transactions)
+      final newStableKeys = hotspots.map((h) => h.stableKey).toList();
+      if (newStableKeys.isNotEmpty) {
+        final placeholders = List.filled(newStableKeys.length, '?').join(',');
+        await txn.delete(
+          DatabaseHelper.tableHotspots,
+          where: '${DatabaseHelper.colStableKey} NOT IN ($placeholders)',
+          whereArgs: newStableKeys,
+        );
+      } else {
+        await txn.delete(DatabaseHelper.tableHotspots);
+      }
+    });
   }
 
   Future<List<Hotspot>> getAllHotspots() async {
-    final rows = await _db.rawQuery(DatabaseHelper.tableCachedHotspots);
+    final rows = await _db.rawQuery(DatabaseHelper.tableHotspots);
     return rows.map((row) => Hotspot.fromMap(row)).toList();
   }
+
+  Future<void> updateLastNotified(String stableKey, DateTime at) async {
+    await _db.rawUpdate(
+      DatabaseHelper.tableHotspots,
+      {DatabaseHelper.colLastNotifiedAt: at.toIso8601String()},
+      '${DatabaseHelper.colStableKey} = ?',
+      [stableKey],
+    );
+  }
+
+  Future<void> deleteAll() async {
+    final db = await _db.database;
+    await db.delete(DatabaseHelper.tableHotspots);
+  }
 }
-*/

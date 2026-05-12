@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
+import '../utils/lottie_files.dart';
+import 'empty_state_widget.dart';
 import '../models/app_transaction.dart';
 import '../services/spending_service.dart';
 import 'custom_toast.dart';
@@ -196,30 +198,9 @@ class _SearchMessagesSheetState extends State<SearchMessagesSheet> {
               const SizedBox(height: 8),
               Expanded(
                 child: widget.results.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(32),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                CupertinoIcons.search,
-                                size: 48,
-                                color: CupertinoColors.systemGrey4,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'No Results for "${widget.query}"',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.spaceGrotesk(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  color: CupertinoColors.systemGrey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                    ? EmptyStateWidget(
+                        animationPath: emptyLottieAnimation,
+                        message: 'No Results for "${widget.query}"',
                       )
                     : ListView.builder(
                         controller: scrollController,

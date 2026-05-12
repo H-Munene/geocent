@@ -30,6 +30,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
           .where((b) => b.period == period.toLowerCase())
           .length;
       final isSelected = _selectedPeriod == period;
+      final isExceeded = budgetService.isPeriodExceeded(period);
 
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -42,7 +43,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemGreen,
+                  color: isExceeded
+                      ? CupertinoColors.systemRed
+                      : CupertinoColors.systemGreen,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(

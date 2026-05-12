@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +15,11 @@ import 'package:flutter_popup/flutter_popup.dart';
 import '../models/call_out_result.dart';
 import '../models/map_place.dart';
 import '../models/app_transaction.dart';
+import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
+import '../services/geofence_service.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/timeline_sheet.dart';
 import '../widgets/category_messages_sheet.dart';
@@ -45,6 +48,8 @@ class _MapScreenState extends State<MapScreen>
   mp.MapboxMap? mapboxMapController;
   StreamSubscription? userPositionStream;
   StreamSubscription? _bgServiceSub;
+  gl.Position? _lastGeofenceRegistrationPoint;
+  final GeofenceService _geofenceService = GeofenceService();
 
   int _annotationUpdateVersion = 0;
   String _currentMapStyle = mp.MapboxStyles.STANDARD;
@@ -122,6 +127,7 @@ class _MapScreenState extends State<MapScreen>
     // Remove listener to prevent memory leaks
     final spending = Provider.of<SpendingService>(context, listen: false);
     spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_refreshHotspots);
     spending.removeListener(_handleSelectedTransaction);
 
     super.dispose();
@@ -442,6 +448,49 @@ class _MapScreenState extends State<MapScreen>
                 ),
               ),
             ),
+          if (!spending.isHotspotDataSufficient)
+            Positioned(
+              bottom: 120,
+              left: 16,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.white.withAlpha(230),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: CupertinoColors.systemGrey.withAlpha(50),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  children: [
+                    Icon(
+                      CupertinoIcons.info_circle_fill,
+                      color: Color(0xFF0071E3),
+                      size: 20,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'GeoCent will start identifying your spending patterns after a few more transactions.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF1D1D1F),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -455,6 +504,7 @@ class _MapScreenState extends State<MapScreen>
         ),
       );
       if (!mounted) return;
+      _checkGeofenceRegistration(position);
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
           zoom: 17,
@@ -471,6 +521,57 @@ class _MapScreenState extends State<MapScreen>
 
   // ── Location tracking ──────────────────────────────────────────────────────
 
+  void _checkGeofenceRegistration(gl.Position currentPosition) {
+    if (_lastGeofenceRegistrationPoint == null) {
+      _registerGeofences(currentPosition);
+      return;
+    }
+
+    final distance = gl.Geolocator.distanceBetween(
+      _lastGeofenceRegistrationPoint!.latitude,
+      _lastGeofenceRegistrationPoint!.longitude,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    // Re-registration rule: moves more than 2km from the last registration point
+    if (distance > 2000) {
+      _registerGeofences(currentPosition);
+    }
+  }
+
+  void _registerGeofences(gl.Position pivot) {
+    _lastGeofenceRegistrationPoint = pivot;
+    if (!mounted) return;
+    final spending = context.read<SpendingService>();
+    final hotspots = List<Hotspot>.from(spending.hotspots);
+
+    if (hotspots.isEmpty) return;
+
+    // Sort by distance to pivot and take top 100 to stay within Android limits
+    hotspots.sort((a, b) {
+      final distA = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        a.latitude,
+        a.longitude,
+      );
+      final distB = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        b.latitude,
+        b.longitude,
+      );
+      return distA.compareTo(distB);
+    });
+
+    final nearestHotspots = hotspots.take(100).toList();
+    _geofenceService.registerHotspots(nearestHotspots);
+    debugPrint(
+      '[MapScreen] Registered ${nearestHotspots.length} hotspots near user',
+    );
+  }
+
   Future<void> _positionTracking() async {
     final bool serviceEnabled = await gl.Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
@@ -486,20 +587,21 @@ class _MapScreenState extends State<MapScreen>
             distanceFilter: 50,
           ),
         ).listen((gl.Position? position) {
-          if (position != null &&
-              mapboxMapController != null &&
-              !_isAnimating) {
-            mapboxMapController?.setCamera(
-              mp.CameraOptions(
-                zoom: 17,
-                center: mp.Point(
-                  coordinates: mp.Position(
-                    position.longitude,
-                    position.latitude,
+          if (position != null) {
+            _checkGeofenceRegistration(position);
+            if (mapboxMapController != null && !_isAnimating) {
+              mapboxMapController?.setCamera(
+                mp.CameraOptions(
+                  zoom: 17,
+                  center: mp.Point(
+                    coordinates: mp.Position(
+                      position.longitude,
+                      position.latitude,
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
+            }
           }
         });
   }
@@ -519,6 +621,7 @@ class _MapScreenState extends State<MapScreen>
             if (mounted) {
               _applyStyleLayerExpressions();
               _refreshAnnotations();
+              _refreshHotspots();
             }
           });
         },
@@ -701,7 +804,150 @@ class _MapScreenState extends State<MapScreen>
     await _smsService!.init();
 
     spending.addListener(_refreshAnnotations);
+    spending.addListener(_refreshHotspots);
     _refreshAnnotations();
+    _refreshHotspots();
+  }
+
+  Future<void> _refreshHotspots() async {
+    if (mapboxMapController == null) return;
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+    final hotspots = spending.hotspots;
+
+    // Use try-catch to avoid breaking the UI if style operations fail
+    try {
+      if (hotspots.isEmpty) {
+        if (await mapboxMapController!.style.styleLayerExists(
+          'hotspots-heatmap',
+        )) {
+          await mapboxMapController!.style.removeStyleLayer('hotspots-heatmap');
+        }
+        if (await mapboxMapController!.style.styleSourceExists(
+          'hotspots-source',
+        )) {
+          await mapboxMapController!.style.removeStyleSource('hotspots-source');
+        }
+        return;
+      }
+
+      final geojson = {
+        'type': 'FeatureCollection',
+        'features': hotspots
+            .map(
+              (h) => {
+                'type': 'Feature',
+                'properties': {
+                  'avg_spend': h.avgSpend,
+                  'total_spend': h.totalSpend,
+                },
+                'geometry': {
+                  'type': 'Point',
+                  'coordinates': [h.longitude, h.latitude],
+                },
+              },
+            )
+            .toList(),
+      };
+
+      // Ensure we remove the layer before removing the source if we were to recreate them,
+      // but here we'll try to update if possible.
+      if (await mapboxMapController!.style.styleSourceExists(
+        'hotspots-source',
+      )) {
+        // Correct way to update GeoJSON data in Mapbox
+        await mapboxMapController!.style.setStyleSourceProperty(
+          'hotspots-source',
+          'data',
+          jsonEncode(geojson),
+        );
+      } else {
+        await mapboxMapController!.style.addSource(
+          mp.GeoJsonSource(id: 'hotspots-source', data: jsonEncode(geojson)),
+        );
+      }
+
+      if (!await mapboxMapController!.style.styleLayerExists(
+        'hotspots-heatmap',
+      )) {
+        // Create heatmap layer with defaults
+        final heatmapLayer = mp.HeatmapLayer(
+          id: 'hotspots-heatmap',
+          sourceId: 'hotspots-source',
+        );
+
+        // Insert below the annotation layers
+        await mapboxMapController!.style.addLayer(heatmapLayer);
+
+        // Configure heatmap styling using expressions via setStyleLayerProperty
+        await mapboxMapController!.style.setStyleLayerProperty(
+          'hotspots-heatmap',
+          'heatmap-intensity',
+          [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0,
+            1,
+            9,
+            3,
+          ],
+        );
+
+        await mapboxMapController!.style.setStyleLayerProperty(
+          'hotspots-heatmap',
+          'heatmap-color',
+          [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0,
+            'rgba(33,102,172,0)',
+            0.2,
+            'rgb(103,169,207)',
+            0.4,
+            'rgb(209,229,240)',
+            0.6,
+            'rgb(253,219,199)',
+            0.8,
+            'rgb(239,138,98)',
+            1,
+            'rgb(178,24,43)',
+          ],
+        );
+
+        await mapboxMapController!.style.setStyleLayerProperty(
+          'hotspots-heatmap',
+          'heatmap-radius',
+          [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            0,
+            2,
+            9,
+            20,
+          ],
+        );
+
+        await mapboxMapController!.style.setStyleLayerProperty(
+          'hotspots-heatmap',
+          'heatmap-opacity',
+          [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            7,
+            1,
+            9,
+            0.6,
+          ],
+        );
+      }
+    } catch (e) {
+      debugPrint('[MapScreen] Failed to refresh hotspots: $e');
+    }
   }
 
   void _onMarkerTapped(String annotationId, mp.Point geometry) async {
