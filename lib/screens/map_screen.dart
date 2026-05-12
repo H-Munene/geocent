@@ -29,6 +29,7 @@ import '../widgets/map/map_category_filters.dart';
 import '../widgets/map/map_search_header.dart';
 import '../widgets/map/grouped_transactions_sheet.dart';
 import '../widgets/map/transaction_popup_content.dart';
+import '../widgets/custom_toast.dart';
 import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
@@ -448,49 +449,6 @@ class _MapScreenState extends State<MapScreen>
                 ),
               ),
             ),
-          if (!spending.isHotspotDataSufficient)
-            Positioned(
-              bottom: 120,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: CupertinoColors.white.withAlpha(230),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: CupertinoColors.systemGrey.withAlpha(50),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: const Row(
-                  children: [
-                    Icon(
-                      CupertinoIcons.info_circle_fill,
-                      color: Color(0xFF0071E3),
-                      size: 20,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'GeoCent will start identifying your spending patterns after a few more transactions.',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF1D1D1F),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -815,6 +773,10 @@ class _MapScreenState extends State<MapScreen>
 
     final spending = context.read<SpendingService>();
     final hotspots = spending.hotspots;
+
+    if (!spending.isHotspotDataSufficient) {
+      _showHotspotDataNotification();
+    }
 
     // Use try-catch to avoid breaking the UI if style operations fail
     try {
@@ -1179,6 +1141,12 @@ class _MapScreenState extends State<MapScreen>
       await _updateAnnotationPriority();
       _popupKey.currentState?.show();
     }
+  }
+
+  void _showHotspotDataNotification() {
+    showCustomToast(
+      'GeoCent will start identifying your spending patterns after a few more transactions.',
+    );
   }
 
   double _getSortKey(MapPlace place) {

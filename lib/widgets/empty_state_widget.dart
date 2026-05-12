@@ -24,7 +24,7 @@ class EmptyStateWidget extends StatelessWidget {
 
     // We reduce the layout height of the animation container to pull the text closer.
     // This allows the Center widget to accurately center the combined Lottie + Text group.
-    final double layoutHeight = animationSize - (isDoneAnimation ? 30 : 20);
+    final double layoutHeight = animationSize - (isDoneAnimation ? 25 : 20);
 
     return Center(
       child: Column(
@@ -44,18 +44,26 @@ class EmptyStateWidget extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: GoogleFonts.spaceGrotesk(
-              color: CupertinoColors.systemGrey,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeIn,
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    color: CupertinoColors.systemGrey,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              );
+            },
           ),
           // Add a small spacer at the bottom to balance the visual weight
-          // if the animation still feels top-heavy.
           const SizedBox(height: 20),
         ],
       ),
