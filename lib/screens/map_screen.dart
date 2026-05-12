@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -794,20 +795,26 @@ class _MapScreenState extends State<MapScreen>
         return;
       }
 
+      final now = DateTime.now();
       final geojson = {
         'type': 'FeatureCollection',
-        'features': transactions
-            .map(
-              (tx) => {
-                'type': 'Feature',
-                'properties': {'amount': tx.amount},
-                'geometry': {
-                  'type': 'Point',
-                  'coordinates': [tx.longitude, tx.latitude],
-                },
-              },
-            )
-            .toList(),
+        'features': transactions.map((tx) {
+          final daysAgo = now.difference(tx.timestamp).inDays;
+          // lambda = 0.02 -> weight halves roughly every 35 days
+          final decayedAmount = tx.amount * math.exp(-0.02 * daysAgo);
+
+          return {
+            'type': 'Feature',
+            'properties': {
+              'amount': tx.amount,
+              'decayed_amount': decayedAmount,
+            },
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [tx.longitude, tx.latitude],
+            },
+          };
+        }).toList(),
       };
 
       // Ensure we remove the layer before removing the source if we were to recreate them,
@@ -907,14 +914,14 @@ class _MapScreenState extends State<MapScreen>
         ],
       );
 
-      // Add heatmap-weight based on amount
+      // Add heatmap-weight based on decayed amount
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-weight',
         [
           'interpolate',
           ['linear'],
-          ['get', 'amount'],
+          ['get', 'decayed_amount'],
           0,
           0.1, // Minimum weight so even small transactions contribute
           500,
