@@ -913,13 +913,13 @@ class _MapScreenState extends State<MapScreen>
           ['linear'],
           ['zoom'],
           10,
-          20,
+          10,
           13,
-          60,
+          30,
           15,
-          120,
+          60,
           17,
-          240,
+          100,
         ],
       );
 
@@ -932,11 +932,13 @@ class _MapScreenState extends State<MapScreen>
           ['linear'],
           ['get', 'decayed_amount'],
           0,
-          0.1, // Minimum weight so even small transactions contribute
+          0.01, // Tiny transactions have negligible visual weight
           500,
-          0.5,
+          0.2,
           2000,
-          1.0,
+          0.5,
+          5000,
+          1.0, // High-value transactions get maximum weight
         ],
       );
 
