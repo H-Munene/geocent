@@ -7,6 +7,7 @@ import '../widgets/analytics/analytics_header.dart';
 import '../widgets/analytics/analytics_chart.dart';
 import '../widgets/analytics/analytics_legend.dart';
 import '../widgets/analytics/analytics_list_tile.dart';
+import '../widgets/analytics/grouped_transactions_list.dart';
 import '../widgets/analytics/quick_insights_carousel.dart';
 import '../widgets/analytics/analytics_selector_modal.dart';
 
@@ -306,10 +307,6 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       }
     }
 
-    final listItems = _selectedSegment == 0
-        ? spendingService.categoryAnalyticsItems
-        : spendingService.recipientAnalyticsItems;
-
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFF9F9FB),
       navigationBar: CupertinoNavigationBar(
@@ -324,123 +321,163 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       ),
       child: SafeArea(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // 0. Quick Insights
-            const SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(top: 16, bottom: 8),
-                child: QuickInsightsCarousel(),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification scrollInfo) {
+            if (_selectedSegment == 1 &&
+                !spendingService.isAnalyticsLoading &&
+                spendingService.analyticsHasMore &&
+                scrollInfo.metrics.pixels >=
+                    scrollInfo.metrics.maxScrollExtent - 400) {
+              spendingService.fetchAnalyticsTransactions();
+            }
+            return false;
+          },
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+              // 0. Quick Insights
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 16, bottom: 8),
+                  child: QuickInsightsCarousel(),
+                ),
               ),
-            ),
 
-            // 1. Chart Section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Date Selector moved from App Bar
-                    Center(
-                      child: GestureDetector(
-                        onTap: () => _showDateRangePicker(context),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              spendingService.weekDateRange,
-                              style: GoogleFonts.spaceGrotesk(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 18,
-                                color: CupertinoColors.label,
+              // 1. Chart Section
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Date Selector moved from App Bar
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => _showDateRangePicker(context),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                spendingService.weekDateRange,
+                                style: GoogleFonts.spaceGrotesk(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 18,
+                                  color: CupertinoColors.label,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(
-                              CupertinoIcons.chevron_down,
-                              size: 14,
-                              color: CupertinoColors.systemGrey,
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              const Icon(
+                                CupertinoIcons.chevron_down,
+                                size: 14,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    AnalyticsHeader(
-                      spentThisWeek:
-                          'KES ${spendingService.spentThisWeek.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}',
-                      trendPercentage:
-                          '${spendingService.weeklyTrendPercentage.toInt()}%',
-                      isTrendPositive: spendingService.isSpendingIncreased,
-                      selectedChartType: _selectedChartType,
-                      rangeMode: spendingService.analyticsRangeMode,
-                      onChartTypeChanged: (type) {
-                        setState(() {
-                          _selectedChartType = type;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 32),
-                    AnalyticsChart(
-                      key: ValueKey(
-                        "${spendingService.tabSwitchCount}_${spendingService.weekDateRange}_$_selectedChartType",
+                      const SizedBox(height: 16),
+                      AnalyticsHeader(
+                        spentThisWeek:
+                            'KES ${spendingService.spentThisWeek.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}',
+                        trendPercentage:
+                            '${spendingService.weeklyTrendPercentage.toInt()}%',
+                        isTrendPositive: spendingService.isSpendingIncreased,
+                        selectedChartType: _selectedChartType,
+                        rangeMode: spendingService.analyticsRangeMode,
+                        onChartTypeChanged: (type) {
+                          setState(() {
+                            _selectedChartType = type;
+                          });
+                        },
                       ),
-                      data: spendingService.weeklyAnalytics,
-                      categoryColors: categoryColors,
-                      unmappedColor: unmappedColor,
-                      dateRange: spendingService.weekDateRange,
-                      chartType: _selectedChartType,
-                    ),
-                    const SizedBox(height: 24),
-                    AnalyticsLegend(
-                      categoryColors: categoryColors,
-                      unmappedColor: unmappedColor,
-                    ),
-                  ],
+                      const SizedBox(height: 32),
+                      AnalyticsChart(
+                        key: ValueKey(
+                          "${spendingService.tabSwitchCount}_${spendingService.weekDateRange}_$_selectedChartType",
+                        ),
+                        data: spendingService.weeklyAnalytics,
+                        categoryColors: categoryColors,
+                        unmappedColor: unmappedColor,
+                        dateRange: spendingService.weekDateRange,
+                        chartType: _selectedChartType,
+                      ),
+                      const SizedBox(height: 24),
+                      AnalyticsLegend(
+                        categoryColors: categoryColors,
+                        unmappedColor: unmappedColor,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
 
-            // 2. Sticky Header (Segmented Control)
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickySegmentedHeaderDelegate(
-                child: _PremiumSegmentedControl(
-                  selectedValue: _selectedSegment,
-                  onValueChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedSegment = value;
-                      });
-                    }
-                  },
+              // 2. Sticky Header (Segmented Control)
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickySegmentedHeaderDelegate(
+                  child: _PremiumSegmentedControl(
+                    selectedValue: _selectedSegment,
+                    onValueChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _selectedSegment = value;
+                        });
+                      }
+                    },
+                  ),
                 ),
               ),
-            ),
 
-            // 3. List Section
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final item = listItems[index];
-                  return AnalyticsListTile(
-                    item: item,
-                    categoryColor: item.category != null
-                        ? spendingService.getCategoryColor(item.category!)
-                        : unmappedColor,
-                  );
-                }, childCount: listItems.length),
+              // 3. List Section
+              if (_selectedSegment == 0)
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final item =
+                            spendingService.categoryAnalyticsItems[index];
+                        return AnalyticsListTile(
+                          item: item,
+                          categoryColor: item.category != null
+                              ? spendingService.getCategoryColor(item.category!)
+                              : unmappedColor,
+                        );
+                      },
+                      childCount: spendingService.categoryAnalyticsItems.length,
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  sliver: GroupedTransactionsList(
+                    transactions: spendingService.analyticsTransactions,
+                  ),
+                ),
+
+              // 4. Loading Indicator for Pagination
+              if (_selectedSegment == 1 && spendingService.isAnalyticsLoading)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(child: CupertinoActivityIndicator()),
+                  ),
+                ),
+
+              // Ensure the list section always fills the remaining space so the header stays pinned
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: SizedBox(height: 32),
               ),
-            ),
-            // Ensure the list section always fills the remaining space so the header stays pinned
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: SizedBox(height: 32),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -507,7 +544,7 @@ class _PremiumSegmentedControl extends StatelessWidget {
         groupValue: selectedValue,
         children: {
           0: _buildSegment("By Category", selectedValue == 0),
-          1: _buildSegment("By Recipient", selectedValue == 1),
+          1: _buildSegment("Transactions", selectedValue == 1),
         },
         onValueChanged: onValueChanged,
       ),

@@ -55,6 +55,12 @@ class SpendingService extends ChangeNotifier {
   List<SpendingInsight> _insights = []; // Add this
   QuickInsightsData _quickInsightsData = QuickInsightsData.empty();
 
+  // Paginated Analytics Transactions
+  List<AppTransaction> _analyticsTransactions = [];
+  int _analyticsCurrentPage = 0;
+  bool _analyticsHasMore = true;
+  bool _isAnalyticsLoading = false;
+
   // Selection state for dynamic analytics
   DateTime? _customAnalyticsStart;
   DateTime? _customAnalyticsEnd;
@@ -158,6 +164,9 @@ class SpendingService extends ChangeNotifier {
   List<SpendingInsight> get insights => _insights;
   QuickInsightsData get quickInsightsData => _quickInsightsData;
   AnalyticsRangeMode get analyticsRangeMode => _analyticsRangeMode;
+  List<AppTransaction> get analyticsTransactions => _analyticsTransactions;
+  bool get analyticsHasMore => _analyticsHasMore;
+  bool get isAnalyticsLoading => _isAnalyticsLoading;
 
   Color getCategoryColor(String name) {
     return _categoryColors[name] ?? CupertinoColors.systemGrey2;
@@ -895,6 +904,67 @@ class SpendingService extends ChangeNotifier {
       trends: trends,
       monthly: monthly,
     );
+
+    await fetchAnalyticsTransactions(refresh: true);
+  }
+
+  Future<void> fetchAnalyticsTransactions({bool refresh = false}) async {
+    if (_isAnalyticsLoading) return;
+    if (!refresh && !_analyticsHasMore) return;
+
+    _isAnalyticsLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _analyticsCurrentPage = 0;
+      _analyticsTransactions = [];
+      _analyticsHasMore = true;
+    }
+
+    try {
+      DateTime start;
+      DateTime end;
+
+      if (_customAnalyticsStart != null && _customAnalyticsEnd != null) {
+        start = _customAnalyticsStart!;
+        end = _customAnalyticsEnd!;
+      } else {
+        final now = DateTime.now();
+        // Sunday of the current week (local time)
+        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+        start = DateTime(
+          startOfCurrentWeek.year,
+          startOfCurrentWeek.month,
+          startOfCurrentWeek.day,
+        );
+        // End of the week (Saturday)
+        end = start.add(
+          const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+        );
+      }
+
+      final newTxs = await _repo.getTransactionsByDateRange(
+        start: start,
+        end: end,
+        limit: _pageSize,
+        offset: _analyticsCurrentPage * _pageSize,
+      );
+
+      if (newTxs.length < _pageSize) {
+        _analyticsHasMore = false;
+      }
+
+      _analyticsTransactions.addAll(newTxs);
+      _analyticsCurrentPage++;
+    } catch (e) {
+      debugPrint(
+        '[SpendingService] Failed to fetch analytics transactions: $e',
+      );
+    } finally {
+      _isAnalyticsLoading = false;
+      notifyListeners();
+    }
   }
 
   String _getInitials(String name) {

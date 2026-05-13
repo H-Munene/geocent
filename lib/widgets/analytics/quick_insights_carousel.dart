@@ -95,7 +95,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
               children: [
                 // Primary Container
                 Expanded(
-                  flex: 3,
+                  flex: 2,
                   child: _buildPrimaryBox(
                     data.primary[_indexPrimary % data.primary.length],
                   ),
@@ -327,7 +327,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
               "Trend ${item.periodLabel}",
               style: GoogleFonts.spaceGrotesk(
                 color: CupertinoColors.systemGrey,
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -408,7 +408,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
               "Spent on ${item.monthName}",
               style: GoogleFonts.spaceGrotesk(
                 color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -416,7 +416,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
               "KES ${item.amount.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}",
               style: GoogleFonts.spaceGrotesk(
                 color: Colors.white,
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: FontWeight.w700,
               ),
             ),
