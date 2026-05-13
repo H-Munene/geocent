@@ -7,6 +7,8 @@ import '../widgets/analytics/analytics_header.dart';
 import '../widgets/analytics/analytics_chart.dart';
 import '../widgets/analytics/analytics_legend.dart';
 import '../widgets/analytics/analytics_list_tile.dart';
+import '../widgets/analytics/quick_insights_carousel.dart';
+import '../widgets/analytics/analytics_selector_modal.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -17,6 +19,277 @@ class AnalyticsScreen extends StatefulWidget {
 
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _selectedSegment = 0; // 0: By Category, 1: By Recipient
+  String _selectedChartType = 'Bar';
+
+  void _showDateRangePicker(BuildContext context) {
+    final spendingService = context.read<SpendingService>();
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (modalContext) => AnalyticsSelectorModal(
+        title: 'Select Range',
+        children: [
+          SelectorOption(
+            label: 'This Week',
+            isActive:
+                spendingService.analyticsRangeMode == AnalyticsRangeMode.week,
+            onTap: () {
+              Navigator.pop(modalContext);
+              _handleThisWeekSelection(spendingService);
+            },
+          ),
+          SelectorOption(
+            label: 'This Month',
+            isActive:
+                spendingService.analyticsRangeMode == AnalyticsRangeMode.month,
+            onTap: () {
+              Navigator.pop(modalContext);
+              _handleThisMonthSelection(spendingService);
+            },
+          ),
+          SelectorOption(
+            label: 'This Year',
+            isActive:
+                spendingService.analyticsRangeMode == AnalyticsRangeMode.year,
+            onTap: () {
+              Navigator.pop(modalContext);
+              _handleThisYearSelection(spendingService);
+            },
+          ),
+          SelectorOption(
+            label: 'Custom',
+            isActive: false,
+            onTap: () {
+              Navigator.pop(modalContext);
+              _showCustomRangeOptions(context, spendingService);
+            },
+            trailing: const Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleThisWeekSelection(SpendingService service) {
+    // Sunday of the current week (local time)
+    final now = DateTime.now();
+    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+    final start = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: daysToSubtract));
+    final end = start.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    service.setAnalyticsRange(
+      start: start,
+      end: end,
+      label: null,
+      mode: AnalyticsRangeMode.week,
+    );
+  }
+
+  void _handleThisMonthSelection(SpendingService service) {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+    service.setAnalyticsRange(
+      start: start,
+      end: end,
+      label: "${_getMonthNameFull(now.month)} ${now.year}",
+      mode: AnalyticsRangeMode.month,
+    );
+    _ensureValidChartType(AnalyticsRangeMode.month);
+  }
+
+  void _handleThisYearSelection(SpendingService service) {
+    final now = DateTime.now();
+    final start = DateTime(now.year, 1, 1);
+    final end = DateTime(now.year, 12, 31, 23, 59, 59);
+
+    service.setAnalyticsRange(
+      start: start,
+      end: end,
+      label: "${now.year}",
+      mode: AnalyticsRangeMode.year,
+    );
+    _ensureValidChartType(AnalyticsRangeMode.year);
+  }
+
+  void _ensureValidChartType(AnalyticsRangeMode mode) {
+    if ((mode == AnalyticsRangeMode.month || mode == AnalyticsRangeMode.year) &&
+        _selectedChartType == 'Bar') {
+      setState(() {
+        _selectedChartType = 'Line';
+      });
+    }
+  }
+
+  void _showCustomRangeOptions(BuildContext context, SpendingService service) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (modalContext) => AnalyticsSelectorModal(
+        title: 'Custom Range',
+        children: [
+          SelectorOption(
+            label: 'By Month',
+            onTap: () {
+              Navigator.pop(modalContext);
+              _showMonthPicker(context, service);
+            },
+            trailing: const Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey,
+            ),
+          ),
+          SelectorOption(
+            label: 'By Year',
+            onTap: () {
+              Navigator.pop(modalContext);
+              _showYearPicker(context, service);
+            },
+            trailing: const Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: CupertinoColors.systemGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMonthPicker(BuildContext context, SpendingService service) {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 250,
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        child: Column(
+          children: [
+            _buildPickerHeader(context, onDone: () => Navigator.pop(context)),
+            Expanded(
+              child: CupertinoDatePicker(
+                mode: CupertinoDatePickerMode.monthYear,
+                initialDateTime: DateTime.now(),
+                onDateTimeChanged: (DateTime date) {
+                  final start = DateTime(date.year, date.month, 1);
+                  final end = DateTime(
+                    date.year,
+                    date.month + 1,
+                    0,
+                    23,
+                    59,
+                    59,
+                  );
+                  service.setAnalyticsRange(
+                    start: start,
+                    end: end,
+                    label: "${_getMonthNameFull(date.month)} ${date.year}",
+                    mode: AnalyticsRangeMode.month,
+                  );
+                  _ensureValidChartType(AnalyticsRangeMode.month);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showYearPicker(BuildContext context, SpendingService service) {
+    final currentYear = DateTime.now().year;
+    final years = List.generate(10, (index) => currentYear - index);
+    int selectedYear = currentYear;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => Container(
+        height: 250,
+        color: CupertinoColors.systemBackground.resolveFrom(context),
+        child: Column(
+          children: [
+            _buildPickerHeader(
+              context,
+              onDone: () {
+                final start = DateTime(selectedYear, 1, 1);
+                final end = DateTime(selectedYear, 12, 31, 23, 59, 59);
+                service.setAnalyticsRange(
+                  start: start,
+                  end: end,
+                  label: "$selectedYear",
+                  mode: AnalyticsRangeMode.year,
+                );
+                _ensureValidChartType(AnalyticsRangeMode.year);
+                Navigator.pop(context);
+              },
+            ),
+            Expanded(
+              child: CupertinoPicker(
+                itemExtent: 32,
+                onSelectedItemChanged: (index) => selectedYear = years[index],
+                children: years.map((y) => Center(child: Text("$y"))).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPickerHeader(
+    BuildContext context, {
+    required VoidCallback onDone,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: CupertinoColors.systemGrey5)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          CupertinoButton(
+            padding: EdgeInsets.zero,
+            onPressed: onDone,
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getMonthNameFull(int month) {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    return months[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +316,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         backgroundColor: const Color(0xFFF9F9FB).withValues(alpha: 0.8),
         border: null,
         middle: Text(
-          spendingService.weekDateRange,
+          'Analytics',
           style: GoogleFonts.spaceGrotesk(
             fontWeight: FontWeight.w700,
             fontSize: 18,
@@ -54,6 +327,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
+            // 0. Quick Insights
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.only(top: 16, bottom: 8),
+                child: QuickInsightsCarousel(),
+              ),
+            ),
+
             // 1. Chart Section
             SliverToBoxAdapter(
               child: Padding(
@@ -61,20 +342,56 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Date Selector moved from App Bar
+                    Center(
+                      child: GestureDetector(
+                        onTap: () => _showDateRangePicker(context),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              spendingService.weekDateRange,
+                              style: GoogleFonts.spaceGrotesk(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18,
+                                color: CupertinoColors.label,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(
+                              CupertinoIcons.chevron_down,
+                              size: 14,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                     AnalyticsHeader(
                       spentThisWeek:
                           'KES ${spendingService.spentThisWeek.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")}',
                       trendPercentage:
                           '${spendingService.weeklyTrendPercentage.toInt()}%',
                       isTrendPositive: spendingService.isSpendingIncreased,
+                      selectedChartType: _selectedChartType,
+                      rangeMode: spendingService.analyticsRangeMode,
+                      onChartTypeChanged: (type) {
+                        setState(() {
+                          _selectedChartType = type;
+                        });
+                      },
                     ),
                     const SizedBox(height: 32),
                     AnalyticsChart(
-                      key: ValueKey(spendingService.tabSwitchCount),
+                      key: ValueKey(
+                        "${spendingService.tabSwitchCount}_${spendingService.weekDateRange}_$_selectedChartType",
+                      ),
                       data: spendingService.weeklyAnalytics,
                       categoryColors: categoryColors,
                       unmappedColor: unmappedColor,
                       dateRange: spendingService.weekDateRange,
+                      chartType: _selectedChartType,
                     ),
                     const SizedBox(height: 24),
                     AnalyticsLegend(
