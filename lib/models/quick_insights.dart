@@ -11,25 +11,29 @@ class QuickInsightCategory {
   final String categoryName;
   final double amount;
   final Color color;
-  final IconData icon;
+  final dynamic icon;
+  final String period;
 
   QuickInsightCategory({
     required this.categoryName,
     required this.amount,
     required this.color,
     required this.icon,
+    required this.period,
   });
 }
 
-class QuickInsightCounts {
-  final String period;
-  final int mapped;
-  final int categorized;
+class QuickInsightTrend {
+  final String periodLabel;
+  final String comparisonLabel;
+  final double amountDifference;
+  final bool isMore;
 
-  QuickInsightCounts({
-    required this.period,
-    required this.mapped,
-    required this.categorized,
+  QuickInsightTrend({
+    required this.periodLabel,
+    required this.comparisonLabel,
+    required this.amountDifference,
+    required this.isMore,
   });
 }
 
@@ -43,20 +47,20 @@ class QuickInsightMonthly {
 class QuickInsightsData {
   final List<QuickInsightPrimary> primary;
   final List<QuickInsightCategory> topCategories;
-  final List<QuickInsightCounts> counts;
+  final List<QuickInsightTrend> trends;
   final List<QuickInsightMonthly> monthly;
 
   QuickInsightsData({
     required this.primary,
     required this.topCategories,
-    required this.counts,
+    required this.trends,
     required this.monthly,
   });
 
   factory QuickInsightsData.empty() => QuickInsightsData(
     primary: [],
     topCategories: [],
-    counts: [],
+    trends: [],
     monthly: [],
   );
 }

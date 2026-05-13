@@ -149,48 +149,6 @@ class AnalyticsHeader extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text(
-                    'Spent ',
-                    style: GoogleFonts.spaceGrotesk(
-                      color: CupertinoColors.systemGrey,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Icon(
-                    isTrendPositive
-                        ? CupertinoIcons.arrowtriangle_up_fill
-                        : CupertinoIcons.arrowtriangle_down_fill,
-                    size: 12,
-                    color: isTrendPositive
-                        ? CupertinoColors.systemRed
-                        : CupertinoColors.activeGreen,
-                  ),
-                  Text.rich(
-                    TextSpan(
-                      style: GoogleFonts.spaceGrotesk(
-                        color: CupertinoColors.systemGrey,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      children: [
-                        TextSpan(
-                          text: '$trendPercentage ',
-                          style: TextStyle(
-                            color: isTrendPositive
-                                ? CupertinoColors.systemRed
-                                : CupertinoColors.activeGreen,
-                          ),
-                        ),
-                        const TextSpan(text: 'from last week'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),

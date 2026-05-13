@@ -784,8 +784,10 @@ class SpendingService extends ChangeNotifier {
       _repo.getCategorySpending(monthStart, monthEnd),
     ]);
 
+    final periodLabels = ['today', 'this week', 'this month'];
     final topCategories = <QuickInsightCategory>[];
-    for (var catList in topCats) {
+    for (int i = 0; i < topCats.length; i++) {
+      final catList = topCats[i];
       final top = catList.where((c) => c['category'] != 'Unmapped').firstOrNull;
       if (top != null) {
         final name = top['category'] as String;
@@ -795,41 +797,56 @@ class SpendingService extends ChangeNotifier {
             amount: (top['total_amount'] as num).toDouble(),
             color: getCategoryColor(name),
             icon: getCategoryByName(name)?.icon ?? CupertinoIcons.graph_square,
+            period: periodLabels[i],
           ),
         );
       }
     }
 
-    // Transaction Counts (Mapped & Categorized)
-    final counts = <QuickInsightCounts>[];
-    final periods = [
-      {'label': 'Today', 'start': todayStart, 'end': now},
-      {'label': 'This Week', 'start': weekStart, 'end': weekEnd},
-      {'label': 'This Month', 'start': monthStart, 'end': monthEnd},
+    // Trend Data (Comparison with previous periods)
+    final prevTodayStart = todayStart.subtract(const Duration(days: 1));
+    final prevTodayEnd = todayStart.subtract(const Duration(milliseconds: 1));
+
+    final prevWeekStart = weekStart.subtract(const Duration(days: 7));
+    final prevWeekEnd = weekStart.subtract(const Duration(milliseconds: 1));
+
+    // Previous month (1st of last month to last day of last month)
+    final prevMonthStart = DateTime(monthStart.year, monthStart.month - 1, 1);
+    final prevMonthEnd = DateTime(
+      monthStart.year,
+      monthStart.month,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    final prevTotals = await Future.wait([
+      _repo.getTotalSpending(prevTodayStart, prevTodayEnd),
+      _repo.getTotalSpending(prevWeekStart, prevWeekEnd),
+      _repo.getTotalSpending(prevMonthStart, prevMonthEnd),
+    ]);
+
+    final trends = [
+      QuickInsightTrend(
+        periodLabel: 'Today',
+        comparisonLabel: 'than yesterday',
+        amountDifference: (totals[0] - prevTotals[0]).abs(),
+        isMore: totals[0] >= prevTotals[0],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Week',
+        comparisonLabel: 'than last week',
+        amountDifference: (totals[1] - prevTotals[1]).abs(),
+        isMore: totals[1] >= prevTotals[1],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Month',
+        comparisonLabel: 'than last month',
+        amountDifference: (totals[2] - prevTotals[2]).abs(),
+        isMore: totals[2] >= prevTotals[2],
+      ),
     ];
-
-    for (var p in periods) {
-      final start = p['start'] as DateTime;
-      final end = p['end'] as DateTime;
-      // Filter _allTransactions for the given period
-      final periodTxs = _allTransactions
-          .where(
-            (t) =>
-                t.timestamp.isAfter(
-                  start.subtract(const Duration(milliseconds: 1)),
-                ) &&
-                t.timestamp.isBefore(end.add(const Duration(milliseconds: 1))),
-          )
-          .toList();
-
-      counts.add(
-        QuickInsightCounts(
-          period: p['label'] as String,
-          mapped: periodTxs.where((t) => t.latitude != null).length,
-          categorized: periodTxs.where((t) => t.category != null).length,
-        ),
-      );
-    }
 
     // Monthly Spending (Current Year)
     final monthly = <QuickInsightMonthly>[];
@@ -875,7 +892,7 @@ class SpendingService extends ChangeNotifier {
     _quickInsightsData = QuickInsightsData(
       primary: primary,
       topCategories: topCategories,
-      counts: counts,
+      trends: trends,
       monthly: monthly,
     );
   }

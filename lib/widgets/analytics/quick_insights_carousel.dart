@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:provider/provider.dart';
 import '../../services/spending_service.dart';
 import '../../models/quick_insights.dart';
@@ -17,7 +18,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
   Timer? _timer;
   int _indexPrimary = 0;
   int _indexTopCategory = 0;
-  int _indexCounts = 0;
+  int _indexTrends = 0;
   int _indexMonthly = 0;
 
   @override
@@ -55,11 +56,11 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
         });
       });
 
-      // 3. Counts (Stagger 1200ms)
+      // 3. Trends (Stagger 1200ms)
       Future.delayed(const Duration(milliseconds: 1200), () {
-        if (!mounted || data.counts.isEmpty) return;
+        if (!mounted || data.trends.isEmpty) return;
         setState(() {
-          _indexCounts = (_indexCounts + 1) % data.counts.length;
+          _indexTrends = (_indexTrends + 1) % data.trends.length;
         });
       });
 
@@ -113,7 +114,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
             ),
           ),
           const SizedBox(width: 12),
-          // Right Column (Top Category & Counts)
+          // Right Column (Top Category & Trends)
           Expanded(
             flex: 5,
             child: Column(
@@ -130,13 +131,13 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
                         ),
                 ),
                 const SizedBox(height: 12),
-                // Counts Container
+                // Trends Container
                 Expanded(
                   flex: 2,
-                  child: data.counts.isEmpty
+                  child: data.trends.isEmpty
                       ? const SizedBox.shrink()
-                      : _buildCountsBox(
-                          data.counts[_indexCounts % data.counts.length],
+                      : _buildTrendBox(
+                          data.trends[_indexTrends % data.trends.length],
                         ),
                 ),
               ],
@@ -150,6 +151,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
   Widget _buildPrimaryBox(QuickInsightPrimary item) {
     return Container(
       key: const ValueKey('primary_container'),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: const Color(0xFF0A84FF),
         borderRadius: BorderRadius.circular(5),
@@ -211,6 +213,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
   Widget _buildTopCategoryBox(QuickInsightCategory item) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 500),
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: item.color,
         borderRadius: BorderRadius.circular(5),
@@ -230,7 +233,7 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
             child: SlideTransition(
               position:
                   Tween<Offset>(
-                    begin: const Offset(0.0, 1.0),
+                    begin: const Offset(0.0, -1.0),
                     end: Offset.zero,
                   ).animate(
                     CurvedAnimation(
@@ -243,12 +246,12 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
           );
         },
         child: Column(
-          key: ValueKey(item.categoryName),
+          key: ValueKey("${item.categoryName}_${item.period}"),
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              "Highest Category",
+              "Highest category ${item.period}",
               style: GoogleFonts.spaceGrotesk(
                 color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 10,
@@ -257,7 +260,9 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
             ),
             Row(
               children: [
-                Icon(item.icon, color: Colors.white, size: 16),
+                item.icon is IconData
+                    ? Icon(item.icon as IconData, color: Colors.white, size: 16)
+                    : HugeIcon(icon: item.icon, color: Colors.white, size: 16),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
@@ -278,8 +283,9 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
     );
   }
 
-  Widget _buildCountsBox(QuickInsightCounts item) {
+  Widget _buildTrendBox(QuickInsightTrend item) {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(5),
@@ -313,47 +319,56 @@ class _QuickInsightsCarouselState extends State<QuickInsightsCarousel> {
           );
         },
         child: Column(
-          key: ValueKey(item.period),
+          key: ValueKey(item.periodLabel),
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildCountRow("Mapped", item.mapped, item.period),
-            const Divider(height: 12, color: CupertinoColors.systemGrey6),
-            _buildCountRow("Categorized", item.categorized, item.period),
+            Text(
+              "Trend ${item.periodLabel}",
+              style: GoogleFonts.spaceGrotesk(
+                color: CupertinoColors.systemGrey,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text.rich(
+              TextSpan(
+                style: GoogleFonts.spaceGrotesk(
+                  color: const Color(0xFF1D1D1F),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+                children: [
+                  const TextSpan(text: "Spent "),
+                  TextSpan(
+                    text:
+                        "KES ${item.amountDifference.toInt().toString().replaceAllMapped(RegExp(r"\B(?=(\d{3})+(?!\d))"), (m) => ",")} ",
+                    style: TextStyle(
+                      color: item.isMore
+                          ? CupertinoColors.systemRed
+                          : CupertinoColors.activeGreen,
+                    ),
+                  ),
+                  TextSpan(
+                    text:
+                        "${item.isMore ? 'more' : 'less'} ${item.comparisonLabel}",
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCountRow(String label, int count, String period) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "$label $period",
-          style: GoogleFonts.spaceGrotesk(
-            color: CupertinoColors.systemGrey,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        Text(
-          "$count",
-          style: GoogleFonts.spaceGrotesk(
-            color: const Color(0xFF1D1D1F),
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildMonthlyBox(QuickInsightMonthly item) {
     return Container(
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
-        color: const Color(0xFF0A84FF),
+        // color: const Color(0xFF0A84FF),
+        color: CupertinoColors.systemGrey,
         borderRadius: BorderRadius.circular(5),
         border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
