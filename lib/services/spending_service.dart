@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:geocent/models/category_analytics.dart';
 import 'package:geocent/models/analytics_item.dart';
 import 'package:geocent/models/spending_insight.dart';
+import 'package:geocent/models/quick_insights.dart';
 import 'package:geocent/utils/categories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geocent/services/budget_service.dart';
@@ -14,6 +15,8 @@ import '../models/daily_spending.dart';
 import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
 import '../repositories/hotspot_repository.dart';
+
+enum AnalyticsRangeMode { week, month, year }
 
 class SpendingService extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
@@ -50,6 +53,21 @@ class SpendingService extends ChangeNotifier {
   List<AnalyticsItem> _categoryAnalyticsItems = [];
   List<AnalyticsItem> _recipientAnalyticsItems = [];
   List<SpendingInsight> _insights = []; // Add this
+  QuickInsightsData _quickInsightsData = QuickInsightsData.empty();
+
+  // Paginated Analytics Transactions
+  List<AppTransaction> _analyticsTransactions = [];
+  int _analyticsCurrentPage = 0;
+  bool _analyticsHasMore = true;
+  bool _isAnalyticsLoading = false;
+
+  // Selection state for dynamic analytics
+  DateTime? _customAnalyticsStart;
+  DateTime? _customAnalyticsEnd;
+  DateTime? _customPrevStart;
+  DateTime? _customPrevEnd;
+  String? _customLabel;
+  AnalyticsRangeMode _analyticsRangeMode = AnalyticsRangeMode.week;
 
   // Pagination & Filtering state
   List<AppTransaction> _paginatedMessages = [];
@@ -144,6 +162,11 @@ class SpendingService extends ChangeNotifier {
   List<AnalyticsItem> get categoryAnalyticsItems => _categoryAnalyticsItems;
   List<AnalyticsItem> get recipientAnalyticsItems => _recipientAnalyticsItems;
   List<SpendingInsight> get insights => _insights;
+  QuickInsightsData get quickInsightsData => _quickInsightsData;
+  AnalyticsRangeMode get analyticsRangeMode => _analyticsRangeMode;
+  List<AppTransaction> get analyticsTransactions => _analyticsTransactions;
+  bool get analyticsHasMore => _analyticsHasMore;
+  bool get isAnalyticsLoading => _isAnalyticsLoading;
 
   Color getCategoryColor(String name) {
     return _categoryColors[name] ?? CupertinoColors.systemGrey2;
@@ -316,6 +339,9 @@ class SpendingService extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    // Reset custom analytics if refreshing fully? No, maybe keep it.
+    // But usually refresh is called on startup.
+
     // Map DynamicIsland period labels → DB period keys
     final String dbPeriod = _toDbPeriod(_period);
 
@@ -326,6 +352,7 @@ class SpendingService extends ChangeNotifier {
       _repo.getCategoryComparison(),
       _updateAnalytics(),
       _computeInsights(),
+      _computeQuickInsights(),
       _hotspotService.isDataSufficient(),
       _hotspotRepo.getAllHotspots(),
     ]);
@@ -335,8 +362,8 @@ class SpendingService extends ChangeNotifier {
     _categoryComparison = results[3] as List<CategoryAnalytics>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
     _allTransactions = await _repo.loadAll(); // Load all transactions
-    _isHotspotDataSufficient = results[6] as bool;
-    _hotspots = results[7] as List<Hotspot>;
+    _isHotspotDataSufficient = results[7] as bool;
+    _hotspots = results[8] as List<Hotspot>;
 
     // 📍 Upgrade Migration: If the user already has enough historical data
     // but no hotspots exist yet, run the clustering immediately on startup.
@@ -345,12 +372,6 @@ class SpendingService extends ChangeNotifier {
       _hotspots = await _hotspotRepo.getAllHotspots();
     }
 
-    // Update budget exceeded status
-
-    if (_isHotspotDataSufficient && _hotspots.isEmpty) {
-      await _hotspotService.runClustering();
-      _hotspots = await _hotspotRepo.getAllHotspots();
-    }
     // Update budget exceeded status
     await _budgetService?.updateExceededStatus();
 
@@ -361,52 +382,110 @@ class SpendingService extends ChangeNotifier {
     await fetchMessages(refresh: true);
   }
 
+  Future<void> setAnalyticsRange({
+    required DateTime start,
+    required DateTime end,
+    DateTime? prevStart,
+    DateTime? prevEnd,
+    String? label,
+    AnalyticsRangeMode mode = AnalyticsRangeMode.week,
+  }) async {
+    _customAnalyticsStart = start;
+    _customAnalyticsEnd = end;
+    _customPrevStart = prevStart;
+    _customPrevEnd = prevEnd;
+    _customLabel = label;
+    _analyticsRangeMode = mode;
+    await _updateAnalytics();
+    notifyListeners();
+  }
+
   /// Calculates weekly analytics including daily breakdown, trends, and averages.
   Future<void> _updateAnalytics() async {
     final now = DateTime.now();
-    // Sunday of the current week (local time)
-    // Dart's weekday: 1 = Mon, 7 = Sun. To start on Sun, subtract weekday % 7.
-    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-    final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-    final currentWeekStart = DateTime(
-      startOfCurrentWeek.year,
-      startOfCurrentWeek.month,
-      startOfCurrentWeek.day,
-    );
 
-    // Previous week boundaries
-    final previousWeekStart = currentWeekStart.subtract(
-      const Duration(days: 7),
-    );
-    final previousWeekEnd = currentWeekStart.subtract(
-      const Duration(milliseconds: 1),
-    );
+    DateTime currentStart;
+    DateTime currentEnd;
+    DateTime previousStart;
+    DateTime previousEnd;
 
-    // Date range string for UI (e.g., "3 May – 9 May")
-    final endOfWeek = currentWeekStart.add(const Duration(days: 6));
-    final months = [
-      "Jan",
-      "Feb",
-      "Mar",
-      "Apr",
-      "May",
-      "Jun",
-      "Jul",
-      "Aug",
-      "Sep",
-      "Oct",
-      "Nov",
-      "Dec",
-    ];
-    _weekDateRange =
-        "${currentWeekStart.day} ${months[currentWeekStart.month - 1]} – ${endOfWeek.day} ${months[endOfWeek.month - 1]}";
+    if (_customAnalyticsStart != null && _customAnalyticsEnd != null) {
+      currentStart = _customAnalyticsStart!;
+      currentEnd = _customAnalyticsEnd!;
+      previousStart =
+          _customPrevStart ??
+          currentStart.subtract(currentEnd.difference(currentStart));
+      previousEnd =
+          _customPrevEnd ??
+          currentStart.subtract(const Duration(milliseconds: 1));
+      _weekDateRange = _customLabel ?? "";
+    } else {
+      // Sunday of the current week (local time)
+      final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+      final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+      currentStart = DateTime(
+        startOfCurrentWeek.year,
+        startOfCurrentWeek.month,
+        startOfCurrentWeek.day,
+      );
+      // End of the week (Saturday)
+      currentEnd = currentStart.add(
+        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+      );
+
+      previousStart = currentStart.subtract(const Duration(days: 7));
+      previousEnd = currentStart.subtract(const Duration(milliseconds: 1));
+      _analyticsRangeMode = AnalyticsRangeMode.week;
+    }
+
+    if (_analyticsRangeMode == AnalyticsRangeMode.week) {
+      final months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      final fullMonths = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      if (currentStart.month == currentEnd.month) {
+        _weekDateRange =
+            "${_getDayWithOrdinal(currentStart.day)} – ${_getDayWithOrdinal(currentEnd.day)} ${fullMonths[currentStart.month - 1]}";
+      } else {
+        _weekDateRange =
+            "${_getDayWithOrdinal(currentStart.day)} ${months[currentStart.month - 1]} – ${_getDayWithOrdinal(currentEnd.day)} ${months[currentEnd.month - 1]}";
+      }
+    } else {
+      _weekDateRange = _customLabel ?? "";
+    }
 
     final results = await Future.wait([
-      _repo.getDailySpendingByCategory(currentWeekStart, now),
-      _repo.getTotalSpending(previousWeekStart, previousWeekEnd),
-      _repo.getCategorySpending(currentWeekStart, now),
-      _repo.getCategorySpending(previousWeekStart, previousWeekEnd),
-      _repo.getRecipientSpending(currentWeekStart, now),
+      _repo.getDailySpendingByCategory(currentStart, currentEnd),
+      _repo.getTotalSpending(previousStart, previousEnd),
+      _repo.getCategorySpending(currentStart, currentEnd),
+      _repo.getCategorySpending(previousStart, previousEnd),
+      _repo.getRecipientSpending(currentStart, currentEnd),
     ]);
 
     final List<Map<String, dynamic>> dailyRaw =
@@ -416,8 +495,7 @@ class SpendingService extends ChangeNotifier {
     final previousCategories = results[3] as List<Map<String, dynamic>>;
     final currentRecipients = results[4] as List<Map<String, dynamic>>;
 
-    // 1. Build the 7-day breakdown (Sunday to Saturday)
-    final List<DailySpending> weekly = [];
+    final List<DailySpending> breakdown = [];
     final List<String> dayNames = [
       "Sun",
       "Mon",
@@ -428,40 +506,100 @@ class SpendingService extends ChangeNotifier {
       "Sat",
     ];
 
-    for (int i = 0; i < 7; i++) {
-      final date = currentWeekStart.add(Duration(days: i));
-      final dateStr =
-          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    if (_analyticsRangeMode == AnalyticsRangeMode.year) {
+      // Monthly aggregation for Year view
+      final Map<String, Map<String, double>> monthlyBreakdown = {};
+      final Map<String, double> monthlyUnmapped = {};
 
-      final dayEntries = dailyRaw.where((r) => r['day'] == dateStr).toList();
-      final Map<String, double> categories = {};
-      double unmapped = 0;
-
-      for (final entry in dayEntries) {
+      for (final entry in dailyRaw) {
+        final dayStr = entry['day'] as String; // YYYY-MM-DD
+        final monthKey = dayStr.substring(0, 7); // YYYY-MM
         final category = entry['category'] as String?;
         final amount = (entry['total_amount'] as num).toDouble();
+
         if (category == null) {
-          unmapped += amount;
+          monthlyUnmapped[monthKey] = (monthlyUnmapped[monthKey] ?? 0) + amount;
         } else {
-          categories[category] = amount;
-          // totalMappedThisWeek += amount; // Removed division
+          monthlyBreakdown.putIfAbsent(monthKey, () => {});
+          monthlyBreakdown[monthKey]![category] =
+              (monthlyBreakdown[monthKey]![category] ?? 0) + amount;
         }
       }
 
-      weekly.add(
-        DailySpending(
-          date: date,
-          dayName: date.day == now.day && date.month == now.month
-              ? "Today"
-              : dayNames[i],
-          isToday: date.day == now.day && date.month == now.month,
-          categoryValues: categories,
-          unmappedValue: unmapped,
-        ),
-      );
+      // Create exactly 12 points for the year
+      final monthsNamesShort = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      for (int i = 1; i <= 12; i++) {
+        final temp = DateTime(currentStart.year, i, 1);
+        final monthKey =
+            "${temp.year}-${temp.month.toString().padLeft(2, '0')}";
+        breakdown.add(
+          DailySpending(
+            date: temp,
+            dayName: monthsNamesShort[i - 1],
+            isToday: temp.year == now.year && temp.month == now.month,
+            categoryValues: monthlyBreakdown[monthKey] ?? {},
+            unmappedValue: monthlyUnmapped[monthKey] ?? 0,
+          ),
+        );
+      }
+    } else {
+      // Daily breakdown for Week or Month
+      final int duration = currentEnd.difference(currentStart).inDays;
+      for (int i = 0; i <= duration; i++) {
+        final date = currentStart.add(Duration(days: i));
+        final dateStr =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+        final dayEntries = dailyRaw.where((r) => r['day'] == dateStr).toList();
+        final Map<String, double> categories = {};
+        double unmapped = 0;
+
+        for (final entry in dayEntries) {
+          final category = entry['category'] as String?;
+          final amount = (entry['total_amount'] as num).toDouble();
+          if (category == null) {
+            unmapped += amount;
+          } else {
+            categories[category] = amount;
+          }
+        }
+
+        breakdown.add(
+          DailySpending(
+            date: date,
+            dayName:
+                date.day == now.day &&
+                    date.month == now.month &&
+                    date.year == now.year
+                ? "Today"
+                : (_analyticsRangeMode == AnalyticsRangeMode.week
+                      ? dayNames[date.weekday % 7]
+                      : "${date.day}"),
+            isToday:
+                date.day == now.day &&
+                date.month == now.month &&
+                date.year == now.year,
+            categoryValues: categories,
+            unmappedValue: unmapped,
+          ),
+        );
+      }
     }
 
-    _weeklyAnalytics = weekly;
+    _weeklyAnalytics = breakdown;
 
     // 2. Trend Calculation
     final double currentTotal = dailyRaw.fold(
@@ -476,7 +614,7 @@ class SpendingService extends ChangeNotifier {
     }
     _isSpendingIncreased = currentTotal > previousTotal;
 
-    // 3. Spent This Week (Total spending since Sunday)
+    // 3. Total Spent in Range
     _spentThisWeek = currentTotal;
 
     // 4. Process List Items (Category)
@@ -614,6 +752,219 @@ class SpendingService extends ChangeNotifier {
     }
 
     _insights = newInsights;
+  }
+
+  Future<void> _computeQuickInsights() async {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    // Week (Sunday to Saturday)
+    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: daysToSubtract));
+    final weekEnd = weekStart.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    // Month
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+    // Fetch primary totals
+    final totals = await Future.wait([
+      _repo.getTotalSpending(todayStart, now),
+      _repo.getTotalSpending(weekStart, weekEnd),
+      _repo.getTotalSpending(monthStart, monthEnd),
+    ]);
+
+    final primary = [
+      QuickInsightPrimary(label: 'Spent Today', amount: totals[0]),
+      QuickInsightPrimary(label: 'Spent This Week', amount: totals[1]),
+      QuickInsightPrimary(label: 'Spent This Month', amount: totals[2]),
+    ];
+
+    // Fetch Top Categories
+    final topCats = await Future.wait([
+      _repo.getCategorySpending(todayStart, now),
+      _repo.getCategorySpending(weekStart, weekEnd),
+      _repo.getCategorySpending(monthStart, monthEnd),
+    ]);
+
+    final periodLabels = ['today', 'this week', 'this month'];
+    final topCategories = <QuickInsightCategory>[];
+    for (int i = 0; i < topCats.length; i++) {
+      final catList = topCats[i];
+      final top = catList.where((c) => c['category'] != 'Unmapped').firstOrNull;
+      if (top != null) {
+        final name = top['category'] as String;
+        topCategories.add(
+          QuickInsightCategory(
+            categoryName: name,
+            amount: (top['total_amount'] as num).toDouble(),
+            color: getCategoryColor(name),
+            icon: getCategoryByName(name)?.icon ?? CupertinoIcons.graph_square,
+            period: periodLabels[i],
+          ),
+        );
+      }
+    }
+
+    // Trend Data (Comparison with previous periods)
+    final prevTodayStart = todayStart.subtract(const Duration(days: 1));
+    final prevTodayEnd = todayStart.subtract(const Duration(milliseconds: 1));
+
+    final prevWeekStart = weekStart.subtract(const Duration(days: 7));
+    final prevWeekEnd = weekStart.subtract(const Duration(milliseconds: 1));
+
+    // Previous month (1st of last month to last day of last month)
+    final prevMonthStart = DateTime(monthStart.year, monthStart.month - 1, 1);
+    final prevMonthEnd = DateTime(
+      monthStart.year,
+      monthStart.month,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    final prevTotals = await Future.wait([
+      _repo.getTotalSpending(prevTodayStart, prevTodayEnd),
+      _repo.getTotalSpending(prevWeekStart, prevWeekEnd),
+      _repo.getTotalSpending(prevMonthStart, prevMonthEnd),
+    ]);
+
+    final trends = [
+      QuickInsightTrend(
+        periodLabel: 'Today',
+        comparisonLabel: 'than yesterday',
+        amountDifference: (totals[0] - prevTotals[0]).abs(),
+        isMore: totals[0] >= prevTotals[0],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Week',
+        comparisonLabel: 'than last week',
+        amountDifference: (totals[1] - prevTotals[1]).abs(),
+        isMore: totals[1] >= prevTotals[1],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Month',
+        comparisonLabel: 'than last month',
+        amountDifference: (totals[2] - prevTotals[2]).abs(),
+        isMore: totals[2] >= prevTotals[2],
+      ),
+    ];
+
+    // Monthly Spending (Current Year)
+    final monthly = <QuickInsightMonthly>[];
+    final yearStart = DateTime(now.year, 1, 1);
+    final yearEnd = DateTime(now.year, 12, 31, 23, 59, 59);
+    final allYearRaw = await _repo.getDailySpendingByCategory(
+      yearStart,
+      yearEnd,
+    );
+
+    final monthsNamesFull = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    final Map<int, double> monthTotals = {};
+    for (var entry in allYearRaw) {
+      final date = DateTime.parse(entry['day']);
+      final amount = (entry['total_amount'] as num).toDouble();
+      monthTotals[date.month] = (monthTotals[date.month] ?? 0) + amount;
+    }
+
+    for (int i = 1; i <= 12; i++) {
+      if (monthTotals.containsKey(i) && monthTotals[i]! > 0) {
+        monthly.add(
+          QuickInsightMonthly(
+            monthName: monthsNamesFull[i - 1],
+            amount: monthTotals[i]!,
+          ),
+        );
+      }
+    }
+
+    _quickInsightsData = QuickInsightsData(
+      primary: primary,
+      topCategories: topCategories,
+      trends: trends,
+      monthly: monthly,
+    );
+
+    await fetchAnalyticsTransactions(refresh: true);
+  }
+
+  Future<void> fetchAnalyticsTransactions({bool refresh = false}) async {
+    if (_isAnalyticsLoading) return;
+    if (!refresh && !_analyticsHasMore) return;
+
+    _isAnalyticsLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _analyticsCurrentPage = 0;
+      _analyticsTransactions = [];
+      _analyticsHasMore = true;
+    }
+
+    try {
+      DateTime start;
+      DateTime end;
+
+      if (_customAnalyticsStart != null && _customAnalyticsEnd != null) {
+        start = _customAnalyticsStart!;
+        end = _customAnalyticsEnd!;
+      } else {
+        final now = DateTime.now();
+        // Sunday of the current week (local time)
+        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+        start = DateTime(
+          startOfCurrentWeek.year,
+          startOfCurrentWeek.month,
+          startOfCurrentWeek.day,
+        );
+        // End of the week (Saturday)
+        end = start.add(
+          const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+        );
+      }
+
+      final newTxs = await _repo.getTransactionsByDateRange(
+        start: start,
+        end: end,
+        limit: _pageSize,
+        offset: _analyticsCurrentPage * _pageSize,
+      );
+
+      if (newTxs.length < _pageSize) {
+        _analyticsHasMore = false;
+      }
+
+      _analyticsTransactions.addAll(newTxs);
+      _analyticsCurrentPage++;
+    } catch (e) {
+      debugPrint(
+        '[SpendingService] Failed to fetch analytics transactions: $e',
+      );
+    } finally {
+      _isAnalyticsLoading = false;
+      notifyListeners();
+    }
   }
 
   String _getInitials(String name) {
@@ -813,6 +1164,22 @@ class SpendingService extends ChangeNotifier {
   Future<Map<String, double>> getAllLimits() => _repo.getAllLimits();
 
   // ── Private ────────────────────────────────────────────────────────────────
+
+  String _getDayWithOrdinal(int day) {
+    if (day >= 11 && day <= 13) {
+      return '${day}th';
+    }
+    switch (day % 10) {
+      case 1:
+        return '${day}st';
+      case 2:
+        return '${day}nd';
+      case 3:
+        return '${day}rd';
+      default:
+        return '${day}th';
+    }
+  }
 
   /// Maps DynamicIsland display strings to the DB period keys.
   String _toDbPeriod(String displayPeriod) {

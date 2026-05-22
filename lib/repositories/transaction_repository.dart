@@ -294,6 +294,31 @@ class TransactionRepository {
     });
   }
 
+  Future<List<AppTransaction>> getTransactionsByDateRange({
+    required DateTime start,
+    required DateTime end,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final db = await _db.database;
+    final List<Map<String, dynamic>> rows = await db.query(
+      DatabaseHelper.tableTransactions,
+      where:
+          '${DatabaseHelper.colTimestamp} BETWEEN ? AND ? AND ${DatabaseHelper.colType} IN (?, ?, ?)',
+      whereArgs: [
+        start.toIso8601String(),
+        end.toIso8601String(),
+        'payment',
+        'sent',
+        'received',
+      ],
+      orderBy: '${DatabaseHelper.colTimestamp} DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return rows.map(AppTransaction.fromMap).toList();
+  }
+
   Future<List<AppTransaction>> loadByPeriod(String period) async {
     final DateTime now = DateTime.now();
     final DateTime from;
