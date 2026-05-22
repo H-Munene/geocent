@@ -66,7 +66,7 @@ class MainScreenState extends State<MainScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemRed,
+                  color: CupertinoColors.systemPink,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
