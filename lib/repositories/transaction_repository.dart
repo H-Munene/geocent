@@ -418,15 +418,15 @@ class TransactionRepository {
   }
 
   Future<void> setLimit(String period, double amount) async {
-    await _db.rawUpdate(
+    final db = await _db.database;
+    await db.insert(
       DatabaseHelper.tableSpendingLimits,
       {
         DatabaseHelper.colPeriod: period.toLowerCase(),
         DatabaseHelper.colLimitAmount: amount,
         DatabaseHelper.colUpdatedAt: DateTime.now().toIso8601String(),
       },
-      '${DatabaseHelper.colPeriod} = ?',
-      [period.toLowerCase()],
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 

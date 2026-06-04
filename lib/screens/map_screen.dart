@@ -332,6 +332,11 @@ class _MapScreenState extends State<MapScreen>
             styleUri: _currentMapStyle,
             onMapCreated: onMapCreated,
             onTapListener: _handleMapTap,
+            onCameraChangeListener: (data) {
+              debugPrint(
+                '🔥🔥[MapBox] Zoom Level: ${data.cameraState.zoom.toStringAsFixed(2)}🔥🔥',
+              );
+            },
           ),
           if (spending.isLoading || _isMapUpdating)
             const Center(
@@ -466,6 +471,22 @@ class _MapScreenState extends State<MapScreen>
 
   Future<void> _flyToUserLocation() async {
     try {
+      // Get last known position for immediate feedback if possible
+      final lastPos = await gl.Geolocator.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        await mapboxMapController?.flyTo(
+          mp.CameraOptions(
+            zoom: 17,
+            bearing: 0.0,
+            pitch: 0.0,
+            center: mp.Point(
+              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+            ),
+          ),
+          mp.MapAnimationOptions(duration: 800),
+        );
+      }
+
       final position = await gl.Geolocator.getCurrentPosition(
         locationSettings: const gl.LocationSettings(
           accuracy: gl.LocationAccuracy.high,
@@ -476,6 +497,8 @@ class _MapScreenState extends State<MapScreen>
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
           zoom: 17,
+          bearing: 0.0,
+          pitch: 0.0,
           center: mp.Point(
             coordinates: mp.Position(position.longitude, position.latitude),
           ),
@@ -665,6 +688,12 @@ class _MapScreenState extends State<MapScreen>
 
   Future<void> onMapCreated(mp.MapboxMap controller) async {
     setState(() => mapboxMapController = controller);
+
+    // Limit zoom range: prevents globe view (min 3.0) and excessive street-level zoom (max 19.73)
+    await controller.setBounds(mp.CameraBoundsOptions(
+      minZoom: 3.0,
+      maxZoom: 19.73,
+    ));
 
     // Ensure the persisted style is loaded if it's not the default
     if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
@@ -875,10 +904,12 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          0,
-          1,
-          13,
-          3,
+          8,
+          0.2, // Very soft at low zoom
+          13.48,
+          0.8, // Atmospheric glow at target zoom
+          17,
+          1.5, // Moderate intensity at street level
         ],
       );
 
@@ -889,41 +920,47 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['heatmap-density'],
-          0,
-          'rgba(33,102,172,0)',
-          0.2,
-          'rgb(103,169,207)',
-          0.4,
-          'rgb(209,229,240)',
-          0.6,
-          'rgb(253,219,199)',
-          0.8,
-          'rgb(239,138,98)',
-          1,
-          'rgb(178,24,43)',
+          0.0,
+          'rgba(255, 182, 193, 0)', // Transparent
+          0.15,
+          'rgba(230, 230, 250, 0.4)', // Soft Purple/Lavender fringe
+          0.3,
+          'rgb(204, 204, 255)', // Periwinkle/Blue
+          0.5,
+          'rgb(0, 255, 255)', // Cyan
+          0.75,
+          'rgb(173, 255, 47)', // Yellow-Green
+          1.0,
+          'rgb(255, 255, 153)', // Luminous Pastel Yellow core
         ],
       );
 
-      // Apply zoom-interpolated radius
+      // Apply inverse zoom-interpolated radius with a strictly monotonic linear curve to prevent pulsing
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-radius',
         [
           'interpolate',
-          ['linear'],
+          ['linear'], // Linear is much more predictable for manual stops
           ['zoom'],
-          10,
-          10,
-          13,
-          30,
+          3,
+          0.1, // Continental: invisible/microscopic
+          8,
+          0.5, // Country: tiny speck
+          11,
+          4.0, // City: small cluster
+          13.48,
+          18.0, // District: Target "Frozen" size
           15,
-          60,
+          25.0, // Neighborhood: soft blur
           17,
-          100,
+          35.0, // Street: large soft glow
+          20,
+          50.0, // Max Zoom: deep detail
         ],
       );
 
-      // Add heatmap-weight based on decayed amount
+      // Add heatmap-weight based on decayed amount with corrected range
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-weight',
@@ -932,13 +969,13 @@ class _MapScreenState extends State<MapScreen>
           ['linear'],
           ['get', 'decayed_amount'],
           0,
-          0.01, // Tiny transactions have negligible visual weight
-          500,
-          0.2,
-          2000,
-          0.5,
-          5000,
-          1.0, // High-value transactions get maximum weight
+          0.3, // floor raised
+          100,
+          0.5, // mid-weight
+          1000,
+          0.8,
+          3000,
+          1.0,
         ],
       );
 
@@ -949,10 +986,12 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          7,
-          1,
+          13.48,
+          0.8956, // Clamped opacity for all zoom <= 13.48
           15,
-          0.6,
+          0.85,
+          17,
+          0.75,
         ],
       );
     } catch (e) {
