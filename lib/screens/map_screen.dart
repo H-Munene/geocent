@@ -896,7 +896,20 @@ class _MapScreenState extends State<MapScreen>
         }
       }
 
-      // Configure heatmap styling using expressions via setStyleLayerProperty
+      // ── Heatmap styling expressions ────────────────────────────────────────
+      //
+      // DESIGN GOAL: Google Photos-style clustering.
+      //   • Zoomed out (city/country): large overlapping radii fuse nearby
+      //     transactions into unified warm blobs.
+      //   • Zoomed in (street): blobs fragment into individual amber/orange dots.
+      //   • No blue, green, or purple anywhere in the gradient.
+      //
+      // KEY PRINCIPLE: radius is INVERTED — large when zoomed OUT, small when
+      // zoomed IN. This is the opposite of a standard heatmap and is what
+      // produces the clustering-then-fragmentation behaviour.
+
+      // INTENSITY: low at country scale to prevent blob fusion, ramps up at
+      // street level so individual dots glow visibly.
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-intensity',
@@ -904,15 +917,21 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          8,
-          0.2, // Very soft at low zoom
-          13.48,
-          0.8, // Atmospheric glow at target zoom
-          17,
-          1.5, // Moderate intensity at street level
+          8,  0.4,
+          10, 0.6,
+          12, 1.0,
+          14, 1.5,
+          17, 2.5,
         ],
       );
 
+      // COLOR: warm amber → orange → deep red only.
+      // • density 0.0  → fully transparent (no colour bleed)
+      // • density 0.2  → faint amber glow (isolated single transactions)
+      // • density 0.4  → solid orange (small clusters)
+      // • density 0.6  → red-orange (medium density)
+      // • density 0.8  → deep red
+      // • density 1.0  → darkest red core (maximum overlap)
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-color',
@@ -920,47 +939,38 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['heatmap-density'],
-          0.0,
-          'rgba(255, 182, 193, 0)', // Transparent
-          0.15,
-          'rgba(230, 230, 250, 0.4)', // Soft Purple/Lavender fringe
-          0.3,
-          'rgb(204, 204, 255)', // Periwinkle/Blue
-          0.5,
-          'rgb(0, 255, 255)', // Cyan
-          0.75,
-          'rgb(173, 255, 47)', // Yellow-Green
-          1.0,
-          'rgb(255, 255, 153)', // Luminous Pastel Yellow core
+          0.0,  'rgba(0, 0, 0, 0)',
+          0.2,  'rgba(255, 160, 0, 0.6)',
+          0.4,  'rgb(255, 100, 0)',
+          0.6,  'rgb(220, 30, 0)',
+          0.8,  'rgb(178, 0, 0)',
+          1.0,  'rgb(120, 0, 0)',
         ],
       );
 
-      // Apply inverse zoom-interpolated radius with a strictly monotonic linear curve to prevent pulsing
+      // RADIUS: INVERTED — large when zoomed out, small when zoomed in.
+      // Uses linear interpolation (NOT exponential) for a smooth, predictable
+      // curve. At zoom 8 each point covers ~60px, causing nearby transactions
+      // to merge into a single blob. By zoom 17 the radius shrinks to 10px so
+      // each transaction resolves as an individual dot.
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-radius',
         [
           'interpolate',
-          ['linear'], // Linear is much more predictable for manual stops
+          ['linear'],
           ['zoom'],
-          3,
-          0.1, // Continental: invisible/microscopic
-          8,
-          0.5, // Country: tiny speck
-          11,
-          4.0, // City: small cluster
-          13.48,
-          18.0, // District: Target "Frozen" size
-          15,
-          25.0, // Neighborhood: soft blur
-          17,
-          35.0, // Street: large soft glow
-          20,
-          50.0, // Max Zoom: deep detail
+          8,  60.0,
+          10, 50.0,
+          12, 30.0,
+          14, 18.0,
+          17, 10.0,
         ],
       );
 
-      // Add heatmap-weight based on decayed amount with corrected range
+      // WEIGHT: data-driven by decayed_amount so high-value/recent transactions
+      // contribute more visual density than old/small ones.
+      // Floor is 0.15 (not 0.0) so even tiny transactions cast a soft glow.
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-weight',
@@ -968,17 +978,18 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['get', 'decayed_amount'],
-          0,
-          0.3, // floor raised
-          100,
-          0.5, // mid-weight
-          1000,
-          0.8,
-          3000,
-          1.0,
+          0,    0.15,
+          100,  0.4,
+          1000, 0.75,
+          3000, 1.0,
         ],
       );
 
+      // OPACITY: fully opaque at city scale so blobs are bold and visible.
+      // Slightly reduced at street level so individual dots don't obscure the
+      // underlying map features.
+      // IMPORTANT: first stop is zoom 8 so the heatmap is never hidden when
+      // zoomed out beyond zoom 13 (a previous bug caused it to vanish).
       await mapboxMapController!.style.setStyleLayerProperty(
         'hotspots-heatmap',
         'heatmap-opacity',
@@ -986,14 +997,12 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          13.48,
-          0.8956, // Clamped opacity for all zoom <= 13.48
-          15,
-          0.85,
-          17,
-          0.75,
+          // 8,  1.0,
+          15, 0.85,
+          17, 0.75,
         ],
       );
+
     } catch (e) {
       debugPrint('[MapScreen] Failed to refresh hotspots: $e');
     }
