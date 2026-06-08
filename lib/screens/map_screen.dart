@@ -10,8 +10,10 @@ import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_popup/flutter_popup.dart';
+import 'package:intl/intl.dart';
 
 import '../models/call_out_result.dart';
 import '../models/map_place.dart';
@@ -22,7 +24,6 @@ import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../services/geofence_service.dart';
 import '../utils/marker_utils.dart';
-import '../widgets/timeline_sheet.dart';
 import '../widgets/category_messages_sheet.dart';
 import '../widgets/map_style_picker_modal.dart';
 import '../widgets/map/map_action_button.dart';
@@ -30,6 +31,7 @@ import '../widgets/map/map_category_filters.dart';
 import '../widgets/map/map_search_header.dart';
 import '../widgets/map/grouped_transactions_sheet.dart';
 import '../widgets/map/transaction_popup_content.dart';
+import '../widgets/analytics/grouped_transactions_list.dart';
 import '../widgets/custom_toast.dart';
 import 'location_picker_screen.dart';
 
@@ -65,6 +67,7 @@ class _MapScreenState extends State<MapScreen>
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
+  bool _isPopupActive = false;
 
   // Initialised once onMapCreated fires
   final GlobalKey _fabKey = GlobalKey();
@@ -187,10 +190,6 @@ class _MapScreenState extends State<MapScreen>
         });
       }
     }
-  }
-
-  void _handleMapTap(mp.MapContentGestureContext context) {
-    // Search focus is handled by TapRegion in MapSearchHeader
   }
 
   Future<void> _saveMapStyle(String styleUri) async {
@@ -331,7 +330,6 @@ class _MapScreenState extends State<MapScreen>
           mp.MapWidget(
             styleUri: _currentMapStyle,
             onMapCreated: onMapCreated,
-            onTapListener: _handleMapTap,
             onCameraChangeListener: (data) {
               debugPrint(
                 '🔥🔥[MapBox] Zoom Level: ${data.cameraState.zoom.toStringAsFixed(2)}🔥🔥',
@@ -432,7 +430,11 @@ class _MapScreenState extends State<MapScreen>
                         ? null
                         : () {
                             HapticFeedback.mediumImpact();
-                            _showTimelineSheet();
+                            showCupertinoModalPopup(
+                              context: context,
+                              builder: (context) =>
+                                  _buildHeatmapModal(spending),
+                            );
                           },
                     child: _isAnimating
                         ? const CupertinoActivityIndicator(
@@ -446,8 +448,11 @@ class _MapScreenState extends State<MapScreen>
               ],
             ),
           ),
-          if (_popupPosition != null && _selectedPlace != null)
+          if (_popupPosition != null &&
+              _selectedPlace != null &&
+              _isPopupActive)
             Positioned(
+              key: ValueKey(_selectedTxId),
               left: _popupPosition!.x,
               top: _popupPosition!.y,
               child: ClipRRect(
@@ -466,6 +471,15 @@ class _MapScreenState extends State<MapScreen>
             ),
         ],
       ),
+    );
+  }
+
+  Widget _buildHeatmapModal(SpendingService spending) {
+    return _HeatmapExploreSheet(
+      transactions: spending.mappedTransactions,
+      onTopItemChanged: (tx) {
+        _handleTopItemChanged(tx);
+      },
     );
   }
 
@@ -690,10 +704,9 @@ class _MapScreenState extends State<MapScreen>
     setState(() => mapboxMapController = controller);
 
     // Limit zoom range: prevents globe view (min 3.0) and excessive street-level zoom (max 19.73)
-    await controller.setBounds(mp.CameraBoundsOptions(
-      minZoom: 3.0,
-      maxZoom: 19.73,
-    ));
+    await controller.setBounds(
+      mp.CameraBoundsOptions(minZoom: 3.0, maxZoom: 19.73),
+    );
 
     // Ensure the persisted style is loaded if it's not the default
     if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
@@ -917,11 +930,16 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          8,  0.4,
-          10, 0.6,
-          12, 1.0,
-          14, 1.5,
-          17, 2.5,
+          8,
+          0.4,
+          10,
+          0.6,
+          12,
+          1.0,
+          14,
+          1.5,
+          17,
+          2.5,
         ],
       );
 
@@ -939,12 +957,18 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['heatmap-density'],
-          0.0,  'rgba(0, 0, 0, 0)',
-          0.2,  'rgba(255, 160, 0, 0.6)',
-          0.4,  'rgb(255, 100, 0)',
-          0.6,  'rgb(220, 30, 0)',
-          0.8,  'rgb(178, 0, 0)',
-          1.0,  'rgb(120, 0, 0)',
+          0.0,
+          'rgba(0, 0, 0, 0)',
+          0.2,
+          'rgba(255, 160, 0, 0.6)',
+          0.4,
+          'rgb(255, 100, 0)',
+          0.6,
+          'rgb(220, 30, 0)',
+          0.8,
+          'rgb(178, 0, 0)',
+          1.0,
+          'rgb(120, 0, 0)',
         ],
       );
 
@@ -960,11 +984,16 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['zoom'],
-          8,  60.0,
-          10, 50.0,
-          12, 30.0,
-          14, 18.0,
-          17, 10.0,
+          8,
+          60.0,
+          10,
+          50.0,
+          12,
+          30.0,
+          14,
+          18.0,
+          17,
+          10.0,
         ],
       );
 
@@ -978,10 +1007,14 @@ class _MapScreenState extends State<MapScreen>
           'interpolate',
           ['linear'],
           ['get', 'decayed_amount'],
-          0,    0.15,
-          100,  0.4,
-          1000, 0.75,
-          3000, 1.0,
+          0,
+          0.15,
+          100,
+          0.4,
+          1000,
+          0.75,
+          3000,
+          1.0,
         ],
       );
 
@@ -1002,7 +1035,6 @@ class _MapScreenState extends State<MapScreen>
           17, 0.75,
         ],
       );
-
     } catch (e) {
       debugPrint('[MapScreen] Failed to refresh hotspots: $e');
     }
@@ -1185,37 +1217,55 @@ class _MapScreenState extends State<MapScreen>
 
   // ── Timeline ──────────────────────────────────────────────────────────────
 
-  void _showTimelineSheet() {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (context) => TimelineSheet(
-        onTransactionSelected: (tx) {
-          _flyToAndShowPopup(tx);
-        },
-      ),
-    );
-  }
-
   void _flyToAndShowPopup(AppTransaction tx) async {
     MapPlace? targetPlace;
+
+    // Check if it's already in our grouped today's places
     for (final place in _places) {
       if (place.transactions.any((t) => t.id == tx.id)) {
         targetPlace = place;
         break;
       }
     }
+
+    // If not found (e.g. from another day), create a temporary place for navigation
+    if (targetPlace == null && tx.latitude != null && tx.longitude != null) {
+      targetPlace = MapPlace(
+        name: tx.merchant,
+        latitude: tx.latitude!,
+        longitude: tx.longitude!,
+        transactions: [tx],
+      );
+    }
+
     if (targetPlace == null) return;
 
+    // First, clear everything to ensure the previous popup is removed
     setState(() {
+      _isPopupActive = false;
       _selectedPlace = null;
       _popupPosition = null;
     });
+
+    // Brief delay to allow the UI to clear the old popup
+    await Future.delayed(Duration.zero);
+
+    final screenHeight = MediaQuery.of(context).size.height;
+    // Set padding to position the target point 1/3 from the top of the visible map (top 65%)
+    // This moves the "center" of the map higher up so the popup isn't blocked by the modal.
+    final bottomPadding = screenHeight * 0.55;
 
     await mapboxMapController?.flyTo(
       mp.CameraOptions(
         zoom: 17,
         center: mp.Point(
           coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
+        ),
+        padding: mp.MbxEdgeInsets(
+          top: 0.0,
+          left: 0.0,
+          bottom: bottomPadding,
+          right: 0.0,
         ),
       ),
       mp.MapAnimationOptions(duration: 400),
@@ -1232,13 +1282,29 @@ class _MapScreenState extends State<MapScreen>
 
     if (screenCoord != null && mounted) {
       setState(() {
+        _isPopupActive = true;
         _selectedPlace = targetPlace;
         _popupPosition = screenCoord;
         _selectedTxId = tx.id;
       });
       await _updateAnnotationPriority();
+      // Ensure the popup shows for the NEW selection
       _popupKey.currentState?.show();
     }
+  }
+
+  void _handleTopItemChanged(AppTransaction? tx) {
+    if (tx == null) {
+      if (mounted) {
+        setState(() {
+          _isPopupActive = false;
+          _selectedPlace = null;
+          _popupPosition = null;
+        });
+      }
+      return;
+    }
+    _flyToAndShowPopup(tx);
   }
 
   static bool _hasCheckedHotspotNotification = false;
@@ -1269,5 +1335,184 @@ class _MapScreenState extends State<MapScreen>
       '',
     );
     return double.tryParse(clean) ?? 0.0;
+  }
+}
+
+class _HeatmapExploreSheet extends StatefulWidget {
+  final List<AppTransaction> transactions;
+  final Function(AppTransaction?) onTopItemChanged;
+
+  const _HeatmapExploreSheet({
+    required this.transactions,
+    required this.onTopItemChanged,
+  });
+
+  @override
+  State<_HeatmapExploreSheet> createState() => _HeatmapExploreSheetState();
+}
+
+class _HeatmapExploreSheetState extends State<_HeatmapExploreSheet> {
+  late ScrollController _scrollController;
+  int _lastTopIndex = -1;
+  Timer? _debounceTimer;
+  String _currentTitle = 'Explore Mapped Messages';
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (widget.transactions.isEmpty) return;
+
+    final offset = _scrollController.offset;
+    final index = (offset / 72.0).floor().clamp(
+      0,
+      widget.transactions.length - 1,
+    );
+
+    // Update map popup
+    if (index != _lastTopIndex) {
+      _lastTopIndex = index;
+      _debounceTimer?.cancel();
+
+      // Trigger callback to close current message before showing next
+      widget.onTopItemChanged(null);
+
+      _debounceTimer = Timer(const Duration(milliseconds: 350), () {
+        if (mounted) {
+          widget.onTopItemChanged(widget.transactions[index]);
+        }
+      });
+    }
+
+    // Update title logic:
+    // If we haven't scrolled past the first potential header (~60px), show default title.
+    // Otherwise, show the date of the current top item.
+    final String newTitle;
+    if (offset < 40) {
+      newTitle = 'Explore Mapped Messages';
+    } else {
+      final date = widget.transactions[index].timestamp;
+      newTitle = DateFormat('d MMMM y').format(date);
+    }
+
+    if (newTitle != _currentTitle) {
+      setState(() {
+        _currentTitle = newTitle;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.35,
+      decoration: const BoxDecoration(
+        color: CupertinoColors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Drag Handle
+          Center(
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 36,
+              height: 5,
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemGrey4,
+                borderRadius: BorderRadius.circular(2.5),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 16, 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.0, 0.2),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                    child: Text(
+                      _currentTitle,
+                      key: ValueKey<String>(_currentTitle),
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.systemGrey6,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.clear,
+                      size: 18,
+                      color: CupertinoColors.black,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: CustomScrollView(
+              controller: _scrollController,
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: GroupedTransactionsList(
+                    transactions: widget.transactions,
+                    onTransactionTap: (tx) {
+                      widget.onTopItemChanged(tx);
+                    },
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
