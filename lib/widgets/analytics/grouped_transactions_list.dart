@@ -9,8 +9,13 @@ import '../../services/spending_service.dart';
 
 class GroupedTransactionsList extends StatelessWidget {
   final List<AppTransaction> transactions;
+  final void Function(AppTransaction)? onTransactionTap;
 
-  const GroupedTransactionsList({super.key, required this.transactions});
+  const GroupedTransactionsList({
+    super.key,
+    required this.transactions,
+    this.onTransactionTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +45,11 @@ class GroupedTransactionsList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (isNewDay) _buildDateHeader(tx.timestamp),
-            _buildTransactionRow(context, tx),
+            GestureDetector(
+              onTap: () => onTransactionTap?.call(tx),
+              behavior: HitTestBehavior.opaque,
+              child: _buildTransactionRow(context, tx),
+            ),
           ],
         );
       }, childCount: transactions.length),

@@ -29,7 +29,7 @@ class AppTransaction {
     this.category,
   });
 
-  // ── Persistence ────────────────────────────────────────────────────────────
+  // Persistence
 
   /// Serialise to a map whose keys match DatabaseHelper column constants.
   Map<String, dynamic> toMap() => {
@@ -66,7 +66,7 @@ class AppTransaction {
     category: map['category'] as String?,
   );
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Helpers
 
   bool get hasLocation => latitude != null && longitude != null;
 

@@ -27,7 +27,7 @@ class HotspotService {
 
     final transactions = await _transactionRepo.loadMapped();
 
-    // We use a simple in-isolate DBSCAN for now.
+    // Using a simple in-isolate DBSCAN.
     // If performance becomes an issue, this can be moved to a Compute isolate.
     final clusters = _dbscan(transactions, epsilon, minPoints);
     final hotspots = clusters

@@ -430,7 +430,7 @@ class TransactionRepository {
     );
   }
 
-  // ── Merchant Categories ──────────────────────────────────────────────────
+  // Merchant Categories
 
   Future<String?> getMerchantCategory(String merchantName) async {
     final rows = await _db.rawQuery(

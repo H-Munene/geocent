@@ -78,7 +78,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // ── Transactions ─────────────────────────────────────────────────────────
+    // Transactions
     await db.execute('''
       CREATE TABLE $tableTransactions (
         $colId          TEXT    PRIMARY KEY,
@@ -101,7 +101,7 @@ class DatabaseHelper {
         ON $tableTransactions ($colTimestamp DESC)
     ''');
 
-    // ── Spending limits ───────────────────────────────────────────────────────
+    // Spending limits
     await db.execute('''
       CREATE TABLE $tableSpendingLimits (
         $colPeriod       TEXT PRIMARY KEY
@@ -111,7 +111,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Merchant Categories ──────────────────────────────────────────────────
+    // Merchant Categories
     await db.execute('''
       CREATE TABLE $tableMerchantCategories (
         $colMerchantName TEXT PRIMARY KEY,
@@ -120,7 +120,7 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Budgets ──────────────────────────────────────────────────────────────
+    // Budgets
     await db.execute('''
       CREATE TABLE $tableBudgets (
         $colId            TEXT PRIMARY KEY,
@@ -133,14 +133,14 @@ class DatabaseHelper {
       )
     ''');
 
-    // ── Ignored Transactions ──────────────────────────────────────────────────
+    // Ignored Transactions
     await db.execute('''
       CREATE TABLE $tableIgnoredTransactions (
         $colId TEXT PRIMARY KEY
       )
     ''');
 
-    // ── Hotspots ──────────────────────────────────────────────────────────────
+    // Hotspots
     await db.execute('''
       CREATE TABLE $tableHotspots (
         $colId              TEXT PRIMARY KEY,
@@ -236,7 +236,7 @@ class DatabaseHelper {
     }
   }
 
-  // ── Low-level helpers ──────────────────────────────────────────────────────
+  // Helpers
 
   Future<int> rawInsert(String table, Map<String, dynamic> row) async {
     final Database db = await database;
