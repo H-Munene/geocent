@@ -51,7 +51,7 @@ To download the Mapbox SDK, you need to configure a secret token in your global 
 
 Ensure you have your Mapbox access token ready. The app initializes Mapbox programmatically using the token provided in the `.env` file.
 
-### 🏃 Running the App
+### Running the App
 
 Connect a device or start an emulator/simulator, then run:
 
