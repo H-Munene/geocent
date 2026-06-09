@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/call_out_result.dart';
 
-// ── Callout (name + price tag) ─────────────────────────────────────────────
+// Callout (name + price tag)
 
 Future<CalloutResult> createCalloutImage(
   String name,
@@ -22,7 +22,7 @@ Future<CalloutResult> createCalloutImage(
   const double stemHeight = 20.0;
   const double dotRadius = 5.0;
 
-  // ── Text painters ──────────────────────────────────────────────────────────
+  // Text painters
 
   final namePainter = TextPainter(
     text: TextSpan(
@@ -51,7 +51,7 @@ Future<CalloutResult> createCalloutImage(
     textDirection: TextDirection.ltr,
   )..layout();
 
-  // ── Canvas sizing ──────────────────────────────────────────────────────────
+  // Canvas sizing
 
   final double nameBlockW = (namePaddingH + namePainter.width + namePaddingH)
       .ceilToDouble();
@@ -75,7 +75,7 @@ Future<CalloutResult> createCalloutImage(
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder);
 
-  // ── 0. Institutional Shadow (Strictly for Markers) ─────────────────────────
+  // 0. Institutional Shadow
 
   final shadowPaint = Paint()
     ..color = Colors.black.withValues(alpha: 0.15)
@@ -90,7 +90,7 @@ Future<CalloutResult> createCalloutImage(
     shadowPaint..strokeWidth = stemWidth,
   );
 
-  // ── 1. White name section ──────────────────────────────────────────────────
+  // 1. White name section
 
   final Rect nameRect = Rect.fromLTWH(0, 0, nameBlockW, cardHeight);
   canvas.drawRect(nameRect, Paint()..color = Colors.white);
@@ -100,7 +100,7 @@ Future<CalloutResult> createCalloutImage(
     Offset(namePaddingH, (cardHeight - namePainter.height) / 2),
   );
 
-  // ── 2. Color price section ───────────────────────────────────────────────────
+  // 2. Color price section
 
   final Color accentColor =
       color ?? CupertinoColors.systemGrey; // default to Apple Blue
@@ -112,7 +112,7 @@ Future<CalloutResult> createCalloutImage(
     Offset(nameBlockW + pricePaddingH, (cardHeight - pricePainter.height) / 2),
   );
 
-  // ── 3. Outer border (drawn last so it sits on top of both fills) ───────────
+  // 3. Outer border
 
   canvas.drawRect(
     Rect.fromLTWH(0, 0, totalWidth, cardHeight),
@@ -122,7 +122,7 @@ Future<CalloutResult> createCalloutImage(
       ..strokeWidth = borderWidth,
   );
 
-  // ── 4. Thin accented stem ───────────────────────────────────────────────────────
+  // 4. Thin accented stem
 
   canvas.drawLine(
     Offset(stemCentreX, cardHeight),
@@ -133,7 +133,7 @@ Future<CalloutResult> createCalloutImage(
       ..strokeCap = StrokeCap.butt,
   );
 
-  // ── 5. Filled accented dot ──────────────────────────────────────────────────────
+  // 5. Filled accented dot
 
   canvas.drawCircle(
     Offset(dotCentreX, dotCentreY),
@@ -141,7 +141,7 @@ Future<CalloutResult> createCalloutImage(
     Paint()..color = accentColor,
   );
 
-  // ── Rasterise ──────────────────────────────────────────────────────────────
+  // Rasterise
 
   final ui.Picture picture = recorder.endRecording();
   final ui.Image image = await picture.toImage(

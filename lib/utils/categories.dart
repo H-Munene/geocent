@@ -2,7 +2,7 @@ import 'package:hugeicons/hugeicons.dart';
 import 'package:geocent/models/category_item.dart';
 
 const Map<int, CategoryItem> availableIcons = {
-  // ─── FOOD & DINING ────────────────────────────────────────────────────────
+  // FOOD & DINING
   2: CategoryItem(name: 'Dining', icon: HugeIcons.strokeRoundedRestaurant01),
   16: CategoryItem(name: 'Groceries', icon: HugeIcons.strokeRoundedGrapes),
   21: CategoryItem(
@@ -13,7 +13,7 @@ const Map<int, CategoryItem> availableIcons = {
   29: CategoryItem(name: 'Snacks', icon: HugeIcons.strokeRoundedPizza01),
   28: CategoryItem(name: 'Alcohol', icon: HugeIcons.strokeRoundedDrink),
 
-  // ─── TRANSPORT & TRAVEL ───────────────────────────────────────────────────
+  // TRANSPORT & TRAVEL
   34: CategoryItem(name: 'Taxi', icon: HugeIcons.strokeRoundedTaxi),
   35: CategoryItem(
     name: 'Public Transport',
@@ -25,7 +25,7 @@ const Map<int, CategoryItem> availableIcons = {
   ),
   9: CategoryItem(name: 'Travel', icon: HugeIcons.strokeRoundedAirplane01),
 
-  // ─── HOUSING & UTILITIES ──────────────────────────────────────────────────
+  // HOUSING & UTILITIES
   0: CategoryItem(name: 'Home', icon: HugeIcons.strokeRoundedHome13),
   8: CategoryItem(name: 'Bills', icon: HugeIcons.strokeRoundedIdea01),
   24: CategoryItem(
@@ -36,7 +36,7 @@ const Map<int, CategoryItem> availableIcons = {
   39: CategoryItem(name: 'Internet', icon: HugeIcons.strokeRoundedWifi01),
   23: CategoryItem(name: 'Phone Bill', icon: HugeIcons.strokeRoundedCall),
 
-  // ─── FINANCE & WORK ───────────────────────────────────────────────────────
+  // FINANCE & WORK
   18: CategoryItem(name: 'Finance', icon: HugeIcons.strokeRoundedWallet01),
   25: CategoryItem(name: 'Savings', icon: HugeIcons.strokeRoundedPiggyBank),
   3: CategoryItem(name: 'Investments', icon: HugeIcons.strokeRoundedBank),
@@ -44,7 +44,7 @@ const Map<int, CategoryItem> availableIcons = {
   14: CategoryItem(name: 'Work', icon: HugeIcons.strokeRoundedBriefcase01),
   31: CategoryItem(name: 'Labour', icon: HugeIcons.strokeRoundedLabor),
 
-  // ─── SHOPPING & ESSENTIALS ────────────────────────────────────────────────
+  // SHOPPING & ESSENTIALS
   1: CategoryItem(
     name: 'Shopping',
     icon: HugeIcons.strokeRoundedShoppingCart02,
@@ -56,7 +56,7 @@ const Map<int, CategoryItem> availableIcons = {
   17: CategoryItem(name: 'Laundry', icon: HugeIcons.strokeRoundedShirt01),
   41: CategoryItem(name: 'Repairs', icon: HugeIcons.strokeRoundedWrench01),
 
-  // ─── HEALTH, FAMILY & PERSONAL CARE ──────────────────────────────────────
+  // HEALTH, FAMILY & PERSONAL CARE
   7: CategoryItem(name: 'Health', icon: HugeIcons.strokeRoundedHospital01),
   13: CategoryItem(name: 'Fitness', icon: HugeIcons.strokeRoundedDumbbell02),
   38: CategoryItem(name: 'Beauty', icon: HugeIcons.strokeRoundedMirror),
@@ -64,7 +64,7 @@ const Map<int, CategoryItem> availableIcons = {
   4: CategoryItem(name: 'Pet', icon: HugeIcons.strokeRoundedBird),
   37: CategoryItem(name: 'Social', icon: HugeIcons.strokeRoundedUserGroup),
 
-  // ─── ENTERTAINMENT & LIFESTYLE ────────────────────────────────────────────
+  // ENTERTAINMENT & LIFESTYLE
   10: CategoryItem(
     name: 'Entertainment',
     icon: HugeIcons.strokeRoundedTicketStar,
@@ -82,7 +82,7 @@ const Map<int, CategoryItem> availableIcons = {
   30: CategoryItem(name: 'Person', icon: HugeIcons.strokeRoundedUser),
   36: CategoryItem(name: 'Gift', icon: HugeIcons.strokeRoundedGift),
 
-  // ─── EDUCATION & SERVICES ─────────────────────────────────────────────────
+  // EDUCATION & SERVICES
   11: CategoryItem(
     name: 'Education',
     icon: HugeIcons.strokeRoundedMortarboard01,
@@ -94,7 +94,7 @@ const Map<int, CategoryItem> availableIcons = {
     icon: HugeIcons.strokeRoundedBedDouble,
   ),
 
-  // ─── ADDITIONAL ICONS ─────────────────────────────────────────────────────
+  // ADDITIONAL ICONS
   45: CategoryItem(name: 'Car', icon: HugeIcons.strokeRoundedCar01),
   46: CategoryItem(
     name: 'Insurance',

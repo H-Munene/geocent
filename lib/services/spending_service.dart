@@ -27,7 +27,7 @@ class SpendingService extends ChangeNotifier {
   SpendingService({BudgetService? budgetService})
     : _budgetService = budgetService;
 
-  // ── State ──────────────────────────────────────────────────────────────────
+  // State
   double _spent = 0;
   double _limit = 0;
   String _period = 'This Week';
@@ -122,7 +122,7 @@ class SpendingService extends ChangeNotifier {
     availableIcons[4]!, // pet
   ];
 
-  // ── Getters ────────────────────────────────────────────────────────────────
+  // Getters
   double get spent => _spent;
   double get limit => _limit;
   String get period => _period;
@@ -204,7 +204,7 @@ class SpendingService extends ChangeNotifier {
     return ProgressLevel.safe;
   }
 
-  // ── Init ───────────────────────────────────────────────────────────────────
+  // Init
 
   /// Call once from home.dart initState (or in the provider's create callback).
   Future<void> init() async {
@@ -212,7 +212,7 @@ class SpendingService extends ChangeNotifier {
     await refresh();
   }
 
-  // ── Custom Categories Persistence ──────────────────────────────────────────
+  // Custom Categories Persistence
 
   Future<void> _loadCustomCategories() async {
     try {
@@ -291,7 +291,7 @@ class SpendingService extends ChangeNotifier {
     }
   }
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  // Public API
 
   /// Clears the search query and resets the current filter to 'all'.
   void resetSearchAndFilters() {
@@ -1163,7 +1163,7 @@ class SpendingService extends ChangeNotifier {
   /// Convenience: returns all three limits for the settings screen.
   Future<Map<String, double>> getAllLimits() => _repo.getAllLimits();
 
-  // ── Private ────────────────────────────────────────────────────────────────
+  // Private
 
   String _getDayWithOrdinal(int day) {
     if (day >= 11 && day <= 13) {
