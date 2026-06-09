@@ -1,24 +1,3 @@
-// // lib/models/transaction.dart
-// class AppTransaction {
-//   final int? id;
-//   final String merchant;
-//   final double amount;
-//   final DateTime timestamp;
-//   final double latitude;
-//   final double longitude;
-
-//   AppTransaction({
-//     this.id,
-//     required this.merchant,
-//     required this.amount,
-//     required this.timestamp,
-//     required this.latitude,
-//     required this.longitude,
-//   });
-// }
-
-// lib/models/app_transaction.dart
-
 enum TransactionSource { mpesa, equity }
 
 enum TransactionType { sent, payment, received, unknown }
@@ -91,9 +70,9 @@ class AppTransaction {
 
   bool get hasLocation => latitude != null && longitude != null;
 
-  /// e.g. "Ksh 1,450"
+  /// e.g. "KES 1,450"
   String get formattedAmount =>
-      'Ksh ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
+      'KES ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',')}';
 
   /// Returns a copy with coordinates attached (used after GPS resolves).
   AppTransaction withLocation(double lat, double lng) => AppTransaction(
@@ -109,4 +88,32 @@ class AppTransaction {
     longitude: lng,
     category: category,
   );
+
+  AppTransaction copyWith({
+    String? id,
+    double? amount,
+    String? merchant,
+    String? rawMessage,
+    DateTime? timestamp,
+    double? balanceAfter,
+    TransactionSource? source,
+    TransactionType? type,
+    double? latitude,
+    double? longitude,
+    String? category,
+  }) {
+    return AppTransaction(
+      id: id ?? this.id,
+      amount: amount ?? this.amount,
+      merchant: merchant ?? this.merchant,
+      rawMessage: rawMessage ?? this.rawMessage,
+      timestamp: timestamp ?? this.timestamp,
+      balanceAfter: balanceAfter ?? this.balanceAfter,
+      source: source ?? this.source,
+      type: type ?? this.type,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      category: category ?? this.category,
+    );
+  }
 }

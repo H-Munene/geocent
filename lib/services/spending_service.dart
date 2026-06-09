@@ -1,12 +1,31 @@
 // lib/services/spending_service.dart
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
-import 'package:mapbox_tut/utils/categories.dart';
+import 'package:geocent/models/category_analytics.dart';
+import 'package:geocent/models/analytics_item.dart';
+import 'package:geocent/models/spending_insight.dart';
+import 'package:geocent/models/quick_insights.dart';
+import 'package:geocent/utils/categories.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocent/services/budget_service.dart';
+import 'package:geocent/services/hotspot_service.dart';
 import '../models/app_transaction.dart';
 import '../models/category_item.dart';
+import '../models/daily_spending.dart';
+import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
+import '../repositories/hotspot_repository.dart';
+
+enum AnalyticsRangeMode { week, month, year }
 
 class SpendingService extends ChangeNotifier {
   final TransactionRepository _repo = TransactionRepository();
+  final BudgetService? _budgetService;
+  final HotspotService _hotspotService = HotspotService();
+  final HotspotRepository _hotspotRepo = HotspotRepository();
+
+  SpendingService({BudgetService? budgetService})
+    : _budgetService = budgetService;
 
   // ── State ──────────────────────────────────────────────────────────────────
   double _spent = 0;
@@ -14,18 +33,82 @@ class SpendingService extends ChangeNotifier {
   String _period = 'This Week';
   List<AppTransaction> _periodTransactions = [];
   List<AppTransaction> _mappedTransactions = [];
-  List<AppTransaction> _actionableTransactions = [];
+  List<CategoryAnalytics> _categoryComparison = [];
+  final List<AppTransaction> _actionableTransactions = [];
   String? _selectedTxId;
   bool _isLoading = false;
+  List<AppTransaction> _allTransactions = [];
+  bool _isHotspotDataSufficient = false;
+  int _newGeocodedCount = 0;
+  List<Hotspot> _hotspots = [];
 
-  // default icons that are more likely to be used. I know this implementation
-  // is not robust but whatever man
+  int _tabSwitchCount = 0;
+
+  // Analytics State
+  List<DailySpending> _weeklyAnalytics = [];
+  double _weeklyTrendPercentage = 0;
+  bool _isSpendingIncreased = false;
+  double _spentThisWeek = 0;
+  String _weekDateRange = '';
+  List<AnalyticsItem> _categoryAnalyticsItems = [];
+  List<AnalyticsItem> _recipientAnalyticsItems = [];
+  List<SpendingInsight> _insights = []; // Add this
+  QuickInsightsData _quickInsightsData = QuickInsightsData.empty();
+
+  // Paginated Analytics Transactions
+  List<AppTransaction> _analyticsTransactions = [];
+  int _analyticsCurrentPage = 0;
+  bool _analyticsHasMore = true;
+  bool _isAnalyticsLoading = false;
+
+  // Selection state for dynamic analytics
+  DateTime? _customAnalyticsStart;
+  DateTime? _customAnalyticsEnd;
+  DateTime? _customPrevStart;
+  DateTime? _customPrevEnd;
+  String? _customLabel;
+  AnalyticsRangeMode _analyticsRangeMode = AnalyticsRangeMode.week;
+
+  // Pagination & Filtering state
+  List<AppTransaction> _paginatedMessages = [];
+  String _currentFilter = 'all';
+  String _currentDurationFilter = 'all'; // Add this
+  String _searchQuery = ''; // Add this
+  int _currentPage = 0;
+  bool _hasMore = true;
+  final int _pageSize = 20;
+
+  // Merchant category cache for performance
+  final Map<String, String> _merchantCategoryCache = {};
+
+  // Category Colors Map
+  final Map<String, Color> _categoryColors = {
+    'Dining': CupertinoColors.systemOrange,
+    'Snacks': const Color(0xFFFFCC00),
+    'Public Transport': CupertinoColors.systemBrown,
+    'Shopping': CupertinoColors.systemTeal,
+    'Taxi': CupertinoColors.black,
+    'Social': const Color.fromARGB(183, 243, 3, 211),
+    'Entertainment': const Color.fromARGB(137, 2, 139, 157),
+    'Laundry': const Color(0xFFE2D746),
+    'Household Utilities': const Color(0xFF0A84FF),
+    'Phone Bill': const Color(0xFF36EA84),
+    'Subscriptions': const Color.fromARGB(255, 182, 67, 94),
+    'Savings': const Color.fromARGB(255, 186, 195, 58),
+    'Health': CupertinoColors.systemRed,
+    'Services': const Color(0xFF0EAFE2),
+    'Hobby': CupertinoColors.systemIndigo,
+    'Pet': CupertinoColors.systemMint,
+  };
+
+  // A set of frequently used default categories.
+  // This list provides immediate actionable options for the user.
   final List<CategoryItem> _defaultCategories = [
     availableIcons[2]!, // dining
     availableIcons[29]!, // snacks
     availableIcons[35]!, // public transport
     availableIcons[1]!, // shopping
-    availableIcons[6]!, // taxi
+    availableIcons[34]!, // taxi
     availableIcons[37]!, // social
     availableIcons[10]!, // entertainment
     availableIcons[17]!, // laundry
@@ -45,6 +128,7 @@ class SpendingService extends ChangeNotifier {
   String get period => _period;
   bool get isLoading => _isLoading;
   List<AppTransaction> get periodTransactions => _periodTransactions;
+  List<CategoryAnalytics> get categoryComparison => _categoryComparison;
   List<CategoryItem> get categories => List.unmodifiable(_defaultCategories);
 
   /// Only transactions with GPS — used to rebuild map annotations.
@@ -53,16 +137,58 @@ class SpendingService extends ChangeNotifier {
   /// Transactions that need mapping or categorization.
   List<AppTransaction> get actionableTransactions => _actionableTransactions;
 
+  List<AppTransaction> get paginatedMessages => _paginatedMessages;
+  String get currentFilter => _currentFilter;
+  String get currentDurationFilter => _currentDurationFilter; // Add this
+  bool get hasMore => _hasMore;
+  List<AppTransaction> get allTransactions => _allTransactions; // New getter
+  String get searchQuery => _searchQuery;
+
+  bool get isHotspotDataSufficient => _isHotspotDataSufficient;
+
+  List<Hotspot> get hotspots => _hotspots;
+
   /// The transaction ID selected from the Messages screen to be categorized on the Map.
   String? get selectedTxId => _selectedTxId;
 
+  int get tabSwitchCount => _tabSwitchCount;
+
+  // Analytics Getters
+  List<DailySpending> get weeklyAnalytics => _weeklyAnalytics;
+  double get weeklyTrendPercentage => _weeklyTrendPercentage;
+  bool get isSpendingIncreased => _isSpendingIncreased;
+  double get spentThisWeek => _spentThisWeek;
+  String get weekDateRange => _weekDateRange;
+  List<AnalyticsItem> get categoryAnalyticsItems => _categoryAnalyticsItems;
+  List<AnalyticsItem> get recipientAnalyticsItems => _recipientAnalyticsItems;
+  List<SpendingInsight> get insights => _insights;
+  QuickInsightsData get quickInsightsData => _quickInsightsData;
+  AnalyticsRangeMode get analyticsRangeMode => _analyticsRangeMode;
+  List<AppTransaction> get analyticsTransactions => _analyticsTransactions;
+  bool get analyticsHasMore => _analyticsHasMore;
+  bool get isAnalyticsLoading => _isAnalyticsLoading;
+
+  Color getCategoryColor(String name) {
+    return _categoryColors[name] ?? CupertinoColors.systemGrey2;
+  }
+
+  /// Returns icons that are not yet assigned to any category.
+  List<CategoryItem> get availableIconsPool {
+    final usedIcons = _defaultCategories.map((c) => c.icon).toSet();
+    return availableIcons.values
+        .where((icon) => !usedIcons.contains(icon.icon))
+        .toList();
+  }
+
   CategoryItem? getCategoryByName(String? name) {
     if (name == null) return null;
-    try {
-      return _defaultCategories.firstWhere((c) => c.name == name);
-    } catch (_) {
-      return null;
-    }
+    // Check in-memory actively used categories first (includes custom ones)
+    final fromMemory = _defaultCategories
+        .where((c) => c.name == name)
+        .firstOrNull;
+    if (fromMemory != null) return fromMemory;
+    // Fallback to all available icons
+    return availableIcons.values.where((c) => c.name == name).firstOrNull;
   }
 
   /// 0.0 → 1.0, clamped so the UI never breaks at >100 %.
@@ -82,10 +208,104 @@ class SpendingService extends ChangeNotifier {
 
   /// Call once from home.dart initState (or in the provider's create callback).
   Future<void> init() async {
+    await _loadCustomCategories();
     await refresh();
   }
 
+  // ── Custom Categories Persistence ──────────────────────────────────────────
+
+  Future<void> _loadCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customCatsStr = prefs.getString('custom_categories');
+      if (customCatsStr != null) {
+        final List<dynamic> decoded = jsonDecode(customCatsStr);
+        for (final item in decoded) {
+          final String name = item['name'];
+          final int baseId = item['baseId'];
+          final int colorValue = item['colorValue'];
+
+          if (availableIcons.containsKey(baseId) &&
+              !_defaultCategories.any((c) => c.name == name)) {
+            final baseCat = availableIcons[baseId]!;
+            _defaultCategories.add(
+              CategoryItem(name: name, icon: baseCat.icon),
+            );
+            _categoryColors[name] = Color(colorValue);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to load custom categories: $e');
+    }
+  }
+
+  Future<void> _saveCustomCategories() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // Filter out the core 16 built-in default ones to only save custom ones.
+      // We use a fixed set of names to ensure user-created categories with matching icons are saved.
+      final coreDefaults = {
+        'Dining',
+        'Snacks',
+        'Public Transport',
+        'Shopping',
+        'Taxi',
+        'Social',
+        'Entertainment',
+        'Laundry',
+        'Household Utilities',
+        'Phone Bill',
+        'Subscriptions',
+        'Savings',
+        'Health',
+        'Services',
+        'Hobby',
+        'Pet',
+      };
+
+      final customCategories = _defaultCategories
+          .where((c) => !coreDefaults.contains(c.name))
+          .toList();
+
+      final List<Map<String, dynamic>> toSave = customCategories.map((cat) {
+        // Find baseId to link back to the correct icon on load
+        int baseId = 2; // Default to dining
+        for (final entry in availableIcons.entries) {
+          if (entry.value.icon == cat.icon) {
+            baseId = entry.key;
+            break;
+          }
+        }
+        return {
+          'name': cat.name,
+          'baseId': baseId,
+          'colorValue': getCategoryColor(cat.name).toARGB32(),
+        };
+      }).toList();
+
+      await prefs.setString('custom_categories', jsonEncode(toSave));
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to save custom categories: $e');
+    }
+  }
+
   // ── Public API ─────────────────────────────────────────────────────────────
+
+  /// Clears the search query and resets the current filter to 'all'.
+  void resetSearchAndFilters() {
+    _tabSwitchCount++;
+    _searchQuery = '';
+    _currentFilter = 'all';
+    _currentDurationFilter = 'all';
+    _currentPage = 0;
+    _hasMore = true;
+    _paginatedMessages = [];
+    notifyListeners();
+    // Re-fetch messages so that screens are populated with fresh data
+    fetchMessages(refresh: true);
+  }
 
   /// Set the selected transaction and notify listeners to trigger navigation/popups.
   void selectTransaction(String id) {
@@ -105,10 +325,22 @@ class SpendingService extends ChangeNotifier {
     await refresh();
   }
 
+  Future<List<AppTransaction>> searchMessages(String query) async {
+    if (query.isEmpty) return [];
+    return await _repo.searchTransactions(query);
+  }
+
+  Future<List<AppTransaction>> getMessagesByCategory(String category) async {
+    return await _repo.loadByCategory(category);
+  }
+
   /// Reload spent totals, limit, and mapped transactions from DB.
   Future<void> refresh() async {
     _isLoading = true;
     notifyListeners();
+
+    // Reset custom analytics if refreshing fully? No, maybe keep it.
+    // But usually refresh is called on startup.
 
     // Map DynamicIsland period labels → DB period keys
     final String dbPeriod = _toDbPeriod(_period);
@@ -117,23 +349,656 @@ class SpendingService extends ChangeNotifier {
       _repo.loadByPeriod(_period),
       _repo.loadMapped(),
       _repo.getLimit(dbPeriod),
-      _repo.loadActionable(),
+      _repo.getCategoryComparison(),
+      _updateAnalytics(),
+      _computeInsights(),
+      _computeQuickInsights(),
+      _hotspotService.isDataSufficient(),
+      _hotspotRepo.getAllHotspots(),
     ]);
-
     _periodTransactions = results[0] as List<AppTransaction>;
     _mappedTransactions = results[1] as List<AppTransaction>;
     _limit = results[2] as double;
-    _actionableTransactions = results[3] as List<AppTransaction>;
+    _categoryComparison = results[3] as List<CategoryAnalytics>;
     _spent = _periodTransactions.fold(0.0, (sum, tx) => sum + tx.amount);
+    _allTransactions = await _repo.loadAll(); // Load all transactions
+    _isHotspotDataSufficient = results[7] as bool;
+    _hotspots = results[8] as List<Hotspot>;
+
+    // 📍 Upgrade Migration: If the user already has enough historical data
+    // but no hotspots exist yet, run the clustering immediately on startup.
+    if (_isHotspotDataSufficient && _hotspots.isEmpty) {
+      await _hotspotService.runClustering();
+      _hotspots = await _hotspotRepo.getAllHotspots();
+    }
+
+    // Update budget exceeded status
+    await _budgetService?.updateExceededStatus();
 
     _isLoading = false;
     notifyListeners();
+
+    // Also refresh paginated messages to keep them in sync
+    await fetchMessages(refresh: true);
+  }
+
+  Future<void> setAnalyticsRange({
+    required DateTime start,
+    required DateTime end,
+    DateTime? prevStart,
+    DateTime? prevEnd,
+    String? label,
+    AnalyticsRangeMode mode = AnalyticsRangeMode.week,
+  }) async {
+    _customAnalyticsStart = start;
+    _customAnalyticsEnd = end;
+    _customPrevStart = prevStart;
+    _customPrevEnd = prevEnd;
+    _customLabel = label;
+    _analyticsRangeMode = mode;
+    await _updateAnalytics();
+    notifyListeners();
+  }
+
+  /// Calculates weekly analytics including daily breakdown, trends, and averages.
+  Future<void> _updateAnalytics() async {
+    final now = DateTime.now();
+
+    DateTime currentStart;
+    DateTime currentEnd;
+    DateTime previousStart;
+    DateTime previousEnd;
+
+    if (_customAnalyticsStart != null && _customAnalyticsEnd != null) {
+      currentStart = _customAnalyticsStart!;
+      currentEnd = _customAnalyticsEnd!;
+      previousStart =
+          _customPrevStart ??
+          currentStart.subtract(currentEnd.difference(currentStart));
+      previousEnd =
+          _customPrevEnd ??
+          currentStart.subtract(const Duration(milliseconds: 1));
+      _weekDateRange = _customLabel ?? "";
+    } else {
+      // Sunday of the current week (local time)
+      final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+      final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+      currentStart = DateTime(
+        startOfCurrentWeek.year,
+        startOfCurrentWeek.month,
+        startOfCurrentWeek.day,
+      );
+      // End of the week (Saturday)
+      currentEnd = currentStart.add(
+        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+      );
+
+      previousStart = currentStart.subtract(const Duration(days: 7));
+      previousEnd = currentStart.subtract(const Duration(milliseconds: 1));
+      _analyticsRangeMode = AnalyticsRangeMode.week;
+    }
+
+    if (_analyticsRangeMode == AnalyticsRangeMode.week) {
+      final months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+
+      final fullMonths = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      if (currentStart.month == currentEnd.month) {
+        _weekDateRange =
+            "${_getDayWithOrdinal(currentStart.day)} – ${_getDayWithOrdinal(currentEnd.day)} ${fullMonths[currentStart.month - 1]}";
+      } else {
+        _weekDateRange =
+            "${_getDayWithOrdinal(currentStart.day)} ${months[currentStart.month - 1]} – ${_getDayWithOrdinal(currentEnd.day)} ${months[currentEnd.month - 1]}";
+      }
+    } else {
+      _weekDateRange = _customLabel ?? "";
+    }
+
+    final results = await Future.wait([
+      _repo.getDailySpendingByCategory(currentStart, currentEnd),
+      _repo.getTotalSpending(previousStart, previousEnd),
+      _repo.getCategorySpending(currentStart, currentEnd),
+      _repo.getCategorySpending(previousStart, previousEnd),
+      _repo.getRecipientSpending(currentStart, currentEnd),
+    ]);
+
+    final List<Map<String, dynamic>> dailyRaw =
+        results[0] as List<Map<String, dynamic>>;
+    final double previousTotal = results[1] as double;
+    final currentCategories = results[2] as List<Map<String, dynamic>>;
+    final previousCategories = results[3] as List<Map<String, dynamic>>;
+    final currentRecipients = results[4] as List<Map<String, dynamic>>;
+
+    final List<DailySpending> breakdown = [];
+    final List<String> dayNames = [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat",
+    ];
+
+    if (_analyticsRangeMode == AnalyticsRangeMode.year) {
+      // Monthly aggregation for Year view
+      final Map<String, Map<String, double>> monthlyBreakdown = {};
+      final Map<String, double> monthlyUnmapped = {};
+
+      for (final entry in dailyRaw) {
+        final dayStr = entry['day'] as String; // YYYY-MM-DD
+        final monthKey = dayStr.substring(0, 7); // YYYY-MM
+        final category = entry['category'] as String?;
+        final amount = (entry['total_amount'] as num).toDouble();
+
+        if (category == null) {
+          monthlyUnmapped[monthKey] = (monthlyUnmapped[monthKey] ?? 0) + amount;
+        } else {
+          monthlyBreakdown.putIfAbsent(monthKey, () => {});
+          monthlyBreakdown[monthKey]![category] =
+              (monthlyBreakdown[monthKey]![category] ?? 0) + amount;
+        }
+      }
+
+      // Create exactly 12 points for the year
+      final monthsNamesShort = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
+      for (int i = 1; i <= 12; i++) {
+        final temp = DateTime(currentStart.year, i, 1);
+        final monthKey =
+            "${temp.year}-${temp.month.toString().padLeft(2, '0')}";
+        breakdown.add(
+          DailySpending(
+            date: temp,
+            dayName: monthsNamesShort[i - 1],
+            isToday: temp.year == now.year && temp.month == now.month,
+            categoryValues: monthlyBreakdown[monthKey] ?? {},
+            unmappedValue: monthlyUnmapped[monthKey] ?? 0,
+          ),
+        );
+      }
+    } else {
+      // Daily breakdown for Week or Month
+      final int duration = currentEnd.difference(currentStart).inDays;
+      for (int i = 0; i <= duration; i++) {
+        final date = currentStart.add(Duration(days: i));
+        final dateStr =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+
+        final dayEntries = dailyRaw.where((r) => r['day'] == dateStr).toList();
+        final Map<String, double> categories = {};
+        double unmapped = 0;
+
+        for (final entry in dayEntries) {
+          final category = entry['category'] as String?;
+          final amount = (entry['total_amount'] as num).toDouble();
+          if (category == null) {
+            unmapped += amount;
+          } else {
+            categories[category] = amount;
+          }
+        }
+
+        breakdown.add(
+          DailySpending(
+            date: date,
+            dayName:
+                date.day == now.day &&
+                    date.month == now.month &&
+                    date.year == now.year
+                ? "Today"
+                : (_analyticsRangeMode == AnalyticsRangeMode.week
+                      ? dayNames[date.weekday % 7]
+                      : "${date.day}"),
+            isToday:
+                date.day == now.day &&
+                date.month == now.month &&
+                date.year == now.year,
+            categoryValues: categories,
+            unmappedValue: unmapped,
+          ),
+        );
+      }
+    }
+
+    _weeklyAnalytics = breakdown;
+
+    // 2. Trend Calculation
+    final double currentTotal = dailyRaw.fold(
+      0.0,
+      (sum, r) => sum + (r['total_amount'] as num).toDouble(),
+    );
+    if (previousTotal == 0) {
+      _weeklyTrendPercentage = currentTotal > 0 ? 100 : 0;
+    } else {
+      _weeklyTrendPercentage =
+          ((currentTotal - previousTotal) / previousTotal * 100).abs();
+    }
+    _isSpendingIncreased = currentTotal > previousTotal;
+
+    // 3. Total Spent in Range
+    _spentThisWeek = currentTotal;
+
+    // 4. Process List Items (Category)
+    _categoryAnalyticsItems = currentCategories.map((m) {
+      final category = m['category'] as String;
+      final currentTotal = (m['total_amount'] as num).toDouble();
+      final prevMatch = previousCategories
+          .where((pm) => pm['category'] == category)
+          .firstOrNull;
+      final double prevTotal = prevMatch != null
+          ? (prevMatch['total_amount'] as num).toDouble()
+          : 0.0;
+
+      return AnalyticsItem(
+        title: category,
+        count: m['count'] as int,
+        total: currentTotal,
+        trend: currentTotal - prevTotal,
+        category: category == 'Unmapped' ? null : category,
+      );
+    }).toList();
+
+    // 5. Process List Items (Recipient)
+    _recipientAnalyticsItems = currentRecipients.map((m) {
+      final recipient = m['recipient'] as String;
+      return AnalyticsItem(
+        title: recipient,
+        count: m['count'] as int,
+        total: (m['total_amount'] as num).toDouble(),
+        initials: _getInitials(recipient),
+      );
+    }).toList();
+  }
+
+  /// Calculates high-level insights for the animated ticker.
+  Future<void> _computeInsights() async {
+    final List<SpendingInsight> newInsights = [];
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    // 1. Highest Expense Today
+    final todaySpending = await _repo.getCategorySpending(todayStart, now);
+    final topToday = todaySpending
+        .where((s) => s['category'] != 'Unmapped')
+        .firstOrNull;
+
+    if (topToday != null) {
+      newInsights.add(
+        SpendingInsight(
+          highlight: topToday['category'] as String,
+          suffix: ' is highest expense today',
+          highlightColor: getCategoryColor(topToday['category'] as String),
+          icon:
+              getCategoryByName(topToday['category'] as String)?.icon ??
+              CupertinoIcons.graph_square,
+        ),
+      );
+    }
+
+    // 2. Highest Expense This Week
+    final topWeek = _categoryAnalyticsItems
+        .where((s) => s.category != null)
+        .firstOrNull;
+
+    if (topWeek != null) {
+      newInsights.add(
+        SpendingInsight(
+          highlight: topWeek.title,
+          suffix: ' is highest expense this week',
+          highlightColor: getCategoryColor(topWeek.title),
+          icon:
+              getCategoryByName(topWeek.title)?.icon ??
+              CupertinoIcons.chart_bar_fill,
+        ),
+      );
+    }
+
+    // 3. Spent Today
+    final double spentToday = await _repo.getTotalSpending(todayStart, now);
+    if (spentToday > 0) {
+      newInsights.add(
+        SpendingInsight(
+          prefix: 'Spent ',
+          highlight: 'KES ${spentToday.toStringAsFixed(0)}',
+          suffix: ' today',
+          highlightColor: const Color(0xFF1D1D1F),
+          icon: CupertinoIcons.creditcard_fill,
+        ),
+      );
+    }
+
+    // 4. Budget Progress & Remaining
+    if (_budgetService != null) {
+      // We check all periods to find active budgets
+      final allPeriods = ['daily', 'weekly', 'monthly'];
+      for (final period in allPeriods) {
+        final progressList = await _budgetService.getBudgetProgress(period);
+        for (final prog in progressList) {
+          // Used percentage insight
+          if (prog.totalSpentInPeriod > 0) {
+            final percentage = (prog.percentageUsed * 100).toInt();
+            newInsights.add(
+              SpendingInsight(
+                prefix: 'Used $percentage% of ',
+                highlight: prog.categoryName,
+                suffix: ' budget',
+                highlightColor: getCategoryColor(prog.categoryName),
+                icon:
+                    getCategoryByName(prog.categoryName)?.icon ??
+                    CupertinoIcons.gauge,
+              ),
+            );
+          }
+
+          // Remaining amount insight
+          final remaining = (prog.amountLimit - prog.totalSpentInPeriod).clamp(
+            0.0,
+            double.infinity,
+          );
+          if (remaining > 0) {
+            newInsights.add(
+              SpendingInsight(
+                prefix: 'KES ${remaining.toStringAsFixed(0)} left in ',
+                highlight: prog.categoryName,
+                suffix: ' $period budget',
+                highlightColor: getCategoryColor(prog.categoryName),
+                icon:
+                    getCategoryByName(prog.categoryName)?.icon ??
+                    CupertinoIcons.money_dollar_circle_fill,
+              ),
+            );
+          }
+        }
+      }
+    }
+
+    _insights = newInsights;
+  }
+
+  Future<void> _computeQuickInsights() async {
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+
+    // Week (Sunday to Saturday)
+    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: daysToSubtract));
+    final weekEnd = weekStart.add(
+      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+    );
+
+    // Month
+    final monthStart = DateTime(now.year, now.month, 1);
+    final monthEnd = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+
+    // Fetch primary totals
+    final totals = await Future.wait([
+      _repo.getTotalSpending(todayStart, now),
+      _repo.getTotalSpending(weekStart, weekEnd),
+      _repo.getTotalSpending(monthStart, monthEnd),
+    ]);
+
+    final primary = [
+      QuickInsightPrimary(label: 'Spent Today', amount: totals[0]),
+      QuickInsightPrimary(label: 'Spent This Week', amount: totals[1]),
+      QuickInsightPrimary(label: 'Spent This Month', amount: totals[2]),
+    ];
+
+    // Fetch Top Categories
+    final topCats = await Future.wait([
+      _repo.getCategorySpending(todayStart, now),
+      _repo.getCategorySpending(weekStart, weekEnd),
+      _repo.getCategorySpending(monthStart, monthEnd),
+    ]);
+
+    final periodLabels = ['today', 'this week', 'this month'];
+    final topCategories = <QuickInsightCategory>[];
+    for (int i = 0; i < topCats.length; i++) {
+      final catList = topCats[i];
+      final top = catList.where((c) => c['category'] != 'Unmapped').firstOrNull;
+      if (top != null) {
+        final name = top['category'] as String;
+        topCategories.add(
+          QuickInsightCategory(
+            categoryName: name,
+            amount: (top['total_amount'] as num).toDouble(),
+            color: getCategoryColor(name),
+            icon: getCategoryByName(name)?.icon ?? CupertinoIcons.graph_square,
+            period: periodLabels[i],
+          ),
+        );
+      }
+    }
+
+    // Trend Data (Comparison with previous periods)
+    final prevTodayStart = todayStart.subtract(const Duration(days: 1));
+    final prevTodayEnd = todayStart.subtract(const Duration(milliseconds: 1));
+
+    final prevWeekStart = weekStart.subtract(const Duration(days: 7));
+    final prevWeekEnd = weekStart.subtract(const Duration(milliseconds: 1));
+
+    // Previous month (1st of last month to last day of last month)
+    final prevMonthStart = DateTime(monthStart.year, monthStart.month - 1, 1);
+    final prevMonthEnd = DateTime(
+      monthStart.year,
+      monthStart.month,
+      0,
+      23,
+      59,
+      59,
+    );
+
+    final prevTotals = await Future.wait([
+      _repo.getTotalSpending(prevTodayStart, prevTodayEnd),
+      _repo.getTotalSpending(prevWeekStart, prevWeekEnd),
+      _repo.getTotalSpending(prevMonthStart, prevMonthEnd),
+    ]);
+
+    final trends = [
+      QuickInsightTrend(
+        periodLabel: 'Today',
+        comparisonLabel: 'than yesterday',
+        amountDifference: (totals[0] - prevTotals[0]).abs(),
+        isMore: totals[0] >= prevTotals[0],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Week',
+        comparisonLabel: 'than last week',
+        amountDifference: (totals[1] - prevTotals[1]).abs(),
+        isMore: totals[1] >= prevTotals[1],
+      ),
+      QuickInsightTrend(
+        periodLabel: 'This Month',
+        comparisonLabel: 'than last month',
+        amountDifference: (totals[2] - prevTotals[2]).abs(),
+        isMore: totals[2] >= prevTotals[2],
+      ),
+    ];
+
+    // Monthly Spending (Current Year)
+    final monthly = <QuickInsightMonthly>[];
+    final yearStart = DateTime(now.year, 1, 1);
+    final yearEnd = DateTime(now.year, 12, 31, 23, 59, 59);
+    final allYearRaw = await _repo.getDailySpendingByCategory(
+      yearStart,
+      yearEnd,
+    );
+
+    final monthsNamesFull = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    final Map<int, double> monthTotals = {};
+    for (var entry in allYearRaw) {
+      final date = DateTime.parse(entry['day']);
+      final amount = (entry['total_amount'] as num).toDouble();
+      monthTotals[date.month] = (monthTotals[date.month] ?? 0) + amount;
+    }
+
+    for (int i = 1; i <= 12; i++) {
+      if (monthTotals.containsKey(i) && monthTotals[i]! > 0) {
+        monthly.add(
+          QuickInsightMonthly(
+            monthName: monthsNamesFull[i - 1],
+            amount: monthTotals[i]!,
+          ),
+        );
+      }
+    }
+
+    _quickInsightsData = QuickInsightsData(
+      primary: primary,
+      topCategories: topCategories,
+      trends: trends,
+      monthly: monthly,
+    );
+
+    await fetchAnalyticsTransactions(refresh: true);
+  }
+
+  Future<void> fetchAnalyticsTransactions({bool refresh = false}) async {
+    if (_isAnalyticsLoading) return;
+    if (!refresh && !_analyticsHasMore) return;
+
+    _isAnalyticsLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _analyticsCurrentPage = 0;
+      _analyticsTransactions = [];
+      _analyticsHasMore = true;
+    }
+
+    try {
+      DateTime start;
+      DateTime end;
+
+      if (_customAnalyticsStart != null && _customAnalyticsEnd != null) {
+        start = _customAnalyticsStart!;
+        end = _customAnalyticsEnd!;
+      } else {
+        final now = DateTime.now();
+        // Sunday of the current week (local time)
+        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
+        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
+        start = DateTime(
+          startOfCurrentWeek.year,
+          startOfCurrentWeek.month,
+          startOfCurrentWeek.day,
+        );
+        // End of the week (Saturday)
+        end = start.add(
+          const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
+        );
+      }
+
+      final newTxs = await _repo.getTransactionsByDateRange(
+        start: start,
+        end: end,
+        limit: _pageSize,
+        offset: _analyticsCurrentPage * _pageSize,
+      );
+
+      if (newTxs.length < _pageSize) {
+        _analyticsHasMore = false;
+      }
+
+      _analyticsTransactions.addAll(newTxs);
+      _analyticsCurrentPage++;
+    } catch (e) {
+      debugPrint(
+        '[SpendingService] Failed to fetch analytics transactions: $e',
+      );
+    } finally {
+      _isAnalyticsLoading = false;
+      notifyListeners();
+    }
+  }
+
+  String _getInitials(String name) {
+    if (name.isEmpty) return '?';
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name[0].toUpperCase();
   }
 
   /// Save a freshly-parsed transaction then refresh totals.
   Future<void> addTransaction(AppTransaction tx) async {
+    // Auto-categorize based on merchant history
+    if (tx.category == null) {
+      String? cachedCategory = _merchantCategoryCache[tx.merchant];
+      if (cachedCategory == null) {
+        cachedCategory = await _repo.getMerchantCategory(tx.merchant);
+        if (cachedCategory != null) {
+          _merchantCategoryCache[tx.merchant] = cachedCategory;
+        }
+      }
+
+      if (cachedCategory != null) {
+        tx = tx.copyWith(category: cachedCategory);
+      }
+    }
+
     await _repo.save(tx);
     await refresh();
+
+    if (tx.category != null) {
+      _budgetService?.checkAndNotify(categoryName: tx.category);
+    }
   }
 
   /// Attach GPS to an existing transaction then refresh the map layer.
@@ -145,13 +1010,74 @@ class SpendingService extends ChangeNotifier {
     await _repo.updateLocation(txId, latitude, longitude);
     // Refresh to ensure all lists (mapped, actionable) are updated and listeners notified
     await refresh();
+
+    _newGeocodedCount++;
+    if (_newGeocodedCount >= 10) {
+      _newGeocodedCount = 0;
+      _hotspotService.runClustering();
+    }
+  }
+
+  Future<void> bulkAttachLocation(
+    List<String> ids,
+    double latitude,
+    double longitude,
+  ) async {
+    await _repo.bulkUpdateLocation(ids, latitude, longitude);
+    await refresh();
+
+    _newGeocodedCount += ids.length;
+    if (_newGeocodedCount >= 10) {
+      _newGeocodedCount = 0;
+      _hotspotService.runClustering();
+    }
   }
 
   /// Update the category of an existing transaction then refresh state.
   Future<void> updateCategory(String txId, String category) async {
     await _repo.updateCategory(txId, category);
+
+    // Learn and persist merchant preference
+    final tx = [
+      ..._periodTransactions,
+      ..._paginatedMessages,
+    ].where((t) => t.id == txId).firstOrNull;
+    if (tx != null) {
+      _merchantCategoryCache[tx.merchant] = category;
+      await _repo.upsertMerchantCategory(tx.merchant, category);
+    }
+
     // Refresh to update UI with new category and remove from actionable if complete
     await refresh();
+
+    _budgetService?.checkAndNotify(categoryName: category);
+  }
+
+  Future<void> bulkUpdateCategory(List<String> ids, String category) async {
+    await _repo.updateCategories(ids, category);
+
+    // Learn and persist merchant preferences for all unique merchants in the batch
+    final affectedTxs = _paginatedMessages
+        .where((t) => ids.contains(t.id))
+        .toList();
+    final uniqueMerchants = affectedTxs.map((t) => t.merchant).toSet();
+
+    for (final merchant in uniqueMerchants) {
+      _merchantCategoryCache[merchant] = category;
+      await _repo.upsertMerchantCategory(merchant, category);
+    }
+
+    await refresh();
+    await fetchMessages(refresh: true);
+
+    _budgetService?.checkAndNotify(categoryName: category);
+  }
+
+  Future<void> forgetMessages(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await _repo.forgetTransactions(ids);
+    await refresh();
+    await fetchMessages(refresh: true);
   }
 
   /// Persist a new limit for the current period then refresh.
@@ -163,9 +1089,73 @@ class SpendingService extends ChangeNotifier {
     }
   }
 
-  void addCategory(CategoryItem category) {
+  Future<void> setFilter(String filter) async {
+    if (_currentFilter == filter) return;
+    _currentFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
+    // Pass the current search query when setting a new filter
+    await fetchMessages(refresh: true, searchQuery: _searchQuery);
+  }
+
+  Future<void> setDurationFilter(String filter) async {
+    if (_currentDurationFilter == filter) return;
+    _currentDurationFilter = filter;
+    _currentPage = 0;
+    _paginatedMessages = [];
+    _hasMore = true;
+    await fetchMessages(refresh: true, searchQuery: _searchQuery);
+  }
+
+  Future<void> fetchMessages({
+    bool refresh = false,
+    String? searchQuery,
+  }) async {
+    if (_isLoading) return;
+    if (!refresh && !_hasMore) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    if (refresh) {
+      _currentPage = 0;
+      _paginatedMessages = [];
+      _hasMore = true;
+    }
+
+    if (searchQuery != null) {
+      _searchQuery = searchQuery;
+    }
+
+    try {
+      final newMessages = await _repo.loadFiltered(
+        filter: _currentFilter,
+        limit: _pageSize,
+        offset: _currentPage * _pageSize,
+        searchQuery: _searchQuery,
+        durationFilter: _currentDurationFilter,
+      );
+
+      if (newMessages.length < _pageSize) {
+        _hasMore = false;
+      }
+
+      _paginatedMessages.addAll(newMessages);
+      _currentPage++;
+    } catch (e) {
+      debugPrint('[SpendingService] Failed to fetch messages: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  void addCategory(CategoryItem category, Color color) {
     if (!_defaultCategories.any((c) => c.name == category.name)) {
       _defaultCategories.add(category);
+      _categoryColors[category.name] = color;
+      _saveCustomCategories();
       notifyListeners();
     }
   }
@@ -174,6 +1164,22 @@ class SpendingService extends ChangeNotifier {
   Future<Map<String, double>> getAllLimits() => _repo.getAllLimits();
 
   // ── Private ────────────────────────────────────────────────────────────────
+
+  String _getDayWithOrdinal(int day) {
+    if (day >= 11 && day <= 13) {
+      return '${day}th';
+    }
+    switch (day % 10) {
+      case 1:
+        return '${day}st';
+      case 2:
+        return '${day}nd';
+      case 3:
+        return '${day}rd';
+      default:
+        return '${day}th';
+    }
+  }
 
   /// Maps DynamicIsland display strings to the DB period keys.
   String _toDbPeriod(String displayPeriod) {

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -8,19 +10,28 @@ import 'package:geolocator/geolocator.dart' as gl;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_popup/flutter_popup.dart';
-
-import 'package:hugeicons/hugeicons.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../models/call_out_result.dart';
 import '../models/map_place.dart';
+import '../models/app_transaction.dart';
+import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
+import '../services/geofence_service.dart';
 import '../utils/marker_utils.dart';
-import '../widgets/dynamic_island.dart';
-import '../widgets/category_dropdown_widget.dart';
+import '../widgets/timeline_sheet.dart';
+import '../widgets/category_messages_sheet.dart';
+import '../widgets/map_style_picker_modal.dart';
+import '../widgets/map/map_action_button.dart';
+import '../widgets/map/map_category_filters.dart';
+import '../widgets/map/map_search_header.dart';
+import '../widgets/map/grouped_transactions_sheet.dart';
+import '../widgets/map/transaction_popup_content.dart';
+import '../widgets/custom_toast.dart';
+import 'location_picker_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -30,68 +41,70 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen>
-    with SingleTickerProviderStateMixin {
-  bool _islandExpanded = false;
-  bool _amountsVisible = false;
-  late AnimationController _bounceController;
-  late Animation<double> _bounceScale;
-
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   mp.PointAnnotationManager? _annotationManager;
   mp.CircleAnnotationManager? _dotManager;
   final Map<String, MapPlace> _annotationToPlaceMap = {};
-  bool _isAnimating = false;
+  final bool _isAnimating = false;
   List<MapPlace> _places = [];
   mp.MapboxMap? mapboxMapController;
   StreamSubscription? userPositionStream;
   StreamSubscription? _bgServiceSub;
+  gl.Position? _lastGeofenceRegistrationPoint;
+  final GeofenceService _geofenceService = GeofenceService();
 
   int _annotationUpdateVersion = 0;
+  String _currentMapStyle = mp.MapboxStyles.STANDARD;
+  bool _isMapUpdating = false;
+
+  final GlobalKey<MapSearchHeaderState> _headerKey = GlobalKey();
+
+  String? _selectedCategory;
+  String? _selectedTxId;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
   mp.ScreenCoordinate? _popupPosition;
   MapPlace? _selectedPlace;
 
   // Initialised once onMapCreated fires
+  final GlobalKey _fabKey = GlobalKey();
   SmsService? _smsService;
 
   @override
   void initState() {
     super.initState();
-    _positionTracking();
-    _bounceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 450),
-    );
-    _bounceScale = TweenSequence<double>([
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 1.0,
-          end: 0.95,
-        ).chain(CurveTween(curve: Curves.easeOut)),
-        weight: 30,
-      ),
-      TweenSequenceItem(
-        tween: Tween<double>(
-          begin: 0.95,
-          end: 1.0,
-        ).chain(CurveTween(curve: Curves.easeOutBack)),
-        weight: 70,
-      ),
-    ]).animate(_bounceController);
 
-    // Listen for background service events to trigger Dynamic Island
+    WidgetsBinding.instance.addObserver(this);
+    _loadMapStyle();
+    _positionTracking();
+
+    // Listen for background service events
     _bgServiceSub = FlutterBackgroundService().on('transaction_saved').listen((
       _,
     ) {
-      _triggerIslandAutoExpand();
       if (mounted) {
         context.read<SpendingService>().refresh();
       }
     });
 
-    FlutterBackgroundService().on('location_attached').listen((_) {
+    FlutterBackgroundService().on('location_attached').listen((event) async {
       if (mounted) {
-        context.read<SpendingService>().refresh();
+        final spending = context.read<SpendingService>();
+        // Explicitly await refresh to ensure the new transaction is in mappedTransactions
+        await spending.refresh();
+
+        if (event != null && event['id'] != null) {
+          final txId = event['id'].toString();
+          if (mounted) {
+            final mappedTxs = spending.mappedTransactions;
+            final txIndex = mappedTxs.indexWhere((t) => t.id == txId);
+            if (txIndex != -1) {
+              _headerKey.currentState?.showDynamicIslandForTransaction(
+                mappedTxs[txIndex],
+              );
+            }
+          }
+        }
       }
     });
 
@@ -99,6 +112,90 @@ class _MapScreenState extends State<MapScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SpendingService>().addListener(_handleSelectedTransaction);
     });
+
+    // Check for recently mapped transactions on app startup
+    _checkRecentTransactions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+
+    userPositionStream?.cancel();
+    _bgServiceSub?.cancel();
+    mapboxMapController?.dispose();
+    _smsService?.dispose();
+
+    // Remove listener to prevent memory leaks
+    final spending = Provider.of<SpendingService>(context, listen: false);
+    spending.removeListener(_refreshAnnotations);
+    spending.removeListener(_refreshHotspots);
+    spending.removeListener(_handleSelectedTransaction);
+
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh data and check for recent transactions whenever we return to the foreground
+      context.read<SpendingService>().refresh().then((_) {
+        _checkRecentTransactions();
+      });
+    }
+  }
+
+  Future<void> _checkRecentTransactions() async {
+    // Slight delay to ensure Provider context is ready
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+
+    // Wait for the SpendingService to finish its initial data fetch
+    while (spending.isLoading) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+    }
+
+    final now = DateTime.now();
+    // Scan for any mapped transactions that occurred in the last 5 minutes
+    for (final tx in spending.mappedTransactions) {
+      if (now.difference(tx.timestamp).inMinutes <= 5) {
+        _headerKey.currentState?.showDynamicIslandForTransaction(tx);
+      }
+    }
+  }
+
+  Future<void> _loadMapStyle() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedStyle = prefs.getString('map_style');
+    if (savedStyle != null && mounted) {
+      setState(() {
+        _currentMapStyle = savedStyle;
+      });
+
+      // If controller is already ready, load the style now
+      if (mapboxMapController != null) {
+        await mapboxMapController!.loadStyleURI(savedStyle);
+        // Style load takes a moment, expressions need re-applying
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _applyStyleLayerExpressions();
+            _refreshAnnotations();
+          }
+        });
+      }
+    }
+  }
+
+  void _handleMapTap(mp.MapContentGestureContext context) {
+    // Search focus is handled by TapRegion in MapSearchHeader
+  }
+
+  Future<void> _saveMapStyle(String styleUri) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('map_style', styleUri);
   }
 
   void _handleSelectedTransaction() async {
@@ -124,13 +221,10 @@ class _MapScreenState extends State<MapScreen>
     }
 
     final place = MapPlace(
-      id: tx.id,
       name: tx.merchant,
-      price: tx.formattedAmount,
       latitude: tx.latitude!,
       longitude: tx.longitude!,
-      rawMessage: tx.rawMessage,
-      category: tx.category,
+      transactions: [tx],
     );
 
     // Fly to the location
@@ -157,7 +251,11 @@ class _MapScreenState extends State<MapScreen>
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = tx.id;
       });
+
+      // Boost priority of the selected annotation so it wins collision
+      await _updateAnnotationPriority();
 
       // Clear the selection so it doesn't trigger again on every rebuild
       spending.clearSelectedTransaction();
@@ -169,39 +267,49 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _triggerIslandAutoExpand() {
-    if (!mounted) return;
-    setState(() {
-      _amountsVisible = true;
-      _islandExpanded = true;
-    });
+  Future<void> _updateAnnotationPriority() async {
+    if (_annotationManager == null || _selectedTxId == null) return;
 
-    // Fold back up after 5 seconds
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted) {
-        setState(() {
-          _amountsVisible = false;
-          _islandExpanded = false;
-        });
-        _bounceController.forward(from: 0.0);
+    final allAnnotations = await _annotationManager!.getAnnotations();
+    for (final ann in allAnnotations) {
+      final place = _annotationToPlaceMap[ann.id];
+      if (place == null) continue;
+
+      final double newSortKey = _getSortKey(place);
+
+      if (ann.symbolSortKey != newSortKey) {
+        ann.symbolSortKey = newSortKey;
+        await _annotationManager!.update(ann);
       }
-    });
+    }
   }
 
-  @override
-  void dispose() {
-    _bounceController.dispose();
-    userPositionStream?.cancel();
-    _bgServiceSub?.cancel();
-    mapboxMapController?.dispose();
-    _smsService?.dispose();
+  List<MapPlace> _groupTransactions(List<AppTransaction> transactions) {
+    final Map<String, List<AppTransaction>> groups = {};
 
-    // Remove listener to prevent memory leaks
-    final spending = Provider.of<SpendingService>(context, listen: false);
-    spending.removeListener(_refreshAnnotations);
-    spending.removeListener(_handleSelectedTransaction);
+    for (var tx in transactions) {
+      if (tx.latitude == null || tx.longitude == null) continue;
+      // Using a rounded coordinate string as key to handle precision issues if any,
+      // but the requirement says "exact same location".
+      final key = '${tx.latitude},${tx.longitude}';
+      groups.putIfAbsent(key, () => []).add(tx);
+    }
 
-    super.dispose();
+    return groups.values.map((group) {
+      return MapPlace(
+        name: group.first.merchant,
+        latitude: group.first.latitude!,
+        longitude: group.first.longitude!,
+        transactions: group,
+      );
+    }).toList();
+  }
+
+  bool _isToday(DateTime date) {
+    final now = DateTime.now();
+    return date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day;
   }
 
   // ── Build ──────────────────────────────────────────────────────────────────
@@ -212,130 +320,133 @@ class _MapScreenState extends State<MapScreen>
     final spending = context.watch<SpendingService>();
 
     // Sync places with spending service mapped transactions
-    final saved = spending.mappedTransactions;
-    _places = saved
-        .map(
-          (tx) => MapPlace(
-            id: tx.id,
-            name: tx.merchant,
-            price: tx.formattedAmount,
-            latitude: tx.latitude!,
-            longitude: tx.longitude!,
-            rawMessage: tx.rawMessage,
-            category: tx.category,
-          ),
-        )
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
         .toList();
+    _places = _groupTransactions(saved);
 
     return CupertinoPageScaffold(
       child: Stack(
         children: [
           mp.MapWidget(
-            styleUri: mp.MapboxStyles.LIGHT,
+            styleUri: _currentMapStyle,
             onMapCreated: onMapCreated,
+            onTapListener: _handleMapTap,
+            onCameraChangeListener: (data) {
+              debugPrint(
+                '🔥🔥[MapBox] Zoom Level: ${data.cameraState.zoom.toStringAsFixed(2)}🔥🔥',
+              );
+            },
           ),
+          if (spending.isLoading || _isMapUpdating)
+            const Center(
+              child: CupertinoActivityIndicator(
+                radius: 16,
+                color: CupertinoColors.activeBlue,
+              ),
+            ),
           Positioned(
             top: topPadding,
             left: 16,
             right: 16,
-            child: DynamicIsland(
-              spent: spending.spent,
-              limit: spending.limit,
-              amountsVisible: _amountsVisible,
-              islandExpanded: _islandExpanded,
-              selectedPeriod: spending.period,
-              bounceScale: _bounceScale,
-              onTapCircle: () {
-                setState(() => _amountsVisible = true);
-                _bounceController.value = 0.0;
-              },
-              onTapClose: () {
-                setState(() {
-                  _amountsVisible = false;
-                  _islandExpanded = false;
-                });
-                Future.delayed(const Duration(milliseconds: 300), () {
-                  if (mounted) _bounceController.forward(from: 0.0);
-                });
-              },
-              onToggleExpand: () =>
-                  setState(() => _islandExpanded = !_islandExpanded),
-              onTapEditLimit: () => _showLimitSettings(spending),
-              onPeriodSelected: (period) =>
-                  context.read<SpendingService>().setPeriod(period),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: 46),
+                  child: MapCategoryFilters(
+                    categories: spending.categories,
+                    selectedCategory: _selectedCategory,
+                    onCategoryTap: (cat) async {
+                      setState(() {
+                        if (_selectedCategory == cat.name) {
+                          _selectedCategory = null;
+                        } else {
+                          _selectedCategory = cat.name;
+                        }
+                      });
+
+                      if (_selectedCategory != null) {
+                        final results = await spending.getMessagesByCategory(
+                          cat.name,
+                        );
+                        if (!context.mounted) return;
+
+                        showCupertinoSheet(
+                          context: context,
+                          builder: (context) => CategoryMessagesSheet(
+                            results: results,
+                            categoryName: cat.name,
+                            onMessageSelected: (tx) {
+                              spending.selectTransaction(tx.id);
+                            },
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ),
+                MapSearchHeader(
+                  key: _headerKey,
+                  onTransactionSelected: (tx) {
+                    _flyToAndShowPopup(tx);
+                  },
+                ),
+              ],
             ),
           ),
-          // FABs moved into the stack as Positioned widgets
+
           Positioned(
-            bottom: 32,
+            bottom: 40,
             right: 16,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CupertinoButton(
-                  padding: EdgeInsets.zero,
+                MapActionButton(
+                  onPressed: () {
+                    HapticFeedback.mediumImpact();
+                    _showMapStylePicker();
+                  },
+                  child: const Icon(
+                    CupertinoIcons.square_stack_3d_up,
+                    color: Color(0xFF1D1D1F),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                MapActionButton(
                   onPressed: () {
                     HapticFeedback.mediumImpact();
                     _flyToUserLocation();
                   },
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: CupertinoColors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color(0x26000000),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      CupertinoIcons.location_fill,
-                      color: Color(0xFF1D1D1F),
-                    ),
+                  child: const Icon(
+                    CupertinoIcons.location_fill,
+                    color: Color(0xFF1D1D1F),
                   ),
                 ),
                 const SizedBox(height: 12),
                 if (_places.isNotEmpty)
-                  CupertinoButton(
-                    padding: EdgeInsets.zero,
+                  MapActionButton(
+                    buttonKey: _fabKey,
+                    isAnimating: _isAnimating,
                     onPressed: _isAnimating
                         ? null
                         : () {
                             HapticFeedback.mediumImpact();
-                            _animateAnnotations();
+                            _showTimelineSheet();
                           },
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _isAnimating
-                            ? CupertinoColors.systemGrey3
-                            : const Color(0xFF1D1D1F),
-                        shape: BoxShape.circle,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x26000000),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
+                    child: _isAnimating
+                        ? const CupertinoActivityIndicator(
+                            color: CupertinoColors.white,
+                          )
+                        : const Icon(
+                            CupertinoIcons.play_fill,
+                            color: CupertinoColors.black,
                           ),
-                        ],
-                      ),
-                      child: _isAnimating
-                          ? const CupertinoActivityIndicator(
-                              color: CupertinoColors.white,
-                            )
-                          : const Icon(
-                              CupertinoIcons.play_fill,
-                              color: CupertinoColors.white,
-                            ),
-                    ),
                   ),
               ],
             ),
           ),
-          if (_popupPosition != null)
+          if (_popupPosition != null && _selectedPlace != null)
             Positioned(
               left: _popupPosition!.x,
               top: _popupPosition!.y,
@@ -345,98 +456,9 @@ class _MapScreenState extends State<MapScreen>
                   filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                   child: CustomPopup(
                     key: _popupKey,
-                    backgroundColor: Colors.white.withValues(alpha: 0.9),
+                    backgroundColor: Colors.white,
                     contentPadding: EdgeInsets.zero,
-                    content: DefaultTextStyle(
-                      style: GoogleFonts.spaceGrotesk(
-                        color: Colors.black,
-                        decoration: TextDecoration.none,
-                      ),
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 300),
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Builder(
-                              builder: (context) {
-                                final cat = context
-                                    .read<SpendingService>()
-                                    .getCategoryByName(
-                                      _selectedPlace?.category,
-                                    );
-                                return CustomPopup(
-                                  barrierColor: CupertinoColors.transparent,
-                                  contentPadding: EdgeInsets.zero,
-                                  content: CategoryDropdownWidget(
-                                    transactionId: _selectedPlace!.id,
-                                    currentCategory: _selectedPlace!.category,
-                                    onCategorySelected: () {
-                                      HapticFeedback.lightImpact();
-                                      Navigator.popUntil(
-                                        context,
-                                        (route) => route.isFirst,
-                                      );
-                                    },
-                                  ),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: cat == null
-                                          ? CupertinoColors.systemGrey5
-                                          : cat.color.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (cat != null) ...[
-                                          HugeIcon(
-                                            icon: cat.icon,
-                                            color: cat.color,
-                                            size: 16,
-                                          ),
-                                          const SizedBox(width: 8),
-                                        ],
-                                        Text(
-                                          _selectedPlace?.category ??
-                                              'Set Category',
-                                          style: GoogleFonts.spaceGrotesk(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w700,
-                                            color: cat == null
-                                                ? CupertinoColors.systemGrey
-                                                : cat.color,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 12),
-                            Container(
-                              height: 1,
-                              color: Colors.black.withValues(alpha: 0.1),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _selectedPlace?.rawMessage ?? '',
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 14,
-                                height: 1.5,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                    content: TransactionPopupContent(place: _selectedPlace!),
                     child: const SizedBox.shrink(),
                   ),
                 ),
@@ -449,15 +471,34 @@ class _MapScreenState extends State<MapScreen>
 
   Future<void> _flyToUserLocation() async {
     try {
+      // Get last known position for immediate feedback if possible
+      final lastPos = await gl.Geolocator.getLastKnownPosition();
+      if (lastPos != null && mounted) {
+        await mapboxMapController?.flyTo(
+          mp.CameraOptions(
+            zoom: 17,
+            bearing: 0.0,
+            pitch: 0.0,
+            center: mp.Point(
+              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+            ),
+          ),
+          mp.MapAnimationOptions(duration: 800),
+        );
+      }
+
       final position = await gl.Geolocator.getCurrentPosition(
         locationSettings: const gl.LocationSettings(
           accuracy: gl.LocationAccuracy.high,
         ),
       );
       if (!mounted) return;
+      _checkGeofenceRegistration(position);
       await mapboxMapController?.flyTo(
         mp.CameraOptions(
           zoom: 17,
+          bearing: 0.0,
+          pitch: 0.0,
           center: mp.Point(
             coordinates: mp.Position(position.longitude, position.latitude),
           ),
@@ -470,6 +511,57 @@ class _MapScreenState extends State<MapScreen>
   }
 
   // ── Location tracking ──────────────────────────────────────────────────────
+
+  void _checkGeofenceRegistration(gl.Position currentPosition) {
+    if (_lastGeofenceRegistrationPoint == null) {
+      _registerGeofences(currentPosition);
+      return;
+    }
+
+    final distance = gl.Geolocator.distanceBetween(
+      _lastGeofenceRegistrationPoint!.latitude,
+      _lastGeofenceRegistrationPoint!.longitude,
+      currentPosition.latitude,
+      currentPosition.longitude,
+    );
+
+    // Re-registration rule: moves more than 2km from the last registration point
+    if (distance > 2000) {
+      _registerGeofences(currentPosition);
+    }
+  }
+
+  void _registerGeofences(gl.Position pivot) {
+    _lastGeofenceRegistrationPoint = pivot;
+    if (!mounted) return;
+    final spending = context.read<SpendingService>();
+    final hotspots = List<Hotspot>.from(spending.hotspots);
+
+    if (hotspots.isEmpty) return;
+
+    // Sort by distance to pivot and take top 100 to stay within Android limits
+    hotspots.sort((a, b) {
+      final distA = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        a.latitude,
+        a.longitude,
+      );
+      final distB = gl.Geolocator.distanceBetween(
+        pivot.latitude,
+        pivot.longitude,
+        b.latitude,
+        b.longitude,
+      );
+      return distA.compareTo(distB);
+    });
+
+    final nearestHotspots = hotspots.take(100).toList();
+    _geofenceService.registerHotspots(nearestHotspots);
+    debugPrint(
+      '[MapScreen] Registered ${nearestHotspots.length} hotspots near user',
+    );
+  }
 
   Future<void> _positionTracking() async {
     final bool serviceEnabled = await gl.Geolocator.isLocationServiceEnabled();
@@ -486,28 +578,127 @@ class _MapScreenState extends State<MapScreen>
             distanceFilter: 50,
           ),
         ).listen((gl.Position? position) {
-          if (position != null &&
-              mapboxMapController != null &&
-              !_isAnimating) {
-            mapboxMapController?.setCamera(
-              mp.CameraOptions(
-                zoom: 17,
-                center: mp.Point(
-                  coordinates: mp.Position(
-                    position.longitude,
-                    position.latitude,
+          if (position != null) {
+            _checkGeofenceRegistration(position);
+            if (mapboxMapController != null && !_isAnimating) {
+              mapboxMapController?.setCamera(
+                mp.CameraOptions(
+                  zoom: 17,
+                  center: mp.Point(
+                    coordinates: mp.Position(
+                      position.longitude,
+                      position.latitude,
+                    ),
                   ),
                 ),
-              ),
-            );
+              );
+            }
           }
         });
+  }
+
+  void _showMapStylePicker() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => MapStylePickerModal(
+        currentStyle: _currentMapStyle,
+        onStyleChanged: (newStyle) async {
+          if (newStyle == _currentMapStyle) return;
+          setState(() => _currentMapStyle = newStyle);
+          await _saveMapStyle(newStyle);
+          await mapboxMapController?.loadStyleURI(newStyle);
+          // Wait for style to load before re-applying layer properties
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              _applyStyleLayerExpressions();
+              _refreshAnnotations();
+              _refreshHotspots();
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  Future<void> _applyStyleLayerExpressions() async {
+    if (mapboxMapController == null) return;
+
+    // 2. Configure Callout Collision & Native Opacity Expressions
+    if (_annotationManager != null) {
+      await _annotationManager!.setIconAllowOverlap(false);
+      await _annotationManager!.setIconIgnorePlacement(false);
+      await _annotationManager!.setTextAllowOverlap(false);
+      await _annotationManager!.setTextIgnorePlacement(false);
+
+      // Detailed Callouts: Visible only >= 13.0
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'icon-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _annotationManager!.id,
+        'text-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          11.0,
+          1.0,
+        ],
+      );
+    }
+
+    // 3. Configure Dot Native Opacity Expressions
+    if (_dotManager != null) {
+      // Dots: Hidden < 11.0, Visible >= 11.0
+      // By staying visible, they act as a fallback when the Callout above them is hidden by collision.
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          9.0,
+          1.0,
+        ],
+      );
+      await mapboxMapController?.style.setStyleLayerProperty(
+        _dotManager!.id,
+        'circle-stroke-opacity',
+        [
+          'step',
+          ['zoom'],
+          0.0,
+          9.0,
+          1.0,
+        ],
+      );
+    }
   }
 
   // ── Map ────────────────────────────────────────────────────────────────────
 
   Future<void> onMapCreated(mp.MapboxMap controller) async {
     setState(() => mapboxMapController = controller);
+
+    // Limit zoom range: prevents globe view (min 3.0) and excessive street-level zoom (max 19.73)
+    await controller.setBounds(mp.CameraBoundsOptions(
+      minZoom: 3.0,
+      maxZoom: 19.73,
+    ));
+
+    // Ensure the persisted style is loaded if it's not the default
+    if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
+      await controller.loadStyleURI(_currentMapStyle);
+    }
 
     final locationPermission = await Permission.location.status;
     if (locationPermission != PermissionStatus.granted) return;
@@ -547,80 +738,48 @@ class _MapScreenState extends State<MapScreen>
       debugPrint('[MapScreen] Initial location fetch failed: $e');
     }
 
-    mapboxMapController?.location.updateSettings(
+    controller.location.updateSettings(
       mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
+    );
+
+    controller.compass.updateSettings(
+      mp.CompassSettings(
+        enabled: true,
+        position: mp.OrnamentPosition.BOTTOM_RIGHT,
+        marginTop: 0,
+        marginBottom: 210, // Positioned above the FABs
+        marginLeft: 0,
+        marginRight: 16,
+      ),
+    );
+
+    controller.scaleBar.updateSettings(
+      mp.ScaleBarSettings(
+        enabled: false,
+        position: mp.OrnamentPosition.BOTTOM_RIGHT,
+        marginBottom: 60, // Positioned just above the tab bar
+        marginRight: 16,
+      ),
     );
 
     // 1. Initialize Managers
     // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
-    _dotManager = await mapboxMapController?.annotations
-        .createCircleAnnotationManager();
-    _annotationManager = await mapboxMapController?.annotations
+    _dotManager = await controller.annotations.createCircleAnnotationManager();
+    _annotationManager = await controller.annotations
         .createPointAnnotationManager();
 
-    // 2. Configure Callout Collision & Native Opacity Expressions
-    if (_annotationManager != null) {
-      await _annotationManager!.setIconAllowOverlap(false);
-      await _annotationManager!.setIconIgnorePlacement(false);
-      await _annotationManager!.setTextAllowOverlap(false);
-      await _annotationManager!.setTextIgnorePlacement(false);
+    await _applyStyleLayerExpressions();
 
-      // Detailed Callouts: Visible only >= 13.0
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _annotationManager!.id,
-        'icon-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          13.0,
-          1.0,
-        ],
-      );
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _annotationManager!.id,
-        'text-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          13.0,
-          1.0,
-        ],
-      );
-    }
-
-    // 3. Configure Dot Native Opacity Expressions
+    // 3. Configure Dot Native Opacity Expressions (continued)
     if (_dotManager != null) {
-      // Dots: Hidden < 11.0, Visible >= 11.0
-      // By staying visible, they act as a fallback when the Callout above them is hidden by collision.
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _dotManager!.id,
-        'circle-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          11.0,
-          1.0,
-        ],
-      );
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _dotManager!.id,
-        'circle-stroke-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          11.0,
-          1.0,
-        ],
-      );
-
       // Shared tap events for dots
       _dotManager!.tapEvents(
         onTap: (annotation) =>
             _onMarkerTapped(annotation.id, annotation.geometry),
+      );
+      _dotManager!.longPressEvents(
+        onLongPress: (annotation) =>
+            _onMarkerLongPressed(annotation.id, annotation.geometry),
       );
     }
 
@@ -629,6 +788,12 @@ class _MapScreenState extends State<MapScreen>
       onTap: (annotation) =>
           _onMarkerTapped(annotation.id, annotation.geometry),
     );
+    _annotationManager?.longPressEvents(
+      onLongPress: (annotation) {
+        HapticFeedback.heavyImpact();
+        _onMarkerLongPressed(annotation.id, annotation.geometry);
+      },
+    );
 
     if (!mounted) return;
     final spending = context.read<SpendingService>();
@@ -636,12 +801,222 @@ class _MapScreenState extends State<MapScreen>
     await _smsService!.init();
 
     spending.addListener(_refreshAnnotations);
+    spending.addListener(_refreshHotspots);
     _refreshAnnotations();
+    _refreshHotspots();
+  }
+
+  Future<void> _refreshHotspots() async {
+    if (mapboxMapController == null) return;
+    if (!mounted) return;
+
+    final spending = context.read<SpendingService>();
+    final transactions = spending.mappedTransactions;
+
+    if (!spending.isHotspotDataSufficient) {
+      _showHotspotDataNotification();
+    }
+
+    // Use try-catch to avoid breaking the UI if style operations fail
+    try {
+      if (transactions.isEmpty) {
+        if (await mapboxMapController!.style.styleLayerExists(
+          'hotspots-heatmap',
+        )) {
+          await mapboxMapController!.style.removeStyleLayer('hotspots-heatmap');
+        }
+        if (await mapboxMapController!.style.styleSourceExists(
+          'hotspots-source',
+        )) {
+          await mapboxMapController!.style.removeStyleSource('hotspots-source');
+        }
+        return;
+      }
+
+      final now = DateTime.now();
+      final geojson = {
+        'type': 'FeatureCollection',
+        'features': transactions.map((tx) {
+          final daysAgo = now.difference(tx.timestamp).inDays;
+          // lambda = 0.02 -> weight halves roughly every 35 days
+          final decayedAmount = tx.amount * math.exp(-0.02 * daysAgo);
+
+          return {
+            'type': 'Feature',
+            'properties': {
+              'amount': tx.amount,
+              'decayed_amount': decayedAmount,
+            },
+            'geometry': {
+              'type': 'Point',
+              'coordinates': [tx.longitude, tx.latitude],
+            },
+          };
+        }).toList(),
+      };
+
+      // Ensure we remove the layer before removing the source if we were to recreate them,
+      // but here we'll try to update if possible.
+      if (await mapboxMapController!.style.styleSourceExists(
+        'hotspots-source',
+      )) {
+        // Correct way to update GeoJSON data in Mapbox
+        await mapboxMapController!.style.setStyleSourceProperty(
+          'hotspots-source',
+          'data',
+          jsonEncode(geojson),
+        );
+      } else {
+        await mapboxMapController!.style.addSource(
+          mp.GeoJsonSource(id: 'hotspots-source', data: jsonEncode(geojson)),
+        );
+      }
+
+      if (!await mapboxMapController!.style.styleLayerExists(
+        'hotspots-heatmap',
+      )) {
+        // Create heatmap layer with defaults
+        final heatmapLayer = mp.HeatmapLayer(
+          id: 'hotspots-heatmap',
+          sourceId: 'hotspots-source',
+        );
+
+        // Insert below the annotation layers
+        try {
+          if (_dotManager != null) {
+            await mapboxMapController!.style.addLayerAt(
+              heatmapLayer,
+              mp.LayerPosition(below: _dotManager!.id),
+            );
+          } else {
+            await mapboxMapController!.style.addLayer(heatmapLayer);
+          }
+        } catch (e) {
+          await mapboxMapController!.style.addLayer(heatmapLayer);
+        }
+      }
+
+      // Configure heatmap styling using expressions via setStyleLayerProperty
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-intensity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          8,
+          0.2, // Very soft at low zoom
+          13.48,
+          0.8, // Atmospheric glow at target zoom
+          17,
+          1.5, // Moderate intensity at street level
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-color',
+        [
+          'interpolate',
+          ['linear'],
+          ['heatmap-density'],
+          0.0,
+          'rgba(255, 182, 193, 0)', // Transparent
+          0.15,
+          'rgba(230, 230, 250, 0.4)', // Soft Purple/Lavender fringe
+          0.3,
+          'rgb(204, 204, 255)', // Periwinkle/Blue
+          0.5,
+          'rgb(0, 255, 255)', // Cyan
+          0.75,
+          'rgb(173, 255, 47)', // Yellow-Green
+          1.0,
+          'rgb(255, 255, 153)', // Luminous Pastel Yellow core
+        ],
+      );
+
+      // Apply inverse zoom-interpolated radius with a strictly monotonic linear curve to prevent pulsing
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-radius',
+        [
+          'interpolate',
+          ['linear'], // Linear is much more predictable for manual stops
+          ['zoom'],
+          3,
+          0.1, // Continental: invisible/microscopic
+          8,
+          0.5, // Country: tiny speck
+          11,
+          4.0, // City: small cluster
+          13.48,
+          18.0, // District: Target "Frozen" size
+          15,
+          25.0, // Neighborhood: soft blur
+          17,
+          35.0, // Street: large soft glow
+          20,
+          50.0, // Max Zoom: deep detail
+        ],
+      );
+
+      // Add heatmap-weight based on decayed amount with corrected range
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-weight',
+        [
+          'interpolate',
+          ['linear'],
+          ['get', 'decayed_amount'],
+          0,
+          0.3, // floor raised
+          100,
+          0.5, // mid-weight
+          1000,
+          0.8,
+          3000,
+          1.0,
+        ],
+      );
+
+      await mapboxMapController!.style.setStyleLayerProperty(
+        'hotspots-heatmap',
+        'heatmap-opacity',
+        [
+          'interpolate',
+          ['linear'],
+          ['zoom'],
+          13.48,
+          0.8956, // Clamped opacity for all zoom <= 13.48
+          15,
+          0.85,
+          17,
+          0.75,
+        ],
+      );
+    } catch (e) {
+      debugPrint('[MapScreen] Failed to refresh hotspots: $e');
+    }
   }
 
   void _onMarkerTapped(String annotationId, mp.Point geometry) async {
     final place = _annotationToPlaceMap[annotationId];
     if (place == null) return;
+
+    if (place.transactions.length > 1) {
+      showCupertinoSheet(
+        showDragHandle: true,
+        context: context,
+        builder: (context) => GroupedTransactionsSheet(
+          place: place,
+          onTransactionSelected: (txId) {
+            final spending = context.read<SpendingService>();
+            spending.selectTransaction(txId);
+          },
+        ),
+      );
+      return;
+    }
 
     final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
 
@@ -649,7 +1024,11 @@ class _MapScreenState extends State<MapScreen>
       setState(() {
         _selectedPlace = place;
         _popupPosition = screenCoord;
+        _selectedTxId = place.id;
       });
+
+      // Boost priority of the tapped marker
+      await _updateAnnotationPriority();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _popupKey.currentState?.show();
@@ -657,37 +1036,68 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
+  void _onMarkerLongPressed(String annotationId, mp.Point geometry) async {
+    final place = _annotationToPlaceMap[annotationId];
+    if (place == null) return;
+
+    HapticFeedback.heavyImpact();
+
+    // For grouped messages, we use the first one for the picker initial state
+    final tx = place.transactions.first;
+
+    if (mounted) {
+      // Close any open popups first
+      if (_selectedPlace != null) {
+        setState(() {
+          _selectedPlace = null;
+          _popupPosition = null;
+        });
+      }
+
+      Navigator.of(context, rootNavigator: true).push(
+        CupertinoPageRoute(
+          builder: (context) => LocationPickerScreen(transactions: [tx]),
+        ),
+      );
+    }
+  }
+
   void _refreshAnnotations() async {
     if (_annotationManager == null) return;
 
     final spending = context.read<SpendingService>();
-    // Skip updates during the loading phase to avoid redundant/stale redrawing
-    if (spending.isLoading) return;
+
+    // If spending service is loading, ensure we show our local indicator
+    if (spending.isLoading) {
+      if (!_isMapUpdating) {
+        setState(() => _isMapUpdating = true);
+      }
+      return;
+    }
+
+    // Start local update phase
+    if (!_isMapUpdating) {
+      setState(() => _isMapUpdating = true);
+    }
 
     // Versioning prevents rapid consecutive refreshes from
     // clobbering each other (race conditions).
     final int currentVersion = ++_annotationUpdateVersion;
 
-    final saved = spending.mappedTransactions;
-
-    final newPlaces = saved
-        .map(
-          (tx) => MapPlace(
-            id: tx.id,
-            name: tx.merchant,
-            price: tx.formattedAmount,
-            latitude: tx.latitude!,
-            longitude: tx.longitude!,
-            rawMessage: tx.rawMessage,
-            category: tx.category,
-          ),
-        )
+    final saved = spending.mappedTransactions
+        .where((tx) => _isToday(tx.timestamp))
         .toList();
+    final newPlaces = _groupTransactions(saved);
 
     // If a newer refresh has started, abort this outdated one.
     if (currentVersion != _annotationUpdateVersion || !mounted) return;
 
     await _addAllAnnotations(newPlaces);
+
+    // Finalize update phase
+    if (currentVersion == _annotationUpdateVersion && mounted) {
+      setState(() => _isMapUpdating = false);
+    }
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
@@ -697,17 +1107,17 @@ class _MapScreenState extends State<MapScreen>
     // Generate callout options and dot options in parallel
     final List<Future<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>>
     futures = places.map((place) async {
-      final cat = spending.getCategoryByName(place.category);
+      final catColor = spending.getCategoryColor(place.category ?? '');
       final CalloutResult callout = await createCalloutImage(
         place.name,
-        place.price,
-        color: cat?.color,
+        place.displayPrice,
+        color: catColor,
       );
 
       final geometry = mp.Point(
         coordinates: mp.Position(place.longitude, place.latitude),
       );
-      final sortKey = _getSortKey(place.price);
+      final sortKey = _getSortKey(place);
 
       final pointOptions = mp.PointAnnotationOptions(
         image: callout.image,
@@ -720,8 +1130,7 @@ class _MapScreenState extends State<MapScreen>
 
       final circleOptions = mp.CircleAnnotationOptions(
         geometry: geometry,
-        circleColor:
-            cat?.color.toARGB32() ?? const Color(0xFF0071E3).toARGB32(),
+        circleColor: catColor.toARGB32(),
         circleRadius: 1.575,
         circleStrokeWidth: 1.0,
         circleStrokeColor: CupertinoColors.white.toARGB32(),
@@ -765,121 +1174,91 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  // ── Animate FAB ────────────────────────────────────────────────────────────
+  // ── Timeline ──────────────────────────────────────────────────────────────
 
-  Future<void> _animateAnnotations() async {
-    if (_isAnimating) return;
-    setState(() => _isAnimating = true);
-    await _annotationManager?.deleteAll();
-    await _dotManager?.deleteAll();
-    _annotationToPlaceMap.clear();
-
-    for (final place in _places) {
-      if (!_isAnimating) break;
-      await _addAnnotationForPlace(place);
-      await Future.delayed(const Duration(seconds: 1));
-    }
-    setState(() => _isAnimating = false);
+  void _showTimelineSheet() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (context) => TimelineSheet(
+        onTransactionSelected: (tx) {
+          _flyToAndShowPopup(tx);
+        },
+      ),
+    );
   }
 
-  Future<void> _addAnnotationForPlace(MapPlace place) async {
+  void _flyToAndShowPopup(AppTransaction tx) async {
+    MapPlace? targetPlace;
+    for (final place in _places) {
+      if (place.transactions.any((t) => t.id == tx.id)) {
+        targetPlace = place;
+        break;
+      }
+    }
+    if (targetPlace == null) return;
+
+    setState(() {
+      _selectedPlace = null;
+      _popupPosition = null;
+    });
+
     await mapboxMapController?.flyTo(
       mp.CameraOptions(
-        zoom: 13.5, // Fly in closer to reveal the callout immediately
+        zoom: 17,
         center: mp.Point(
-          coordinates: mp.Position(place.longitude, place.latitude),
+          coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
         ),
       ),
-      mp.MapAnimationOptions(duration: 1000),
+      mp.MapAnimationOptions(duration: 400),
     );
 
+    await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
-    final spending = context.read<SpendingService>();
-    final cat = spending.getCategoryByName(place.category);
-    final CalloutResult callout = await createCalloutImage(
-      place.name,
-      place.price,
-      color: cat?.color,
-    );
 
-    final geometry = mp.Point(
-      coordinates: mp.Position(place.longitude, place.latitude),
-    );
-    final sortKey = _getSortKey(place.price);
-
-    final pointAnn = await _annotationManager?.create(
-      mp.PointAnnotationOptions(
-        image: callout.image,
-        iconSize: 1.5,
-        iconAnchor: mp.IconAnchor.CENTER,
-        iconOffset: [0.0, 0.0],
-        symbolSortKey: sortKey,
-        geometry: geometry,
+    final screenCoord = await mapboxMapController?.pixelForCoordinate(
+      mp.Point(
+        coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
       ),
     );
 
-    final circleAnn = await _dotManager?.create(
-      mp.CircleAnnotationOptions(
-        geometry: geometry,
-        circleColor:
-            cat?.color.toARGB32() ?? CupertinoColors.systemGrey.toARGB32(),
-        circleRadius: 1.575,
-        circleStrokeWidth: 1.0,
-        circleStrokeColor: CupertinoColors.white.toARGB32(),
-        circleSortKey: sortKey,
-      ),
-    );
-
-    if (pointAnn != null) {
-      _annotationToPlaceMap[pointAnn.id] = place;
-    }
-    if (circleAnn != null) {
-      _annotationToPlaceMap[circleAnn.id] = place;
+    if (screenCoord != null && mounted) {
+      setState(() {
+        _selectedPlace = targetPlace;
+        _popupPosition = screenCoord;
+        _selectedTxId = tx.id;
+      });
+      await _updateAnnotationPriority();
+      _popupKey.currentState?.show();
     }
   }
 
-  double _getSortKey(String price) {
-    final clean = price.replaceAll(RegExp(r'[^0-9.]'), '');
+  static bool _hasCheckedHotspotNotification = false;
+
+  Future<void> _showHotspotDataNotification() async {
+    if (_hasCheckedHotspotNotification) return;
+    _hasCheckedHotspotNotification = true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final hasShown = prefs.getBool('hotspot_notification_shown') ?? false;
+
+    if (!hasShown) {
+      await prefs.setBool('hotspot_notification_shown', true);
+      if (!mounted) return;
+      showCustomToast(
+        'GeoCent will start identifying your spending patterns after a few more transactions.',
+      );
+    }
+  }
+
+  double _getSortKey(MapPlace place) {
+    if (place.id == _selectedTxId) return -1000000.0;
+    // For grouped markers, use a large priority so they stay visible
+    if (place.transactions.length > 1) return -500000.0;
+
+    final clean = place.transactions.first.formattedAmount.replaceAll(
+      RegExp(r'[^0-9.]'),
+      '',
+    );
     return double.tryParse(clean) ?? 0.0;
-  }
-
-  void _showLimitSettings(SpendingService spending) {
-    final controller = TextEditingController(
-      text: spending.limit.toStringAsFixed(0),
-    );
-    showCupertinoDialog(
-      context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text('Set ${spending.period} Limit'),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: CupertinoTextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            prefix: const Padding(
-              padding: EdgeInsets.only(left: 12),
-              child: Text('Ksh '),
-            ),
-            placeholder: 'Limit Amount',
-            style: GoogleFonts.spaceGrotesk(),
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL'),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              final amount = double.tryParse(controller.text) ?? 0.0;
-              spending.setLimit(spending.period, amount);
-              Navigator.pop(context);
-            },
-            child: const Text('SAVE'),
-          ),
-        ],
-      ),
-    );
   }
 }

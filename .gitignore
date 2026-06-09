@@ -35,7 +35,9 @@ migrate_working_dir/
 .env
 /windows/
 /linux/
-/assets/app_images/
+/macos/
+/web/
+/assets/inspo/
 
 # Symbolication related
 app.*.symbols

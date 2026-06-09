@@ -1,24 +1,19 @@
-import 'dart:ui';
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:geolocator/geolocator.dart' as geo;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
-import 'package:mapbox_tut/repositories/transaction_repository.dart';
-import 'package:mapbox_tut/screens/main_screen.dart';
-import 'package:mapbox_tut/services/native_sms_channel.dart';
-import 'package:mapbox_tut/services/spending_service.dart';
-import 'package:mapbox_tut/widgets/custom_toast.dart';
+import 'package:geocent/screens/main_screen.dart';
+import 'package:geocent/services/background_executor.dart';
+import 'package:geocent/services/budget_service.dart';
+import 'package:geocent/services/spending_service.dart';
+import 'package:geocent/services/notification_service.dart';
+import 'package:geocent/widgets/custom_toast.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-
-import 'package:mapbox_tut/models/sms_message.dart';
-import 'services/sms_parser.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,42 +29,26 @@ void main() async {
   );
 
   await setup();
+  await NotificationService.instance.init();
   await getPermissions();
   await initializeBackgroundService();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => SpendingService()..init()),
+        ChangeNotifierProvider(create: (_) => BudgetService()..init()),
+        ChangeNotifierProxyProvider<BudgetService, SpendingService>(
+          create: (context) => SpendingService(
+            budgetService: Provider.of<BudgetService>(context, listen: false),
+          )..init(),
+          update: (context, budgetService, spendingService) => spendingService!,
+        ),
       ],
       child: const MyApp(),
     ),
   );
 }
 
-// class MyApp extends StatelessWidget {
-//   const MyApp({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return CupertinoApp(
-//       navigatorKey: rootNavigatorKey,
-//       title: 'SpendMap',
-//       theme: CupertinoThemeData(
-//         brightness: Brightness.light,
-//         primaryColor: const Color(0xFF0071E3),
-//         textTheme: CupertinoTextThemeData(
-//           textStyle: GoogleFonts.spaceGrotesk(
-//             color: const Color(0xFF1D1D1F),
-//             letterSpacing: -0.3,
-//             fontFeatures: [const FontFeature.tabularFigures()],
-//           ),
-//         ),
-//       ),
-//       home: const MainScreen(),
-//     );
-//   }
-// }
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -88,7 +67,7 @@ class MyApp extends StatelessWidget {
       ),
       child: CupertinoApp(
         navigatorKey: rootNavigatorKey,
-        title: 'SpendMap',
+        title: 'Geocent',
         theme: CupertinoThemeData(
           brightness: Brightness.light,
           primaryColor: const Color(0xFF0071E3),
@@ -113,8 +92,8 @@ Future<void> initializeBackgroundService() async {
   final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'spendmap_foreground',
-    'SpendMap Background Service',
+    'geocent_foreground',
+    'Geocent Background Service',
     description: 'Running in the background to track expenses',
     importance: Importance.low, // Lower importance so it doesn't pop up
   );
@@ -130,131 +109,34 @@ Future<void> initializeBackgroundService() async {
       onStart: onBackgroundServiceStart,
       autoStart: true,
       isForegroundMode: true,
-      notificationChannelId: 'spendmap_foreground',
-      initialNotificationTitle: 'SpendMap Active',
+      notificationChannelId: 'geocent_foreground',
+      initialNotificationTitle: 'Geocent Active',
       initialNotificationContent: 'Tracking expenses in the background',
       foregroundServiceNotificationId: 888,
+      foregroundServiceTypes: [AndroidForegroundType.location],
     ),
     iosConfiguration: IosConfiguration(autoStart: false),
   );
 }
 
-@pragma('vm:entry-point')
-void onBackgroundServiceStart(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
-
-  final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('@mipmap/ic_launcher');
-  const InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(
-    settings: initializationSettings,
-  );
-
-  final repo = TransactionRepository();
-
-  NativeSmsChannel.instance.register();
-
-  NativeSmsChannel.instance.smsStream.listen((sms) async {
-    _processIncomingSms(sms, repo, service, flutterLocalNotificationsPlugin);
-  });
-
-  service.on('simulate_transaction').listen((_) async {
-    const mockSms =
-        'Confirmed. Ksh5,200.00 paid to ARTCAFFE. On 12/5/26 at 1:45 PM.';
-    _processIncomingSms(
-      const SmsMessage(sender: 'MPESA', body: mockSms),
-      repo,
-      service,
-      flutterLocalNotificationsPlugin,
-    );
-  });
-}
-
-Future<void> _processIncomingSms(
-  SmsMessage sms,
-  TransactionRepository repo,
-  ServiceInstance service,
-  FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin,
-) async {
-  debugPrint('[Background Isolate] Processing SMS from ${sms.sender}');
-
-  final tx = SmsParser.parse(sms.body);
-  if (tx != null && !(await repo.exists(tx.id))) {
-    await repo.save(tx);
-
-    service.invoke('transaction_saved');
-
-    _showTransactionNotification(
-      flutterLocalNotificationsPlugin,
-      tx.merchant,
-      tx.formattedAmount,
-    );
-
-    try {
-      geo.Position? pos = await geo.Geolocator.getLastKnownPosition();
-
-      if (pos == null ||
-          DateTime.now().difference(pos.timestamp).inMinutes > 10) {
-        pos = await geo.Geolocator.getCurrentPosition(
-          locationSettings: const geo.LocationSettings(
-            accuracy: geo.LocationAccuracy.medium,
-            timeLimit: Duration(seconds: 40),
-          ),
-        );
-      }
-
-      await repo.updateLocation(tx.id, pos.latitude, pos.longitude);
-
-      service.invoke('location_attached', {'id': tx.id});
-    } catch (e) {
-      debugPrint('[Background Isolate] GPS failed: $e');
-    }
-  }
-}
-
-void _showTransactionNotification(
-  FlutterLocalNotificationsPlugin plugin,
-  String merchant,
-  String amount,
-) {
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-        'spendmap_tx',
-        'Transactions',
-        channelDescription: 'New transaction alerts',
-        importance: Importance.max,
-        priority: Priority.high,
-        showWhen: true,
-      );
-  const NotificationDetails platformChannelSpecifics = NotificationDetails(
-    android: androidPlatformChannelSpecifics,
-  );
-  plugin.show(
-    id: DateTime.now().millisecond,
-    title: 'New Expense Tracked',
-    body: '$amount spent at $merchant',
-    notificationDetails: platformChannelSpecifics,
-  );
-}
-
 Future<void> setup() async {
   await dotenv.load(fileName: '.env');
-  final String mapBoxToken = dotenv.env['MAPBOX_ACCESS_TOKEN']!;
-  mb.MapboxOptions.setAccessToken(mapBoxToken);
+  final String? mapBoxToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
+  if (mapBoxToken != null) {
+    mb.MapboxOptions.setAccessToken(mapBoxToken);
+  } else {
+    debugPrint('WARNING: MAPBOX_ACCESS_TOKEN not found in .env');
+  }
 }
 
 Future<void> getPermissions() async {
   final statuses = await [
-    Permission.location,
+    Permission.locationWhenInUse,
     Permission.sms,
     Permission.notification,
   ].request();
 
-  if (statuses[Permission.location] == PermissionStatus.granted) {
+  if (statuses[Permission.locationWhenInUse] == PermissionStatus.granted) {
     await Permission.locationAlways.request();
   }
 }

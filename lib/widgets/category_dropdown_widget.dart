@@ -1,31 +1,29 @@
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hugeicons/hugeicons.dart';
-import 'package:mapbox_tut/models/category_item.dart';
-import 'package:mapbox_tut/services/spending_service.dart';
-import 'package:mapbox_tut/utils/categories.dart';
+import 'package:geocent/services/spending_service.dart';
 import 'package:provider/provider.dart';
 import 'category_sheet.dart';
 import 'custom_toast.dart';
 
 class CategoryDropdownWidget extends StatelessWidget {
-  final String transactionId;
+  final String? transactionId;
   final String? currentCategory;
   final VoidCallback? onCategorySelected;
+  final Function(String categoryName)? onCategorySelectedOverride;
 
   const CategoryDropdownWidget({
     super.key,
-    required this.transactionId,
+    this.transactionId,
     this.currentCategory,
     this.onCategorySelected,
+    this.onCategorySelectedOverride,
   });
 
   @override
   Widget build(BuildContext context) {
-    final spending = context.read<SpendingService>();
+    final spending = context.watch<SpendingService>();
     final categories = spending.categories;
-    final List<CategoryItem> availableIconsList = availableIcons.values
-        .toList();
 
     return Container(
       width: 240,
@@ -56,7 +54,15 @@ class CategoryDropdownWidget extends StatelessWidget {
                   final isSelected = currentCategory == cat.name;
                   return GestureDetector(
                     onTap: () {
-                      spending.updateCategory(transactionId, cat.name);
+                      if (onCategorySelectedOverride != null) {
+                        onCategorySelectedOverride!(cat.name);
+                        return;
+                      }
+
+                      if (transactionId != null) {
+                        spending.updateCategory(transactionId!, cat.name);
+                      }
+
                       if (onCategorySelected != null) {
                         onCategorySelected!();
                       } else {
@@ -75,7 +81,11 @@ class CategoryDropdownWidget extends StatelessWidget {
                           : CupertinoColors.white,
                       child: Row(
                         children: [
-                          HugeIcon(icon: cat.icon, color: cat.color, size: 20),
+                          HugeIcon(
+                            icon: cat.icon,
+                            color: spending.getCategoryColor(cat.name),
+                            size: 20,
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(
@@ -100,14 +110,18 @@ class CategoryDropdownWidget extends StatelessWidget {
             CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
-
                 showCupertinoSheet(
                   showDragHandle: true,
                   context: context,
-                  builder: (context) => CreateCategorySheet(
+                  builder: (sheetContext) => CreateCategorySheet(
                     transactionId: transactionId,
-                    availableIcons: availableIconsList,
+                    onCategoryCreated: (name) {
+                      if (onCategorySelectedOverride != null) {
+                        onCategorySelectedOverride!(name);
+                      } else if (onCategorySelected != null) {
+                        onCategorySelected!();
+                      }
+                    },
                   ),
                 );
               },

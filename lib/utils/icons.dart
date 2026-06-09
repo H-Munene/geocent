@@ -9,6 +9,7 @@ String _pin = '$assetsPath/pin.svg';
 String _pinActive = '$assetsPath/pin_active.svg';
 String _unmap = '$assetsPath/unmap.svg';
 String _unmapActive = '$assetsPath/unmapActive.svg';
+String _locationPicker = '$assetsPath/location_picker.svg';
 
 const double iconSize = 25;
 final cl = const Color(0xFF8E8E93);
@@ -22,6 +23,11 @@ SvgPicture pinActive = SvgPicture.asset(
 );
 
 SvgPicture pin = SvgPicture.asset(_pin, width: iconSize, height: iconSize);
+SvgPicture locationPicker = SvgPicture.asset(
+  _locationPicker,
+  width: iconSize,
+  height: iconSize,
+);
 
 SvgPicture unmap = SvgPicture.asset(_unmap, width: iconSize, height: iconSize);
 SvgPicture unmapActive = SvgPicture.asset(
