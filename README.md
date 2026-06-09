@@ -35,7 +35,7 @@ Follow these instructions to set up Geocent on your local development machine.
     MAPBOX_ACCESS_TOKEN=your_mapbox_public_access_token
     ```
 
-### 🛠 Platform Setup
+### Platform Setup
 
 #### Android
 
@@ -49,7 +49,7 @@ To download the Mapbox SDK, you need to configure a secret token in your global 
 
 #### iOS
 
-Ensure you have your Mapbox access token ready. The app initializes Mapbox programmatically using the token provided in the `.env` file.
+Reading messages on IOS is not supported
 
 ### Running the App
 
