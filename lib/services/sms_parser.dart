@@ -2,7 +2,7 @@
 import '../models/app_transaction.dart';
 
 class SmsParser {
-  // ── M-PESA patterns ────────────────────────────────────────────────────────
+  // M-PESA patterns
 
   // Matches: "UDQ0H234DB Confirmed. Ksh75.00 sent to SAFARICOM DATA BUNDLES
   //           for account SAFARICOM DATA BUNDLES on 26/4/26 at 4:55 PM.
@@ -37,7 +37,7 @@ class SmsParser {
     dotAll: true,
   );
 
-  // ── Equity pattern ─────────────────────────────────────────────────────────
+  // Equity pattern
 
   // Matches: "CONFIRMED. KES 289.00, Auth for card 4478..8033 at
   //           GOOGLE *YouTubePremium on 2026-04-26 21:05:24 Ref:611602020521."
@@ -51,7 +51,7 @@ class SmsParser {
     dotAll: true,
   );
 
-  // ── Public API ─────────────────────────────────────────────────────────────
+  // Public API
 
   /// Returns an [AppTransaction] if [message] matches a known format,
   /// or null if the message is not a financial SMS we handle.
@@ -65,7 +65,7 @@ class SmsParser {
   /// Returns true if this message is from M-PESA or Equity Bank.
   static bool isFinancialSms(String message) => parse(message) != null;
 
-  // ── Private parsers ────────────────────────────────────────────────────────
+  // Private parsers
 
   static AppTransaction? _tryMpesaSent(String message) {
     final match = _mpesaSent.firstMatch(message.trim());
@@ -130,7 +130,7 @@ class SmsParser {
     );
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // Helpers
 
   /// "1,797.84" or "1 306.00" → 1797.84 or 1306.0
   static double _parseAmount(String raw) {
