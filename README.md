@@ -2,7 +2,7 @@
 
 Geocent is a smart personal finance application designed for geo-verified transaction and visit tracking. It automatically parses financial SMS messages (e.g., M-PESA, Equity Bank), links them to real-world GPS coordinates, and provides an interactive map-based view of spending habits alongside intelligent auto-categorization.
 
-## 🚀 Getting Started
+## Getting Started
 
 Follow these instructions to set up Geocent on your local development machine.
 
@@ -59,7 +59,7 @@ Connect a device or start an emulator/simulator, then run:
 flutter run
 ```
 
-## 📱 Core Features
+## Core Features
 
 1.  **SMS Parsing & Auto-Tracking**: Automatically detects incoming financial SMS messages, extracting merchant, amount, and timestamp.
 2.  **Geo-Verification**: Captures the device's GPS location when a transaction occurs and links it to the transaction.
@@ -68,13 +68,13 @@ flutter run
 5.  **Real-time Budgeting**: Set spending limits per category for daily, weekly, or monthly periods.
 6.  **Interactive Analytics**: Searchable interface for all messages and comprehensive spending analytics.
 
-## 📥 Supported SMS Formats
+## Supported SMS Formats
 
 Geocent currently supports parsing for the following providers:
 - **M-PESA**: Sent payments, paid bills, and airtime purchases.
 - **Equity Bank**: Card authorization messages (KES and USD).
 
-## 🏗 Tech Stack
+## Tech Stack
 
 - **Framework**: Flutter
 - **Mapping**: Mapbox Maps Flutter (Native GPU Expressions)
@@ -83,7 +83,7 @@ Geocent currently supports parsing for the following providers:
 - **State Management**: Provider (ChangeNotifier)
 - **Icons**: Hugeicons & Cupertino Icons
 
-## 📖 Documentation
+## Documentation
 
 For a deeper dive into the architecture and database logic:
 - [Technical Architecture](docs/TECHNICAL_ARCHITECTURE.md)
