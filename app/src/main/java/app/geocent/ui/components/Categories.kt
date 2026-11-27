@@ -175,8 +175,9 @@ private val palette = listOf(
     0xFF5856D6, 0xFFAF52DE, 0xFFFF2D55, 0xFFFF3B30, 0xFFA2845E, 0xFF8E8E93,
 )
 
+/** Name, colour and an unused catalog icon for a new category. */
 @Composable
-private fun NewCategoryDialog(
+fun NewCategoryDialog(
     taken: Set<String>,
     usedIcons: Set<Int>,
     onDismiss: () -> Unit,

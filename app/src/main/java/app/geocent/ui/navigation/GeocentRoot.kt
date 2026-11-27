@@ -45,6 +45,7 @@ import app.geocent.ui.messages.MessagesScreen
 import app.geocent.ui.map.MapScreen
 import app.geocent.ui.budgets.BudgetsScreen
 import app.geocent.ui.analytics.AnalyticsScreen
+import app.geocent.ui.profile.ProfileScreen
 import app.geocent.data.BudgetTracker
 import kotlinx.coroutines.flow.map
 import androidx.navigation.NavType
@@ -152,7 +153,7 @@ private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) ->
                         Tab.Messages -> MessagesScreen(onPickLocation = onPickLocation)
                         Tab.Budgets -> BudgetsScreen()
                         Tab.Analytics -> AnalyticsScreen()
-                        else -> PlaceholderScreen(stringResource(tab.label))
+                        Tab.Profile -> ProfileScreen()
                     }
                 }
             }
@@ -236,15 +237,3 @@ private fun Badge(count: Int, modifier: Modifier = Modifier) {
     )
 }
 
-/** Stand-in until each tab is ported in its own phase. */
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(GeocentTheme.colors.background),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(title, style = GeocentTheme.typography.title, color = GeocentTheme.colors.textPrimary)
-    }
-}
