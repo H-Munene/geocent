@@ -3,6 +3,7 @@ package app.geocent
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import app.geocent.ingest.HotspotScheduler
 import app.geocent.notify.Notifier
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
@@ -19,5 +20,6 @@ class GeocentApp : Application(), Configuration.Provider {
     override fun onCreate() {
         super.onCreate()
         notifier.createChannels()
+        HotspotScheduler.schedulePeriodic(this)
     }
 }

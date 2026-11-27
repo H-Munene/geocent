@@ -27,6 +27,11 @@ object Hotspots {
     const val MIN_RADIUS_METERS = 50.0
     /** A new cluster this close to an old hotspot keeps the old hotspot's id. */
     const val MATCH_METERS = 150.0
+    /** At most one dwell alert per hotspot in this window (same as Flutter). */
+    const val COOLDOWN_MS = 6 * 60 * 60 * 1000L
+
+    fun isCoolingDown(lastNotifiedAt: Long?, now: Long): Boolean =
+        lastNotifiedAt != null && now - lastNotifiedAt < COOLDOWN_MS
 
     /**
      * DBSCAN over [points] (port of the Flutter HotspotService). Noise points

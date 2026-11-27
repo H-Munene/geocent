@@ -1,5 +1,7 @@
 package app.geocent.di
 
+import app.geocent.ingest.HotspotRefresher
+import app.geocent.ingest.WorkManagerHotspotRefresher
 import app.geocent.location.FusedLocationProvider
 import app.geocent.location.LocationProvider
 import dagger.Binds
@@ -12,4 +14,7 @@ import dagger.hilt.components.SingletonComponent
 abstract class AppModule {
     @Binds
     abstract fun locationProvider(impl: FusedLocationProvider): LocationProvider
+
+    @Binds
+    abstract fun hotspotRefresher(impl: WorkManagerHotspotRefresher): HotspotRefresher
 }

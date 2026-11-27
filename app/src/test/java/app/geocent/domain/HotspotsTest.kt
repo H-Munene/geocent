@@ -27,6 +27,14 @@ class HotspotsTest {
     }
 
     @Test
+    fun `alerts cool down for six hours`() {
+        val now = 100_000_000L
+        assertTrue(!Hotspots.isCoolingDown(null, now))
+        assertTrue(Hotspots.isCoolingDown(now - 5 * 3_600_000L, now))
+        assertTrue(!Hotspots.isCoolingDown(now - 6 * 3_600_000L, now))
+    }
+
+    @Test
     fun `centre is a real member (medoid)`() {
         val points = group("c", cbd, 5)
         val c = Hotspots.cluster(points).single()
