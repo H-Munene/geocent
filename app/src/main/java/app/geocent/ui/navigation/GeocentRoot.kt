@@ -43,6 +43,9 @@ import app.geocent.ui.location.LocationPickerScreen
 import app.geocent.ui.location.PICK_LOCATION_IDS
 import app.geocent.ui.messages.MessagesScreen
 import app.geocent.ui.map.MapScreen
+import app.geocent.ui.budgets.BudgetsScreen
+import app.geocent.data.BudgetTracker
+import kotlinx.coroutines.flow.map
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import app.geocent.ui.onboarding.OnboardingScreen
@@ -70,13 +73,21 @@ enum class Tab(
 }
 
 @HiltViewModel
-class RootViewModel @Inject constructor(settings: SettingsStore, transactions: TransactionRepository) : ViewModel() {
+class RootViewModel @Inject constructor(
+    settings: SettingsStore,
+    transactions: TransactionRepository,
+    budgets: BudgetTracker,
+) : ViewModel() {
     /** null while loading, so neither onboarding nor tabs flash on start. */
     val onboardingDone = settings.onboardingDone
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** Messages still missing a location or category; shown as a badge on the Messages tab. */
     val actionableCount = transactions.observeActionableCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    /** Budgets already over their limit this period; shown as a badge on the Budgets tab. */
+    val exceededBudgets = budgets.observeProgress().map { list -> list.count { it.exceeded } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 }
 
@@ -118,6 +129,7 @@ private fun AppNavHost(viewModel: RootViewModel) {
 @Composable
 private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) -> Unit) {
     val actionable by viewModel.actionableCount.collectAsStateWithLifecycle()
+    val exceeded by viewModel.exceededBudgets.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route ?: Tab.Map.route
@@ -137,6 +149,7 @@ private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) ->
                     when (tab) {
                         Tab.Map -> MapScreen(onPickLocation = onPickLocation)
                         Tab.Messages -> MessagesScreen(onPickLocation = onPickLocation)
+                        Tab.Budgets -> BudgetsScreen()
                         else -> PlaceholderScreen(stringResource(tab.label))
                     }
                 }
@@ -144,7 +157,7 @@ private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) ->
         }
         GeocentTabBar(
             current = currentRoute,
-            badges = mapOf(Tab.Messages to actionable),
+            badges = mapOf(Tab.Messages to actionable, Tab.Budgets to exceeded),
             onSelect = { tab ->
                 navController.navigate(tab.route) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
