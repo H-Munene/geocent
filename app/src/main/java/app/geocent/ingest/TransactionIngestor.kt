@@ -2,10 +2,12 @@ package app.geocent.ingest
 
 import app.geocent.data.TransactionRepository
 import app.geocent.data.db.TransactionEntity
+import app.geocent.data.settings.SettingsStore
 import app.geocent.domain.SmsParser
 import app.geocent.location.LocationProvider
 import app.geocent.notify.BudgetChecker
 import app.geocent.notify.Notifier
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -20,6 +22,8 @@ class TransactionIngestor @Inject constructor(
     private val location: LocationProvider,
     private val budgets: BudgetChecker,
     private val notifier: Notifier,
+    private val settings: SettingsStore,
+    private val hotspots: HotspotRefresher,
 ) {
     /** Handles a just-received SMS. Returns the stored transaction, or null if skipped. */
     suspend fun ingestLive(body: String): TransactionEntity? {
@@ -27,10 +31,13 @@ class TransactionIngestor @Inject constructor(
         val saved = repository.save(parsed) ?: return null
 
         notifier.transaction(saved.id, saved.merchant, formatAmount(saved))
-        saved.category?.let { budgets.check(it) }
+        saved.category?.let { budgets.check(it, nearHotspot = settings.activeHotspot.first() != null) }
 
         // The phone is where the purchase happened, give or take a few minutes.
-        location.currentLocation()?.let { repository.setLocation(listOf(saved.id), it.latitude, it.longitude) }
+        location.currentLocation()?.let {
+            repository.setLocation(listOf(saved.id), it.latitude, it.longitude)
+            hotspots.requestRefresh()
+        }
         return saved
     }
 

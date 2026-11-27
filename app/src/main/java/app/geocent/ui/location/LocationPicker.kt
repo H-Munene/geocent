@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import app.geocent.data.TransactionRepository
 import app.geocent.data.settings.SettingsStore
+import app.geocent.ingest.HotspotRefresher
 import app.geocent.location.LocationProvider
 import app.geocent.ui.components.PrimaryButton
 import app.geocent.ui.map.DEFAULT_LAT
@@ -77,6 +78,7 @@ class LocationPickerViewModel @Inject constructor(
     private val transactions: TransactionRepository,
     private val location: LocationProvider,
     settings: SettingsStore,
+    private val hotspots: HotspotRefresher,
 ) : ViewModel() {
 
     val ids: List<String> = savedState.get<String>(PICK_LOCATION_IDS).orEmpty().split(',').filter { it.isNotBlank() }
@@ -106,6 +108,7 @@ class LocationPickerViewModel @Inject constructor(
 
     fun confirm(target: LatLng) = viewModelScope.launch {
         transactions.setLocation(ids, target.latitude, target.longitude)
+        hotspots.requestRefresh()
         _done.value = true
     }
 }

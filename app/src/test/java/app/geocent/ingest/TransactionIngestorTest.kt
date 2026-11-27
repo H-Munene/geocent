@@ -37,10 +37,16 @@ class TransactionIngestorTest {
         override suspend fun currentLocation() = location
     }
 
+    private var refreshes = 0
+    private val refresher = object : HotspotRefresher { override fun requestRefresh() { refreshes++ } }
+
     private fun ingestor(): TransactionIngestor {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val notifier = Notifier(context)
-        return TransactionIngestor(transactions, fakeLocation, BudgetChecker(budgets, transactions, notifier), notifier)
+        return TransactionIngestor(
+            transactions, fakeLocation, BudgetChecker(budgets, transactions, notifier), notifier,
+            app.geocent.data.settings.SettingsStore(context), refresher,
+        )
     }
 
     /** A real-format M-PESA payment dated now, so it falls inside this week's budget. */
@@ -68,6 +74,7 @@ class TransactionIngestorTest {
         val stored = transactions.get(saved.id)!!
         assertEquals(-1.2864, stored.latitude!!, 0.0)
         assertEquals(36.8172, stored.longitude!!, 0.0)
+        assertEquals(1, refreshes) // a new location re-clusters hotspots
     }
 
     @Test
