@@ -4,6 +4,11 @@ import app.geocent.data.db.BudgetDao
 import app.geocent.data.db.BudgetEntity
 import app.geocent.data.db.CategoryDao
 import app.geocent.data.db.CategoryEntity
+import app.geocent.data.db.HotspotDao
+import app.geocent.data.db.HotspotEntity
+import app.geocent.domain.Hotspots
+import app.geocent.domain.SpendPoint
+import app.geocent.domain.model.Currency
 import app.geocent.data.db.MerchantCategoryDao
 import app.geocent.data.db.MerchantCategoryEntity
 import app.geocent.data.db.TransactionDao
@@ -125,4 +130,50 @@ class BudgetRepository @Inject constructor(private val budgets: BudgetDao) {
 
     suspend fun delete(id: String) = budgets.delete(id)
     suspend fun markNotified(id: String, threshold: Int, at: Long) = budgets.markNotified(id, threshold, at)
+}
+
+@Singleton
+class HotspotRepository @Inject constructor(
+    private val hotspots: HotspotDao,
+    private val transactions: TransactionDao,
+) {
+    fun observeAll() = hotspots.observeAll()
+    suspend fun all() = hotspots.all()
+    suspend fun get(id: String) = hotspots.get(id)
+    suspend fun markNotified(id: String, at: Long) = hotspots.markNotified(id, at)
+
+    /**
+     * Re-clusters geotagged spending and replaces the stored hotspots.
+     * Hotspots that survive (same spot, see [Hotspots.assignIds]) keep their
+     * id and alert cooldown. Returns the new set.
+     */
+    suspend fun recompute(): List<HotspotEntity> {
+        val points = transactions.mapped()
+            .filter { it.type.isSpending && it.currency == Currency.KES }
+            .map { SpendPoint(it.id, it.latitude!!, it.longitude!!, it.amount) }
+        if (points.size < Hotspots.MIN_GEOTAGGED) {
+            hotspots.replaceAll(emptyList())
+            return emptyList()
+        }
+        val previous = hotspots.all()
+        val cooldowns = previous.associate { it.id to it.lastNotifiedAt }
+        val result = Hotspots.assignIds(
+            Hotspots.cluster(points), previous,
+            previousId = { it.id }, previousLat = { it.latitude }, previousLng = { it.longitude },
+            newId = { UUID.randomUUID().toString() },
+        ).map { (id, c) ->
+            HotspotEntity(
+                id = id,
+                latitude = c.latitude,
+                longitude = c.longitude,
+                radius = c.radiusMeters,
+                avgSpend = c.averageSpend,
+                totalSpend = c.totalSpend,
+                transactionCount = c.count,
+                lastNotifiedAt = cooldowns[id],
+            )
+        }
+        hotspots.replaceAll(result)
+        return result
+    }
 }
