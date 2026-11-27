@@ -14,7 +14,7 @@ data class AreaSummary(
     val transactions: List<TransactionEntity>,
 ) {
     companion object {
-        const val NO_CATEGORY = "No category"
+        const val NO_CATEGORY = app.geocent.domain.NO_CATEGORY
         val EMPTY = AreaSummary(0.0, 0, 0.0, emptyList(), emptyList(), emptyList())
     }
 }
