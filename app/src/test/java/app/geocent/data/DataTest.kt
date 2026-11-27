@@ -134,6 +134,22 @@ class TransactionRepositoryTest {
     }
 
     @Test
+    fun `deleting a category unlinks payments, mappings and its budget`() = runTest {
+        val saved = repo.save(SmsParser.parse(paid)!!, zone)!!
+        repo.setCategory(listOf(saved.id), "Services")
+        BudgetRepository(db.budgets()).save("Services", 500.0, app.geocent.domain.model.BudgetPeriod.WEEKLY)
+        val categories = CategoryRepository(db)
+        assertEquals(1, categories.usage("Services"))
+
+        categories.delete("Services")
+
+        assertNull(repo.get(saved.id)!!.category)
+        assertNull(db.merchantCategories().categoryFor(saved.merchant))
+        assertNull(db.budgets().forCategory("Services"))
+        assertTrue(db.categories().observeAll().first().none { it.name == "Services" })
+    }
+
+    @Test
     fun `default categories are seeded`() = runTest {
         val categories = db.categories().observeAll().first()
         assertEquals(16, categories.size)

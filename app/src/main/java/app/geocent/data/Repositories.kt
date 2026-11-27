@@ -4,6 +4,8 @@ import app.geocent.data.db.BudgetDao
 import app.geocent.data.db.BudgetEntity
 import app.geocent.data.db.CategoryDao
 import app.geocent.data.db.CategoryEntity
+import app.geocent.data.db.GeocentDatabase
+import androidx.room.withTransaction
 import app.geocent.data.db.HotspotDao
 import app.geocent.data.db.HotspotEntity
 import app.geocent.domain.Hotspots
@@ -95,14 +97,28 @@ class TransactionRepository @Inject constructor(
 }
 
 @Singleton
-class CategoryRepository @Inject constructor(private val categories: CategoryDao) {
+class CategoryRepository @Inject constructor(private val db: GeocentDatabase) {
+    private val categories = db.categories()
+
     fun observeAll() = categories.observeAll()
+
+    /** How many payments use [name]; shown before deleting it. */
+    suspend fun usage(name: String) = db.transactions().countInCategory(name)
 
     suspend fun add(name: String, iconKey: Int, colorArgb: Long) {
         categories.upsert(CategoryEntity(name.trim(), iconKey, colorArgb, categories.nextSortOrder()))
     }
 
-    suspend fun delete(name: String) = categories.delete(name)
+    /**
+     * Deletes the category and everything that refers to it: its payments go
+     * back to "needs category", learned merchant mappings and its budget go.
+     */
+    suspend fun delete(name: String) = db.withTransaction {
+        db.transactions().clearCategory(name)
+        db.merchantCategories().forgetCategory(name)
+        db.budgets().deleteForCategory(name)
+        categories.delete(name)
+    }
 }
 
 @Singleton

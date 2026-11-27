@@ -36,6 +36,12 @@ interface TransactionDao {
     @Query("UPDATE transactions SET category = :category WHERE id IN (:ids)")
     suspend fun setCategory(ids: List<String>, category: String)
 
+    @Query("SELECT COUNT(*) FROM transactions WHERE category = :category")
+    suspend fun countInCategory(category: String): Int
+
+    @Query("UPDATE transactions SET category = NULL WHERE category = :category")
+    suspend fun clearCategory(category: String)
+
     @Query("SELECT DISTINCT merchant FROM transactions WHERE id IN (:ids)")
     suspend fun merchantsOf(ids: List<String>): List<String>
 
@@ -126,6 +132,9 @@ interface MerchantCategoryDao {
 
     @Upsert
     suspend fun upsert(rows: List<MerchantCategoryEntity>)
+
+    @Query("DELETE FROM merchant_categories WHERE category_name = :category")
+    suspend fun forgetCategory(category: String)
 }
 
 @Dao
@@ -156,6 +165,9 @@ interface BudgetDao {
 
     @Query("DELETE FROM budgets WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM budgets WHERE category_name = :category")
+    suspend fun deleteForCategory(category: String)
 
     @Query("UPDATE budgets SET last_notified_threshold = :threshold, last_notified_at = :at WHERE id = :id")
     suspend fun markNotified(id: String, threshold: Int, at: Long)
