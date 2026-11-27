@@ -8,12 +8,13 @@ data class AreaSummary(
     val total: Double,
     val count: Int,
     val average: Double,
-    /** Highest-spend categories first; "Unmapped" for uncategorised. */
+    /** Highest-spend categories first; [NO_CATEGORY] for uncategorised spending. */
     val topCategories: List<Pair<String, Double>>,
     val topMerchants: List<Pair<String, Double>>,
     val transactions: List<TransactionEntity>,
 ) {
     companion object {
+        const val NO_CATEGORY = "No category"
         val EMPTY = AreaSummary(0.0, 0, 0.0, emptyList(), emptyList(), emptyList())
     }
 }
@@ -48,7 +49,7 @@ fun summarizeArea(
         total = total,
         count = inside.size,
         average = total / inside.size,
-        topCategories = ranked { it.category ?: "Unmapped" },
+        topCategories = ranked { it.category ?: AreaSummary.NO_CATEGORY },
         topMerchants = ranked { it.merchant },
         transactions = inside.sortedByDescending { it.timestamp },
     )
