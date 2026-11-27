@@ -36,6 +36,7 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
         val importRange = stringPreferencesKey("import_range")
         val lastImportAt = longPreferencesKey("last_import_at")
         val mapStyle = stringPreferencesKey("map_style")
+        val activeHotspot = stringPreferencesKey("active_hotspot")
     }
 
     val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[Keys.onboardingDone] ?: false }
@@ -68,4 +69,11 @@ class SettingsStore @Inject constructor(@ApplicationContext private val context:
     }
 
     suspend fun isOnboardingDone(): Boolean = onboardingDone.first()
+
+    /** The hotspot the user is lingering in right now (set on geofence dwell, cleared on exit). */
+    val activeHotspot: Flow<String?> = context.dataStore.data.map { it[Keys.activeHotspot] }
+
+    suspend fun setActiveHotspot(id: String?) {
+        context.dataStore.edit { if (id == null) it.remove(Keys.activeHotspot) else it[Keys.activeHotspot] = id }
+    }
 }
