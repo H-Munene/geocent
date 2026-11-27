@@ -2,9 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 import 'package:geocent/screens/main_screen.dart';
 import 'package:geocent/services/background_executor.dart';
 import 'package:geocent/services/budget_service.dart';
@@ -28,7 +26,6 @@ void main() async {
     ),
   );
 
-  await setup();
   await NotificationService.instance.init();
   await getPermissions();
   await initializeBackgroundService();
@@ -117,16 +114,6 @@ Future<void> initializeBackgroundService() async {
     ),
     iosConfiguration: IosConfiguration(autoStart: false),
   );
-}
-
-Future<void> setup() async {
-  await dotenv.load(fileName: '.env');
-  final String? mapBoxToken = dotenv.env['MAPBOX_ACCESS_TOKEN'];
-  if (mapBoxToken != null) {
-    mb.MapboxOptions.setAccessToken(mapBoxToken);
-  } else {
-    debugPrint('WARNING: MAPBOX_ACCESS_TOKEN not found in .env');
-  }
 }
 
 Future<void> getPermissions() async {

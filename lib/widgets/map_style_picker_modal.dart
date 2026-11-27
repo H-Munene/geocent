@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
+import 'package:geocent/utils/map_styles.dart';
 import '../utils/images.dart' as img;
 
 class MapStylePickerModal extends StatefulWidget {
@@ -76,27 +76,15 @@ class _MapStylePickerModalState extends State<MapStylePickerModal> {
                 Expanded(
                   child: _buildStyleOption(
                     'Standard',
-                    mp.MapboxStyles.STANDARD,
+                    MapStyles.standard,
                     img.standardMapStyle,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStyleOption(
-                    'Satellite',
-                    mp.MapboxStyles.STANDARD_SATELLITE,
-                    img.satelliteMapStyle,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStyleOption(
                     'Light',
-                    mp.MapboxStyles.LIGHT,
+                    MapStyles.light,
                     img.lightMapStyle,
                   ),
                 ),
@@ -104,7 +92,7 @@ class _MapStylePickerModalState extends State<MapStylePickerModal> {
                 Expanded(
                   child: _buildStyleOption(
                     'Dark',
-                    mp.MapboxStyles.DARK,
+                    MapStyles.dark,
                     img.darkMapStyle,
                   ),
                 ),

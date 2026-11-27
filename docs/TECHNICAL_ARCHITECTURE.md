@@ -2,27 +2,33 @@
 
 This document provides an overview of the rendering logic and state management strategies implemented in Geocent.
 
-## 1. Mapbox Rendering Logic
-Geocent utilizes a high-performance rendering strategy on top of Mapbox. Rendering heavy lifting is delegated directly to the Mapbox Native GPU to ensure the UI thread remains responsive even with thousands of markers.
+## 1. Map Rendering Logic
+Geocent renders maps with MapLibre GL (`maplibre_gl`) using OpenStreetMap vector tiles served by [OpenFreeMap](https://openfreemap.org) (styles: Liberty, Positron, Dark; no API key). Marker styling runs as native style expressions on the GPU, so the UI thread stays responsive with thousands of markers. Style URLs live in `lib/utils/map_styles.dart`.
 
-### Dual-Manager Strategy
-Two separate annotation managers are used concurrently:
-- **CircleAnnotationManager (Dots)**: Renders lightweight, color-coded circles.
-- **PointAnnotationManager (Callouts)**: Renders detailed text/image callouts (price and merchant).
+### Data-Driven Layers
+Today's places are written to one GeoJSON source (`places-source`), drawn by two layers:
+- **`places-dots` (circle layer)**: lightweight, category-coloured dots.
+- **`places-callouts` (symbol layer)**: price/merchant callout images, rendered by `createCalloutImage` and registered with `addImage`.
+
+A `hotspots-heatmap` layer sits below the dots.
+
+Switching styles discards custom sources, layers and images, so `_onStyleLoaded` in `map_screen.dart` re-adds them after every style load.
 
 **Visual Hierarchy**
 Dots act as fallbacks when zoomed out, while detailed callouts appear when zoomed in. If callouts collide, dots remain visible beneath them.
 
-### Native GPU Zoom Expressions
-To manage performance and visual clutter, `setStyleLayerProperty` applies native step expressions based on the camera's zoom level:
-- **Callouts** are set to opacity: 0.0 below zoom level 13.0, and 1.0 above.
-- **Dots** are hidden below 11.0 and visible above 11.0.
-
-Because these rules are executed on the GPU, panning and zooming remain smooth regardless of the number of transactions loaded.
+### Zoom Expressions
+Opacity is set with `step` expressions on the camera zoom:
+- **Callouts** are hidden below zoom 11.0.
+- **Dots** are hidden below zoom 9.0.
 
 ### Collision & Priority
-- `IconAllowOverlap` is disabled to leverage Mapbox's native collision engine for hiding overlapping callouts.
-- When a user selects a transaction, the `symbolSortKey` for that specific annotation is updated to -1,000,000.0. This ensures the selected marker renders on top of others.
+- `icon-allow-overlap` is off, so MapLibre's collision engine hides overlapping callouts.
+- Each feature carries a `sortKey` property used by `symbol-sort-key`. The selected place gets -1,000,000 and the GeoJSON is re-pushed, so it wins collision.
+
+### Interaction
+- Taps arrive through `onFeatureTapped`; the feature id maps back to a `MapPlace`.
+- MapLibre has no per-feature long-press callback, so long presses call `queryRenderedFeatures` at the touch point.
 
 ## 2. State Management (Unified State)
 Geocent uses the `provider` package for state management, primarily handled by the `SpendingService`.
