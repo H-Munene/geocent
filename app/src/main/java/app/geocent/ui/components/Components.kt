@@ -69,14 +69,22 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
 
 /** Text-only button in the accent colour. */
 @Composable
-fun TextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun TextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Text(
         text,
         style = GeocentTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
-        color = GeocentTheme.colors.accent,
+        color = GeocentTheme.colors.accent.copy(alpha = if (enabled) 1f else 0.35f),
         modifier = modifier
             .clip(ButtonShape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
+
+/** State for a bottom sheet that opens fully expanded (no half-height stop). */
+@androidx.compose.material3.ExperimentalMaterial3Api
+@Composable
+fun rememberFullSheetState() = androidx.compose.material3.rememberBottomSheetState(
+    androidx.compose.material3.SheetValue.Hidden,
+    setOf(androidx.compose.material3.SheetValue.Hidden, androidx.compose.material3.SheetValue.Expanded),
+)

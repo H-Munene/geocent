@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,7 +38,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.geocent.R
 import app.geocent.data.settings.SettingsStore
-import app.geocent.ui.messages.MessagesPreviewScreen
+import app.geocent.data.TransactionRepository
+import app.geocent.ui.location.LocationPickerScreen
+import app.geocent.ui.location.PICK_LOCATION_IDS
+import app.geocent.ui.messages.MessagesScreen
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import app.geocent.ui.onboarding.OnboardingScreen
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -62,10 +69,21 @@ enum class Tab(
 }
 
 @HiltViewModel
-class RootViewModel @Inject constructor(settings: SettingsStore) : ViewModel() {
+class RootViewModel @Inject constructor(settings: SettingsStore, transactions: TransactionRepository) : ViewModel() {
     /** null while loading, so neither onboarding nor tabs flash on start. */
     val onboardingDone = settings.onboardingDone
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** Messages still missing a location or category; shown as a badge on the Messages tab. */
+    val actionableCount = transactions.observeActionableCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+}
+
+/** Full-screen destinations shown above the tab bar. */
+private object Routes {
+    const val TABS = "tabs"
+    const val PICK_LOCATION = "pick-location/{$PICK_LOCATION_IDS}"
+    fun pickLocation(ids: List<String>) = "pick-location/${ids.joinToString(",")}"
 }
 
 /** Shows onboarding on first run, then the tab shell. */
@@ -75,13 +93,30 @@ fun GeocentRoot(viewModel: RootViewModel = hiltViewModel()) {
     when (done) {
         null -> Box(Modifier.fillMaxSize().background(GeocentTheme.colors.background))
         false -> OnboardingScreen()
-        true -> TabShell()
+        true -> AppNavHost(viewModel)
+    }
+}
+
+@Composable
+private fun AppNavHost(viewModel: RootViewModel) {
+    val rootNav = rememberNavController()
+    NavHost(rootNav, startDestination = Routes.TABS) {
+        composable(Routes.TABS) {
+            TabShell(viewModel, onPickLocation = { ids -> rootNav.navigate(Routes.pickLocation(ids)) })
+        }
+        composable(
+            Routes.PICK_LOCATION,
+            arguments = listOf(navArgument(PICK_LOCATION_IDS) { type = NavType.StringType }),
+        ) {
+            LocationPickerScreen(onDone = { rootNav.popBackStack() })
+        }
     }
 }
 
 /** Five tabs with an iOS-style bottom bar, as in the Flutter app. */
 @Composable
-private fun TabShell() {
+private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) -> Unit) {
+    val actionable by viewModel.actionableCount.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route ?: Tab.Map.route
@@ -99,7 +134,7 @@ private fun TabShell() {
             Tab.entries.forEach { tab ->
                 composable(tab.route) {
                     when (tab) {
-                        Tab.Messages -> MessagesPreviewScreen()
+                        Tab.Messages -> MessagesScreen(onPickLocation = onPickLocation)
                         else -> PlaceholderScreen(stringResource(tab.label))
                     }
                 }
@@ -107,6 +142,7 @@ private fun TabShell() {
         }
         GeocentTabBar(
             current = currentRoute,
+            badges = mapOf(Tab.Messages to actionable),
             onSelect = { tab ->
                 navController.navigate(tab.route) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -119,7 +155,7 @@ private fun TabShell() {
 }
 
 @Composable
-private fun GeocentTabBar(current: String, onSelect: (Tab) -> Unit) {
+private fun GeocentTabBar(current: String, badges: Map<Tab, Int>, onSelect: (Tab) -> Unit) {
     val colors = GeocentTheme.colors
     Column(
         Modifier
@@ -148,12 +184,16 @@ private fun GeocentTabBar(current: String, onSelect: (Tab) -> Unit) {
                         ) { onSelect(tab) }
                         .padding(vertical = 6.dp),
                 ) {
-                    Icon(
-                        painter = painterResource(if (selected) tab.activeIcon else tab.icon),
-                        contentDescription = null,
-                        tint = tint,
-                        modifier = Modifier.size(25.dp),
-                    )
+                    Box {
+                        Icon(
+                            painter = painterResource(if (selected) tab.activeIcon else tab.icon),
+                            contentDescription = null,
+                            tint = tint,
+                            modifier = Modifier.size(25.dp),
+                        )
+                        val count = badges[tab] ?: 0
+                        if (count > 0) Badge(count, Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-4).dp))
+                    }
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = stringResource(tab.label),
@@ -164,6 +204,19 @@ private fun GeocentTabBar(current: String, onSelect: (Tab) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun Badge(count: Int, modifier: Modifier = Modifier) {
+    Text(
+        if (count > 99) "99+" else count.toString(),
+        style = GeocentTheme.typography.tabLabel,
+        color = androidx.compose.ui.graphics.Color.White,
+        modifier = modifier
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .background(GeocentTheme.colors.dataWarning)
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    )
 }
 
 /** Stand-in until each tab is ported in its own phase. */
