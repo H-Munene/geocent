@@ -44,6 +44,7 @@ import app.geocent.ui.location.PICK_LOCATION_IDS
 import app.geocent.ui.messages.MessagesScreen
 import app.geocent.ui.map.MapScreen
 import app.geocent.ui.budgets.BudgetsScreen
+import app.geocent.ui.analytics.AnalyticsScreen
 import app.geocent.data.BudgetTracker
 import kotlinx.coroutines.flow.map
 import androidx.navigation.NavType
@@ -150,6 +151,7 @@ private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) ->
                         Tab.Map -> MapScreen(onPickLocation = onPickLocation)
                         Tab.Messages -> MessagesScreen(onPickLocation = onPickLocation)
                         Tab.Budgets -> BudgetsScreen()
+                        Tab.Analytics -> AnalyticsScreen()
                         else -> PlaceholderScreen(stringResource(tab.label))
                     }
                 }
