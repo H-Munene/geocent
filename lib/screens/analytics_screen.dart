@@ -10,6 +10,7 @@ import '../widgets/analytics/analytics_list_tile.dart';
 import '../widgets/analytics/grouped_transactions_list.dart';
 import '../widgets/analytics/quick_insights_carousel.dart';
 import '../widgets/analytics/analytics_selector_modal.dart';
+import 'package:geocent/utils/date_periods.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -76,17 +77,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   void _handleThisWeekSelection(SpendingService service) {
-    // Sunday of the current week (local time)
     final now = DateTime.now();
-    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-    final start = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: daysToSubtract));
-    final end = start.add(
-      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
-    );
+    final start = startOfWeek(now);
+    final end = endOfWeek(now);
 
     service.setAnalyticsRange(
       start: start,

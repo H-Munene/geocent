@@ -3,6 +3,7 @@ import 'package:geocent/models/category_analytics.dart';
 import 'package:sqflite/sqflite.dart';
 
 import '../models/app_transaction.dart';
+import 'package:geocent/utils/date_periods.dart';
 
 class TransactionRepository {
   final DatabaseHelper _db = DatabaseHelper.instance;
@@ -23,8 +24,8 @@ class TransactionRepository {
     final List<Map<String, dynamic>> maps = await db.rawQuery('''
       SELECT 
           ${DatabaseHelper.colCategory} as category,
-          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as today_total,
-          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}, 'localtime') = date('now', '-1 day', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as yesterday_total
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}) = date('now', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as today_total,
+          SUM(CASE WHEN date(${DatabaseHelper.colTimestamp}) = date('now', '-1 day', 'localtime') THEN ${DatabaseHelper.colAmount} ELSE 0 END) as yesterday_total
       FROM ${DatabaseHelper.tableTransactions}
       WHERE ${DatabaseHelper.colCategory} IS NOT NULL
       GROUP BY ${DatabaseHelper.colCategory}
@@ -320,22 +321,7 @@ class TransactionRepository {
   }
 
   Future<List<AppTransaction>> loadByPeriod(String period) async {
-    final DateTime now = DateTime.now();
-    final DateTime from;
-    switch (period.toLowerCase()) {
-      case 'today':
-        from = DateTime(now.year, now.month, now.day);
-        break;
-      case 'this week':
-        final monday = now.subtract(Duration(days: now.weekday - 1));
-        from = DateTime(monday.year, monday.month, monday.day);
-        break;
-      case 'month':
-        from = DateTime(now.year, now.month, 1);
-        break;
-      default:
-        from = DateTime(now.year, now.month, now.day);
-    }
+    final DateTime from = periodStart(period, DateTime.now());
     final rows = await _db.rawQuery(
       DatabaseHelper.tableTransactions,
       where: '${DatabaseHelper.colTimestamp} >= ?',
@@ -471,7 +457,7 @@ class TransactionRepository {
     return await db.rawQuery(
       '''
       SELECT 
-        date(${DatabaseHelper.colTimestamp}, 'localtime') as day,
+        date(${DatabaseHelper.colTimestamp}) as day,
         ${DatabaseHelper.colCategory} as category,
         SUM(${DatabaseHelper.colAmount}) as total_amount
       FROM ${DatabaseHelper.tableTransactions}

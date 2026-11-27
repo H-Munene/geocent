@@ -14,6 +14,7 @@ import '../services/geofence_service.dart';
 import '../repositories/hotspot_repository.dart';
 import '../models/sms_message.dart';
 import '../models/app_transaction.dart';
+import '../utils/date_periods.dart';
 
 String? _activeGeofenceId;
 
@@ -74,10 +75,19 @@ void onBackgroundServiceStart(ServiceInstance service) async {
   });
 
   service.on('simulate_transaction').listen((_) async {
-    const mockSms =
-        'Confirmed. KES 5,200.00 paid to ARTCAFFE. On 12/5/26 at 1:45 PM.';
+    // Real M-PESA "paid to" format with a fresh code so dedupe doesn't skip it.
+    final now = DateTime.now();
+    final code =
+        'SIM${now.millisecondsSinceEpoch.toRadixString(36).toUpperCase()}';
+    final hour12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final minute = now.minute.toString().padLeft(2, '0');
+    final meridiem = now.hour < 12 ? 'AM' : 'PM';
+    final mockSms =
+        '$code Confirmed. Ksh5,200.00 paid to ARTCAFFE. on '
+        '${now.day}/${now.month}/${now.year % 100} at $hour12:$minute $meridiem. '
+        'New M-PESA balance is Ksh10,000.00.';
     _processIncomingSms(
-      const SmsMessage(sender: 'MPESA', body: mockSms),
+      SmsMessage(sender: 'MPESA', body: mockSms),
       repo,
       service,
       flutterLocalNotificationsPlugin,
@@ -96,7 +106,7 @@ Future<void> _checkBudgetThresholds(
   if (budget == null) return;
 
   final DateTime now = DateTime.now();
-  final DateTime start = _getPeriodStart(budget.period, now);
+  final DateTime start = periodStart(budget.period, now);
 
   final spending = await txRepo.getCategorySpending(start, now);
   final match = spending.firstWhere(
@@ -136,25 +146,6 @@ Future<void> _checkBudgetThresholds(
     );
 
     await budgetRepo.updateNotificationState(budget.id, newThreshold, now);
-  }
-}
-
-DateTime _getPeriodStart(String period, DateTime now) {
-  switch (period.toLowerCase()) {
-    case 'daily':
-      return DateTime(now.year, now.month, now.day);
-    case 'weekly':
-      final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-      final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-      return DateTime(
-        startOfCurrentWeek.year,
-        startOfCurrentWeek.month,
-        startOfCurrentWeek.day,
-      );
-    case 'monthly':
-      return DateTime(now.year, now.month, 1);
-    default:
-      return DateTime(now.year, now.month, now.day);
   }
 }
 

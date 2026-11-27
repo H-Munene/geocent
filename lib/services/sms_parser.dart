@@ -70,13 +70,15 @@ class SmsParser {
   static AppTransaction? _tryMpesaSent(String message) {
     final match = _mpesaSent.firstMatch(message.trim());
     if (match == null) return null;
+    final timestamp = _parseMpesaDateTime(match.group(4)!, match.group(5)!);
+    if (timestamp == null) return null;
 
     return AppTransaction(
       id: match.group(1)!.trim(),
       amount: _parseAmount(match.group(2)!),
       merchant: _cleanMerchant(match.group(3)!),
       rawMessage: message,
-      timestamp: _parseMpesaDateTime(match.group(4)!, match.group(5)!),
+      timestamp: timestamp,
       balanceAfter: _parseAmount(match.group(6)!),
       source: TransactionSource.mpesa,
       type: TransactionType.sent,
@@ -86,13 +88,15 @@ class SmsParser {
   static AppTransaction? _tryMpesaPaid(String message) {
     final match = _mpesaPaid.firstMatch(message.trim());
     if (match == null) return null;
+    final timestamp = _parseMpesaDateTime(match.group(4)!, match.group(5)!);
+    if (timestamp == null) return null;
 
     return AppTransaction(
       id: match.group(1)!.trim(),
       amount: _parseAmount(match.group(2)!),
       merchant: _cleanMerchant(match.group(3)!),
       rawMessage: message,
-      timestamp: _parseMpesaDateTime(match.group(4)!, match.group(5)!),
+      timestamp: timestamp,
       balanceAfter: _parseAmount(match.group(6)!),
       source: TransactionSource.mpesa,
       type: TransactionType.payment,
@@ -102,13 +106,15 @@ class SmsParser {
   static AppTransaction? _tryMpesaAirtime(String message) {
     final match = _mpesaAirtime.firstMatch(message.trim());
     if (match == null) return null;
+    final timestamp = _parseMpesaDateTime(match.group(3)!, match.group(4)!);
+    if (timestamp == null) return null;
 
     return AppTransaction(
       id: match.group(1)!.trim(),
       amount: _parseAmount(match.group(2)!),
       merchant: 'Safaricom Airtime',
       rawMessage: message,
-      timestamp: _parseMpesaDateTime(match.group(3)!, match.group(4)!),
+      timestamp: timestamp,
       balanceAfter: _parseAmount(match.group(5)!),
       source: TransactionSource.mpesa,
       type: TransactionType.payment,
@@ -118,13 +124,15 @@ class SmsParser {
   static AppTransaction? _tryEquity(String message) {
     final match = _equity.firstMatch(message.trim());
     if (match == null) return null;
+    final timestamp = _parseEquityDateTime(match.group(3)!);
+    if (timestamp == null) return null;
 
     return AppTransaction(
       id: match.group(4)!.trim(), // Ref number as id
       amount: _parseAmount(match.group(1)!),
       merchant: _cleanMerchant(match.group(2)!),
       rawMessage: message,
-      timestamp: _parseEquityDateTime(match.group(3)!),
+      timestamp: timestamp,
       source: TransactionSource.equity,
       type: TransactionType.payment,
     );
@@ -157,7 +165,7 @@ class SmsParser {
 
   /// Parses M-PESA date "26/4/26" + time "4:55 PM" into a DateTime.
   /// The year "26" is treated as 2026.
-  static DateTime _parseMpesaDateTime(String datePart, String timePart) {
+  static DateTime? _parseMpesaDateTime(String datePart, String timePart) {
     try {
       final dateParts = datePart.split('/');
       final int day = int.parse(dateParts[0]);
@@ -176,14 +184,15 @@ class SmsParser {
       if (meridiem == 'PM' && hour != 12) hour += 12;
       if (meridiem == 'AM' && hour == 12) hour = 0;
 
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
       return DateTime(year, month, day, hour, minute);
     } catch (_) {
-      return DateTime.now(); // fallback — won't silently corrupt data
+      return null; // caller rejects the message rather than guessing a date
     }
   }
 
   /// Parses Equity date "2026-04-26 21:05:24" into a DateTime.
-  static DateTime _parseEquityDateTime(String raw) {
-    return DateTime.tryParse(raw.trim()) ?? DateTime.now();
+  static DateTime? _parseEquityDateTime(String raw) {
+    return DateTime.tryParse(raw.trim());
   }
 }
