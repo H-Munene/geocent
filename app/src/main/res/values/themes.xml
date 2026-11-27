@@ -1,0 +1,6 @@
+<resources>
+    <!-- Window theme only; all UI styling lives in the Compose GeocentTheme. -->
+    <style name="Theme.Geocent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#FFF5F5F7</item>
+    </style>
+</resources>
