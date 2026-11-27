@@ -35,6 +35,17 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import app.geocent.R
+import app.geocent.data.settings.SettingsStore
+import app.geocent.ui.messages.MessagesPreviewScreen
+import app.geocent.ui.onboarding.OnboardingScreen
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import javax.inject.Inject
 import app.geocent.ui.theme.GeocentTheme
 
 enum class Tab(
@@ -50,9 +61,27 @@ enum class Tab(
     Profile("profile", R.string.tab_profile, R.drawable.ic_tab_profile),
 }
 
-/** App shell: five tabs with an iOS-style bottom bar, as in the Flutter app. */
+@HiltViewModel
+class RootViewModel @Inject constructor(settings: SettingsStore) : ViewModel() {
+    /** null while loading, so neither onboarding nor tabs flash on start. */
+    val onboardingDone = settings.onboardingDone
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+}
+
+/** Shows onboarding on first run, then the tab shell. */
 @Composable
-fun GeocentRoot() {
+fun GeocentRoot(viewModel: RootViewModel = hiltViewModel()) {
+    val done by viewModel.onboardingDone.collectAsStateWithLifecycle()
+    when (done) {
+        null -> Box(Modifier.fillMaxSize().background(GeocentTheme.colors.background))
+        false -> OnboardingScreen()
+        true -> TabShell()
+    }
+}
+
+/** Five tabs with an iOS-style bottom bar, as in the Flutter app. */
+@Composable
+private fun TabShell() {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route ?: Tab.Map.route
@@ -68,7 +97,12 @@ fun GeocentRoot() {
             modifier = Modifier.weight(1f),
         ) {
             Tab.entries.forEach { tab ->
-                composable(tab.route) { PlaceholderScreen(stringResource(tab.label)) }
+                composable(tab.route) {
+                    when (tab) {
+                        Tab.Messages -> MessagesPreviewScreen()
+                        else -> PlaceholderScreen(stringResource(tab.label))
+                    }
+                }
             }
         }
         GeocentTabBar(
