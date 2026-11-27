@@ -42,6 +42,7 @@ import app.geocent.data.TransactionRepository
 import app.geocent.ui.location.LocationPickerScreen
 import app.geocent.ui.location.PICK_LOCATION_IDS
 import app.geocent.ui.messages.MessagesScreen
+import app.geocent.ui.map.MapScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
 import app.geocent.ui.onboarding.OnboardingScreen
@@ -134,6 +135,7 @@ private fun TabShell(viewModel: RootViewModel, onPickLocation: (List<String>) ->
             Tab.entries.forEach { tab ->
                 composable(tab.route) {
                     when (tab) {
+                        Tab.Map -> MapScreen(onPickLocation = onPickLocation)
                         Tab.Messages -> MessagesScreen(onPickLocation = onPickLocation)
                         else -> PlaceholderScreen(stringResource(tab.label))
                     }
