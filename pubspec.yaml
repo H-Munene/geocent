@@ -1,5 +1,5 @@
 name: geocent
-description: "A new Flutter project."
+description: "Geo-verified personal finance tracking from M-PESA and bank SMS."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -84,7 +84,6 @@ flutter:
     - assets/
     - assets/icon/
     - assets/app_images/
-    - assets/inspo/
     - assets/lottie/
   #   - images/a_dot_ham.jpeg
 

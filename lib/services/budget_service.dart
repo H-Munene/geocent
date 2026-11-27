@@ -5,6 +5,7 @@ import 'package:geocent/repositories/budget_repository.dart';
 import 'package:geocent/repositories/transaction_repository.dart';
 import 'package:uuid/uuid.dart';
 import 'package:geocent/services/notification_service.dart';
+import 'package:geocent/utils/date_periods.dart';
 
 class BudgetService extends ChangeNotifier {
   final BudgetRepository _budgetRepo = BudgetRepository();
@@ -92,7 +93,7 @@ class BudgetService extends ChangeNotifier {
     final DateTime now = DateTime.now();
 
     for (final budget in budgetsToCheck) {
-      final DateTime start = _getPeriodStart(budget.period, now);
+      final DateTime start = periodStart(budget.period, now);
 
       // Calculate total spent for this category in this period
       final categorySpending = await _txRepo.getCategorySpending(start, now);
@@ -148,25 +149,6 @@ class BudgetService extends ChangeNotifier {
     }
   }
 
-  DateTime _getPeriodStart(String period, DateTime now) {
-    switch (period.toLowerCase()) {
-      case 'daily':
-        return DateTime(now.year, now.month, now.day);
-      case 'weekly':
-        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-        return DateTime(
-          startOfCurrentWeek.year,
-          startOfCurrentWeek.month,
-          startOfCurrentWeek.day,
-        );
-      case 'monthly':
-        return DateTime(now.year, now.month, 1);
-      default:
-        return DateTime(now.year, now.month, now.day);
-    }
-  }
-
   Future<List<BudgetProgress>> getBudgetProgress(String period) async {
     final budgetsInPeriod = _budgets
         .where((b) => b.period == period.toLowerCase())
@@ -174,28 +156,8 @@ class BudgetService extends ChangeNotifier {
     if (budgetsInPeriod.isEmpty) return [];
 
     final DateTime now = DateTime.now();
-    final DateTime start;
+    final DateTime start = periodStart(period, now);
     final DateTime end = now;
-
-    switch (period.toLowerCase()) {
-      case 'daily':
-        start = DateTime(now.year, now.month, now.day);
-        break;
-      case 'weekly':
-        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-        start = DateTime(
-          startOfCurrentWeek.year,
-          startOfCurrentWeek.month,
-          startOfCurrentWeek.day,
-        );
-        break;
-      case 'monthly':
-        start = DateTime(now.year, now.month, 1);
-        break;
-      default:
-        start = DateTime(now.year, now.month, now.day);
-    }
 
     final categorySpending = await _txRepo.getCategorySpending(start, end);
 

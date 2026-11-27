@@ -15,6 +15,7 @@ import '../models/daily_spending.dart';
 import '../models/hotspot.dart';
 import '../repositories/transaction_repository.dart';
 import '../repositories/hotspot_repository.dart';
+import 'package:geocent/utils/date_periods.dart';
 
 enum AnalyticsRangeMode { week, month, year }
 
@@ -420,18 +421,8 @@ class SpendingService extends ChangeNotifier {
           currentStart.subtract(const Duration(milliseconds: 1));
       _weekDateRange = _customLabel ?? "";
     } else {
-      // Sunday of the current week (local time)
-      final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-      final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-      currentStart = DateTime(
-        startOfCurrentWeek.year,
-        startOfCurrentWeek.month,
-        startOfCurrentWeek.day,
-      );
-      // End of the week (Saturday)
-      currentEnd = currentStart.add(
-        const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
-      );
+      currentStart = startOfWeek(now);
+      currentEnd = endOfWeek(now);
 
       previousStart = currentStart.subtract(const Duration(days: 7));
       previousEnd = currentStart.subtract(const Duration(milliseconds: 1));
@@ -758,16 +749,8 @@ class SpendingService extends ChangeNotifier {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
-    // Week (Sunday to Saturday)
-    final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-    final weekStart = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(Duration(days: daysToSubtract));
-    final weekEnd = weekStart.add(
-      const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
-    );
+    final weekStart = startOfWeek(now);
+    final weekEnd = endOfWeek(now);
 
     // Month
     final monthStart = DateTime(now.year, now.month, 1);
@@ -930,18 +913,8 @@ class SpendingService extends ChangeNotifier {
         end = _customAnalyticsEnd!;
       } else {
         final now = DateTime.now();
-        // Sunday of the current week (local time)
-        final int daysToSubtract = now.weekday == 7 ? 0 : now.weekday;
-        final startOfCurrentWeek = now.subtract(Duration(days: daysToSubtract));
-        start = DateTime(
-          startOfCurrentWeek.year,
-          startOfCurrentWeek.month,
-          startOfCurrentWeek.day,
-        );
-        // End of the week (Saturday)
-        end = start.add(
-          const Duration(days: 6, hours: 23, minutes: 59, seconds: 59),
-        );
+        start = startOfWeek(now);
+        end = endOfWeek(now);
       }
 
       final newTxs = await _repo.getTransactionsByDateRange(

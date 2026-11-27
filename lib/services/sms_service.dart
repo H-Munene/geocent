@@ -37,15 +37,20 @@ class SmsService {
     // 1. Initial history load from local inbox
     await _loadInboxHistory();
 
-    // 2. Foreground Reactivity: Listen to incoming SMS directly
+    final service = FlutterBackgroundService();
+
+    // 2. Fallback for live SMS: the background isolate is the primary writer
+    // (it also runs budget alerts). Only handle here when it isn't running.
     NativeSmsChannel.instance.register();
     _smsStreamSub = NativeSmsChannel.instance.smsStream.listen((sms) async {
-      debugPrint('[SmsService] Foreground SMS detected from ${sms.sender}');
+      if (await service.isRunning()) return;
+      debugPrint(
+        '[SmsService] Background service down; handling SMS from ${sms.sender}',
+      );
       await _processMessage(sms.body, captureLocation: true);
     });
 
-    // 3. Listen for background service processing events (as fallback)
-    final service = FlutterBackgroundService();
+    // 3. Refresh when the background isolate saves or geotags a transaction
 
     _txSavedSub = service.on('transaction_saved').listen((_) async {
       debugPrint(
