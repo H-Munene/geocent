@@ -37,7 +37,6 @@ import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
 import javax.inject.Inject
-import kotlin.math.exp
 
 /** Time window for the "spending around here" card. */
 enum class AreaPeriod(val label: String) { WEEK("This week"), MONTH("This month"), ALL("All time") }
@@ -74,15 +73,6 @@ class MapViewModel @Inject constructor(
     val todayPlaces: StateFlow<List<Place<TransactionEntity>>> = mapped.map { all ->
         val start = today(LocalDateTime.now(zone)).startMillis(zone)
         groupByLocation(all.filter { it.timestamp >= start }, { it.latitude }, { it.longitude })
-    }.stateIn(viewModelScope, sharing, emptyList())
-
-    /** Heat points: amount decayed by age (weight halves roughly every 35 days). */
-    val heat: StateFlow<List<Triple<Double, Double, Double>>> = mapped.map { all ->
-        val now = System.currentTimeMillis()
-        all.map { tx ->
-            val days = (now - tx.timestamp) / 86_400_000.0
-            Triple(tx.latitude!!, tx.longitude!!, tx.amount * exp(-0.02 * days))
-        }
     }.stateIn(viewModelScope, sharing, emptyList())
 
     val categories: StateFlow<Map<String, CategoryEntity>> = categoryRepository.observeAll()

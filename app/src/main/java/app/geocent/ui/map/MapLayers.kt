@@ -4,19 +4,13 @@ import android.graphics.Bitmap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.expressions.Expression.get
-import org.maplibre.android.style.expressions.Expression.heatmapDensity
-import org.maplibre.android.style.expressions.Expression.interpolate
-import org.maplibre.android.style.expressions.Expression.linear
 import org.maplibre.android.style.expressions.Expression.literal
-import org.maplibre.android.style.expressions.Expression.rgb
-import org.maplibre.android.style.expressions.Expression.rgba
 import org.maplibre.android.style.expressions.Expression.step
 import org.maplibre.android.style.expressions.Expression.stop
 import org.maplibre.android.style.expressions.Expression.toColor
 import org.maplibre.android.style.expressions.Expression.zoom
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.FillLayer
-import org.maplibre.android.style.layers.HeatmapLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
@@ -28,11 +22,6 @@ import org.maplibre.android.style.layers.PropertyFactory.circleStrokeOpacity
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
 import org.maplibre.android.style.layers.PropertyFactory.fillColor
 import org.maplibre.android.style.layers.PropertyFactory.fillOpacity
-import org.maplibre.android.style.layers.PropertyFactory.heatmapColor
-import org.maplibre.android.style.layers.PropertyFactory.heatmapIntensity
-import org.maplibre.android.style.layers.PropertyFactory.heatmapOpacity
-import org.maplibre.android.style.layers.PropertyFactory.heatmapRadius
-import org.maplibre.android.style.layers.PropertyFactory.heatmapWeight
 import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
 import org.maplibre.android.style.layers.PropertyFactory.iconAnchor
 import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
@@ -54,8 +43,6 @@ object MapIds {
     const val PLACES = "places"
     const val DOTS = "places-dots"
     const val CALLOUTS = "places-callouts"
-    const val HEAT = "heat"
-    const val HEATMAP = "heatmap"
     const val AREA = "area"
     const val AREA_FILL = "area-fill"
     const val AREA_LINE = "area-line"
@@ -66,7 +53,6 @@ object MapIds {
     const val P_ICON = "icon"
     const val P_COLOR = "color"
     const val P_SORT = "sort"
-    const val P_WEIGHT = "w"
 }
 
 /** Opacity 0 below [z], 1 from [z] up: the Flutter zoom rules. */
@@ -74,35 +60,12 @@ private fun visibleFrom(z: Float): Expression = step(zoom(), literal(0f), stop(z
 
 /**
  * Adds Geocent's sources and layers to a freshly loaded style. Order, bottom
- * to top: heatmap, area circle, dots, callouts, area pin.
+ * to top: area circle, dots, callouts, area pin.
  */
 fun installGeocentLayers(style: Style, accentArgb: Int) {
     val empty = FeatureCollection.fromFeatures(emptyList())
-    style.addSource(GeoJsonSource(MapIds.HEAT, empty))
     style.addSource(GeoJsonSource(MapIds.AREA, empty))
     style.addSource(GeoJsonSource(MapIds.PLACES, empty))
-
-    // Warm-only heatmap: large fused blobs when zoomed out, single glows when in.
-    style.addLayer(
-        HeatmapLayer(MapIds.HEATMAP, MapIds.HEAT).withProperties(
-            heatmapIntensity(interpolate(linear(), zoom(), stop(8, 0.4), stop(10, 0.6), stop(12, 1.0), stop(14, 1.5), stop(17, 2.5))),
-            heatmapColor(
-                interpolate(
-                    linear(), heatmapDensity(),
-                    stop(0.0, rgba(0, 0, 0, 0)),
-                    stop(0.2, rgba(255, 160, 0, 0.6)),
-                    stop(0.4, rgb(255, 100, 0)),
-                    stop(0.6, rgb(220, 30, 0)),
-                    stop(0.8, rgb(178, 0, 0)),
-                    stop(1.0, rgb(120, 0, 0)),
-                ),
-            ),
-            heatmapRadius(interpolate(linear(), zoom(), stop(8, 60), stop(10, 50), stop(12, 30), stop(14, 18), stop(17, 10))),
-            // Recent and larger spending weighs more; floor 0.15 so small amounts still glow.
-            heatmapWeight(interpolate(linear(), get(MapIds.P_WEIGHT), stop(0, 0.15), stop(100, 0.4), stop(1000, 0.75), stop(3000, 1.0))),
-            heatmapOpacity(interpolate(linear(), zoom(), stop(15, 0.85), stop(17, 0.75))),
-        ),
-    )
 
     val accent = String.format("#%06X", accentArgb and 0xFFFFFF)
     style.addLayer(
@@ -166,14 +129,6 @@ fun Style.setPlaces(places: List<PlaceFeature>) {
         }
     }
     getSourceAs<GeoJsonSource>(MapIds.PLACES)?.setGeoJson(FeatureCollection.fromFeatures(features))
-}
-
-/** Heat points as (lat, lng, weight). */
-fun Style.setHeat(points: List<Triple<Double, Double, Double>>) {
-    val features = points.map { (lat, lng, w) ->
-        Feature.fromGeometry(Point.fromLngLat(lng, lat)).apply { addNumberProperty(MapIds.P_WEIGHT, w) }
-    }
-    getSourceAs<GeoJsonSource>(MapIds.HEAT)?.setGeoJson(FeatureCollection.fromFeatures(features))
 }
 
 /** Draws the "spending around here" circle and pin, or clears them when [ring] is null. */

@@ -118,7 +118,7 @@ private fun Place<TransactionEntity>.asTarget() = PopupTarget(latitude, longitud
 private enum class Sheet { NONE, STYLE, EXPLORE, GROUP, CATEGORY_LIST }
 
 /**
- * Map tab: today's spending as price-tag markers over an all-time heatmap,
+ * Map tab: today's spending as price-tag markers,
  * plus the "spending around here" inspector (long-press anywhere).
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,7 +131,6 @@ fun MapScreen(onPickLocation: (List<String>) -> Unit, viewModel: MapViewModel = 
     val scope = rememberCoroutineScope()
 
     val places by viewModel.todayPlaces.collectAsStateWithLifecycle()
-    val heat by viewModel.heat.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val categoryList by viewModel.categoryList.collectAsStateWithLifecycle()
     val styleUrl by viewModel.style.collectAsStateWithLifecycle()
@@ -227,7 +226,6 @@ fun MapScreen(onPickLocation: (List<String>) -> Unit, viewModel: MapViewModel = 
             },
         )
     }
-    LaunchedEffect(style, heat) { style?.setHeat(heat) }
     LaunchedEffect(style, area) {
         val s = style ?: return@LaunchedEffect
         val a = area
