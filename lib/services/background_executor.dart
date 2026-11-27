@@ -4,7 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart' as geo;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../repositories/transaction_repository.dart';
 import '../repositories/budget_repository.dart';
 import '../services/native_sms_channel.dart';
@@ -25,13 +24,6 @@ void onBackgroundServiceStart(ServiceInstance service) async {
     DartPluginRegistrant.ensureInitialized();
   } catch (e) {
     debugPrint('[Background Isolate] Plugin registration warning: $e');
-  }
-
-  // 📍 FIX: Load environment variables for the background isolate's memory space
-  try {
-    await dotenv.load(fileName: ".env");
-  } catch (e) {
-    debugPrint('[Background Isolate] Failed to load .env: $e');
   }
 
   await NotificationService.instance.init();

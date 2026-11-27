@@ -10,7 +10,9 @@ Follow these instructions to set up Geocent on your local development machine.
 
 - **Flutter SDK**: [Install Flutter](https://docs.flutter.dev/get-started/install) (latest stable version recommended).
 - **Git**: For cloning the repository.
-- **Mapbox Account**: You will need a Mapbox account to get an access token for the maps. [Sign up here](https://account.mapbox.com/).
+- **JDK 21**: required by the Android build of `maplibre_gl` (JDK 17 fails with `invalid source release: 21`). Point Flutter at it with `flutter config --jdk-dir="<path to JDK 21>"`.
+
+No map account or API key is needed: maps use OpenStreetMap data served by [OpenFreeMap](https://openfreemap.org).
 
 ### Installation
 
@@ -25,27 +27,7 @@ Follow these instructions to set up Geocent on your local development machine.
     flutter pub get
     ```
 
-3.  **Configure Environment Variables**:
-    Create a `.env` file in the root directory and add your Mapbox Public Access Token:
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` and replace the placeholder with your token:
-    ```env
-    MAPBOX_ACCESS_TOKEN=your_mapbox_public_access_token
-    ```
-
 ### Platform Setup
-
-#### Android
-
-To download the Mapbox SDK, you need to configure a secret token in your global `gradle.properties` file.
-
-1.  Generate a **Secret Access Token** from your Mapbox account with the `DOWNLOADS:READ` scope.
-2.  Add the following to your `~/.gradle/gradle.properties` (or `C:\Users\<User>\.gradle\gradle.properties` on Windows):
-    ```properties
-    MAPBOX_DOWNLOADS_TOKEN=your_secret_mapbox_download_token
-    ```
 
 #### iOS
 
@@ -63,7 +45,7 @@ flutter run
 
 1.  **SMS Parsing & Auto-Tracking**: Automatically detects incoming financial SMS messages, extracting merchant, amount, and timestamp.
 2.  **Geo-Verification**: Captures the device's GPS location when a transaction occurs and links it to the transaction.
-3.  **Advanced Mapbox UI**: High-performance Mapbox implementation with custom GPU-accelerated expressions and dual-layer annotations.
+3.  **OpenStreetMap UI**: MapLibre GL vector maps with GPU-evaluated zoom expressions and dual-layer (dot + callout) markers.
 4.  **Intelligent Auto-Categorization**: Automatically assigns categories to recurring merchants based on user history.
 5.  **Real-time Budgeting**: Set spending limits per category for daily, weekly, or monthly periods.
 6.  **Interactive Analytics**: Searchable interface for all messages and comprehensive spending analytics.
@@ -77,7 +59,7 @@ Geocent currently supports parsing for the following providers:
 ## Tech Stack
 
 - **Framework**: Flutter
-- **Mapping**: Mapbox Maps Flutter (Native GPU Expressions)
+- **Mapping**: MapLibre GL (`maplibre_gl`) with OpenStreetMap tiles from OpenFreeMap
 - **Local Database**: SQLite (sqflite)
 - **Background Processing**: flutter_background_service
 - **State Management**: Provider (ChangeNotifier)

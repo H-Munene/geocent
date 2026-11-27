@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart' as gl;
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
+import 'package:maplibre_gl/maplibre_gl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -23,6 +23,7 @@ import '../repositories/transaction_repository.dart';
 import '../services/sms_service.dart';
 import '../services/spending_service.dart';
 import '../services/geofence_service.dart';
+import '../utils/map_styles.dart';
 import '../utils/marker_utils.dart';
 import '../widgets/category_messages_sheet.dart';
 import '../widgets/map_style_picker_modal.dart';
@@ -44,19 +45,29 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  mp.PointAnnotationManager? _annotationManager;
-  mp.CircleAnnotationManager? _dotManager;
+  // Map layer ids. Dots sit below callouts; the heatmap sits below dots.
+  static const String _placesSource = 'places-source';
+  static const String _dotsLayer = 'places-dots';
+  static const String _calloutsLayer = 'places-callouts';
+  static const String _hotspotsSource = 'hotspots-source';
+  static const String _heatmapLayer = 'hotspots-heatmap';
+
+  MapLibreMapController? _mapController;
+  bool _styleReady = false;
+  bool _heatmapAdded = false;
+  bool _myLocationEnabled = false;
+  final Set<String> _addedImages = {};
+  List<MapPlace> _renderedPlaces = [];
   final Map<String, MapPlace> _annotationToPlaceMap = {};
   final bool _isAnimating = false;
   List<MapPlace> _places = [];
-  mp.MapboxMap? mapboxMapController;
   StreamSubscription? userPositionStream;
   StreamSubscription? _bgServiceSub;
   gl.Position? _lastGeofenceRegistrationPoint;
   final GeofenceService _geofenceService = GeofenceService();
 
   int _annotationUpdateVersion = 0;
-  String _currentMapStyle = mp.MapboxStyles.STANDARD;
+  String _currentMapStyle = MapStyles.standard;
   bool _isMapUpdating = false;
 
   final GlobalKey<MapSearchHeaderState> _headerKey = GlobalKey();
@@ -65,7 +76,7 @@ class _MapScreenState extends State<MapScreen>
   String? _selectedTxId;
 
   final GlobalKey<CustomPopupState> _popupKey = GlobalKey<CustomPopupState>();
-  mp.ScreenCoordinate? _popupPosition;
+  Offset? _popupPosition;
   MapPlace? _selectedPlace;
   bool _isPopupActive = false;
 
@@ -126,7 +137,7 @@ class _MapScreenState extends State<MapScreen>
 
     userPositionStream?.cancel();
     _bgServiceSub?.cancel();
-    mapboxMapController?.dispose();
+    _mapController?.onFeatureTapped.remove(_onFeatureTapped);
     _smsService?.dispose();
 
     // Remove listener to prevent memory leaks
@@ -172,23 +183,13 @@ class _MapScreenState extends State<MapScreen>
 
   Future<void> _loadMapStyle() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedStyle = prefs.getString('map_style');
-    if (savedStyle != null && mounted) {
+    final savedStyle = MapStyles.normalize(prefs.getString('map_style'));
+    // Changing styleString reloads the style; _onStyleLoaded re-adds layers.
+    if (mounted && savedStyle != _currentMapStyle) {
       setState(() {
         _currentMapStyle = savedStyle;
+        _styleReady = false;
       });
-
-      // If controller is already ready, load the style now
-      if (mapboxMapController != null) {
-        await mapboxMapController!.loadStyleURI(savedStyle);
-        // Style load takes a moment, expressions need re-applying
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _applyStyleLayerExpressions();
-            _refreshAnnotations();
-          }
-        });
-      }
     }
   }
 
@@ -197,10 +198,43 @@ class _MapScreenState extends State<MapScreen>
     await prefs.setString('map_style', styleUri);
   }
 
+  /// Animates the camera to [lat]/[lng]. [bottomPadding] (logical px) shifts
+  /// the target up so it sits in the visible area above a bottom sheet.
+  Future<void> _flyTo(
+    double lat,
+    double lng, {
+    double zoom = 17,
+    int durationMs = 1000,
+    double bottomPadding = 0,
+  }) async {
+    final controller = _mapController;
+    if (controller == null) return;
+    double targetLat = lat;
+    if (bottomPadding > 0) {
+      // MapLibre uses 512px tiles: metres per logical pixel at this zoom.
+      final metersPerPixel =
+          78271.517 * math.cos(lat * math.pi / 180) / math.pow(2, zoom);
+      targetLat = lat - (bottomPadding / 2 * metersPerPixel) / 111320.0;
+    }
+    await controller.animateCamera(
+      CameraUpdate.newCameraPosition(
+        CameraPosition(target: LatLng(targetLat, lng), zoom: zoom),
+      ),
+      duration: Duration(milliseconds: durationMs),
+    );
+  }
+
+  Future<Offset?> _screenPointFor(double lat, double lng) async {
+    final controller = _mapController;
+    if (controller == null) return null;
+    final p = await controller.toScreenLocation(LatLng(lat, lng));
+    return Offset(p.x.toDouble(), p.y.toDouble());
+  }
+
   void _handleSelectedTransaction() async {
     final spending = context.read<SpendingService>();
     final txId = spending.selectedTxId;
-    if (txId == null || mapboxMapController == null) return;
+    if (txId == null || _mapController == null) return;
 
     // Find the transaction in either mapped or period transactions
     final allTxs = [
@@ -227,24 +261,14 @@ class _MapScreenState extends State<MapScreen>
     );
 
     // Fly to the location
-    await mapboxMapController?.flyTo(
-      mp.CameraOptions(
-        zoom: 17,
-        center: mp.Point(
-          coordinates: mp.Position(place.longitude, place.latitude),
-        ),
-      ),
-      mp.MapAnimationOptions(duration: 1000),
-    );
+    await _flyTo(place.latitude, place.longitude);
 
     // Wait for camera animation to finish
     await Future.delayed(const Duration(milliseconds: 1100));
 
     if (!mounted) return;
 
-    final screenCoord = await mapboxMapController?.pixelForCoordinate(
-      mp.Point(coordinates: mp.Position(place.longitude, place.latitude)),
-    );
+    final screenCoord = await _screenPointFor(place.latitude, place.longitude);
 
     if (screenCoord != null && mounted) {
       setState(() {
@@ -267,20 +291,9 @@ class _MapScreenState extends State<MapScreen>
   }
 
   Future<void> _updateAnnotationPriority() async {
-    if (_annotationManager == null || _selectedTxId == null) return;
-
-    final allAnnotations = await _annotationManager!.getAnnotations();
-    for (final ann in allAnnotations) {
-      final place = _annotationToPlaceMap[ann.id];
-      if (place == null) continue;
-
-      final double newSortKey = _getSortKey(place);
-
-      if (ann.symbolSortKey != newSortKey) {
-        ann.symbolSortKey = newSortKey;
-        await _annotationManager!.update(ann);
-      }
-    }
+    if (_selectedTxId == null) return;
+    // Sort keys live in the GeoJSON, so re-push it with the new selection.
+    await _pushPlacesGeoJson();
   }
 
   List<MapPlace> _groupTransactions(List<AppTransaction> transactions) {
@@ -327,14 +340,22 @@ class _MapScreenState extends State<MapScreen>
     return CupertinoPageScaffold(
       child: Stack(
         children: [
-          mp.MapWidget(
-            styleUri: _currentMapStyle,
+          MapLibreMap(
+            styleString: _currentMapStyle,
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(-1.2864, 36.8172), // Nairobi until GPS resolves
+              zoom: 12,
+            ),
+            minMaxZoomPreference: const MinMaxZoomPreference(3.0, 19.73),
             onMapCreated: onMapCreated,
-            onCameraChangeListener: (data) {
-              debugPrint(
-                '🔥🔥[MapBox] Zoom Level: ${data.cameraState.zoom.toStringAsFixed(2)}🔥🔥',
-              );
-            },
+            onStyleLoadedCallback: _onStyleLoaded,
+            onMapLongClick: _onMapLongClick,
+            myLocationEnabled: _myLocationEnabled,
+            myLocationRenderMode: MyLocationRenderMode.normal,
+            compassEnabled: true,
+            compassViewPosition: CompassViewPosition.bottomRight,
+            compassViewMargins: const math.Point(16, 210),
+            attributionButtonPosition: AttributionButtonPosition.bottomLeft,
           ),
           if (spending.isLoading || _isMapUpdating)
             const Center(
@@ -453,8 +474,8 @@ class _MapScreenState extends State<MapScreen>
               _isPopupActive)
             Positioned(
               key: ValueKey(_selectedTxId),
-              left: _popupPosition!.x,
-              top: _popupPosition!.y,
+              left: _popupPosition!.dx,
+              top: _popupPosition!.dy,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: BackdropFilter(
@@ -488,17 +509,7 @@ class _MapScreenState extends State<MapScreen>
       // Get last known position for immediate feedback if possible
       final lastPos = await gl.Geolocator.getLastKnownPosition();
       if (lastPos != null && mounted) {
-        await mapboxMapController?.flyTo(
-          mp.CameraOptions(
-            zoom: 17,
-            bearing: 0.0,
-            pitch: 0.0,
-            center: mp.Point(
-              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
-            ),
-          ),
-          mp.MapAnimationOptions(duration: 800),
-        );
+        await _flyTo(lastPos.latitude, lastPos.longitude, durationMs: 800);
       }
 
       final position = await gl.Geolocator.getCurrentPosition(
@@ -508,17 +519,7 @@ class _MapScreenState extends State<MapScreen>
       );
       if (!mounted) return;
       _checkGeofenceRegistration(position);
-      await mapboxMapController?.flyTo(
-        mp.CameraOptions(
-          zoom: 17,
-          bearing: 0.0,
-          pitch: 0.0,
-          center: mp.Point(
-            coordinates: mp.Position(position.longitude, position.latitude),
-          ),
-        ),
-        mp.MapAnimationOptions(duration: 1000),
-      );
+      await _flyTo(position.latitude, position.longitude);
     } catch (e) {
       debugPrint('[Home] Could not get user location: $e');
     }
@@ -594,16 +595,11 @@ class _MapScreenState extends State<MapScreen>
         ).listen((gl.Position? position) {
           if (position != null) {
             _checkGeofenceRegistration(position);
-            if (mapboxMapController != null && !_isAnimating) {
-              mapboxMapController?.setCamera(
-                mp.CameraOptions(
-                  zoom: 17,
-                  center: mp.Point(
-                    coordinates: mp.Position(
-                      position.longitude,
-                      position.latitude,
-                    ),
-                  ),
+            if (_mapController != null && !_isAnimating) {
+              _mapController?.moveCamera(
+                CameraUpdate.newLatLngZoom(
+                  LatLng(position.latitude, position.longitude),
+                  17,
                 ),
               );
             }
@@ -618,195 +614,50 @@ class _MapScreenState extends State<MapScreen>
         currentStyle: _currentMapStyle,
         onStyleChanged: (newStyle) async {
           if (newStyle == _currentMapStyle) return;
-          setState(() => _currentMapStyle = newStyle);
-          await _saveMapStyle(newStyle);
-          await mapboxMapController?.loadStyleURI(newStyle);
-          // Wait for style to load before re-applying layer properties
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _applyStyleLayerExpressions();
-              _refreshAnnotations();
-              _refreshHotspots();
-            }
+          // Reloading the style drops our layers; _onStyleLoaded re-adds them.
+          setState(() {
+            _currentMapStyle = newStyle;
+            _styleReady = false;
           });
+          await _saveMapStyle(newStyle);
         },
       ),
     );
   }
 
-  Future<void> _applyStyleLayerExpressions() async {
-    if (mapboxMapController == null) return;
-
-    // 2. Configure Callout Collision & Native Opacity Expressions
-    if (_annotationManager != null) {
-      await _annotationManager!.setIconAllowOverlap(false);
-      await _annotationManager!.setIconIgnorePlacement(false);
-      await _annotationManager!.setTextAllowOverlap(false);
-      await _annotationManager!.setTextIgnorePlacement(false);
-
-      // Detailed Callouts: Visible only >= 13.0
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _annotationManager!.id,
-        'icon-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          11.0,
-          1.0,
-        ],
-      );
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _annotationManager!.id,
-        'text-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          11.0,
-          1.0,
-        ],
-      );
-    }
-
-    // 3. Configure Dot Native Opacity Expressions
-    if (_dotManager != null) {
-      // Dots: Hidden < 11.0, Visible >= 11.0
-      // By staying visible, they act as a fallback when the Callout above them is hidden by collision.
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _dotManager!.id,
-        'circle-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          9.0,
-          1.0,
-        ],
-      );
-      await mapboxMapController?.style.setStyleLayerProperty(
-        _dotManager!.id,
-        'circle-stroke-opacity',
-        [
-          'step',
-          ['zoom'],
-          0.0,
-          9.0,
-          1.0,
-        ],
-      );
-    }
-  }
-
   // Map
 
-  Future<void> onMapCreated(mp.MapboxMap controller) async {
-    setState(() => mapboxMapController = controller);
-
-    // Limit zoom range: prevents globe view (min 3.0) and excessive street-level zoom (max 19.73)
-    await controller.setBounds(
-      mp.CameraBoundsOptions(minZoom: 3.0, maxZoom: 19.73),
-    );
-
-    // Ensure the persisted style is loaded if it's not the default
-    if (_currentMapStyle != mp.MapboxStyles.STANDARD) {
-      await controller.loadStyleURI(_currentMapStyle);
-    }
+  Future<void> onMapCreated(MapLibreMapController controller) async {
+    setState(() => _mapController = controller);
+    controller.onFeatureTapped.add(_onFeatureTapped);
 
     final locationPermission = await Permission.location.status;
-    if (locationPermission != PermissionStatus.granted) return;
+    if (locationPermission == PermissionStatus.granted) {
+      if (mounted) setState(() => _myLocationEnabled = true);
 
-    // Center map on user's last known position immediately to avoid New York
-    try {
-      final lastPos = await gl.Geolocator.getLastKnownPosition();
-      if (lastPos != null && mounted) {
-        controller.setCamera(
-          mp.CameraOptions(
-            zoom: 17,
-            center: mp.Point(
-              coordinates: mp.Position(lastPos.longitude, lastPos.latitude),
+      // Center map on user's last known position immediately
+      try {
+        final lastPos = await gl.Geolocator.getLastKnownPosition();
+        if (lastPos != null && mounted) {
+          await controller.moveCamera(
+            CameraUpdate.newLatLngZoom(
+              LatLng(lastPos.latitude, lastPos.longitude),
+              17,
             ),
-          ),
-        );
-      }
-      // Trigger a fresh location fetch for high accuracy
-      gl.Geolocator.getCurrentPosition(
-        locationSettings: const gl.LocationSettings(
-          accuracy: gl.LocationAccuracy.high,
-        ),
-      ).then((pos) {
-        if (mounted) {
-          controller.flyTo(
-            mp.CameraOptions(
-              zoom: 17,
-              center: mp.Point(
-                coordinates: mp.Position(pos.longitude, pos.latitude),
-              ),
-            ),
-            mp.MapAnimationOptions(duration: 1000),
           );
         }
-      });
-    } catch (e) {
-      debugPrint('[MapScreen] Initial location fetch failed: $e');
+        // Trigger a fresh location fetch for high accuracy
+        gl.Geolocator.getCurrentPosition(
+          locationSettings: const gl.LocationSettings(
+            accuracy: gl.LocationAccuracy.high,
+          ),
+        ).then((pos) {
+          if (mounted) _flyTo(pos.latitude, pos.longitude);
+        });
+      } catch (e) {
+        debugPrint('[MapScreen] Initial location fetch failed: $e');
+      }
     }
-
-    controller.location.updateSettings(
-      mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
-    );
-
-    controller.compass.updateSettings(
-      mp.CompassSettings(
-        enabled: true,
-        position: mp.OrnamentPosition.BOTTOM_RIGHT,
-        marginTop: 0,
-        marginBottom: 210, // Positioned above the FABs
-        marginLeft: 0,
-        marginRight: 16,
-      ),
-    );
-
-    controller.scaleBar.updateSettings(
-      mp.ScaleBarSettings(
-        enabled: false,
-        position: mp.OrnamentPosition.BOTTOM_RIGHT,
-        marginBottom: 60, // Positioned just above the tab bar
-        marginRight: 16,
-      ),
-    );
-
-    // 1. Initialize Managers
-    // Important: Initialize _dotManager FIRST so it renders BELOW the _annotationManager.
-    _dotManager = await controller.annotations.createCircleAnnotationManager();
-    _annotationManager = await controller.annotations
-        .createPointAnnotationManager();
-
-    await _applyStyleLayerExpressions();
-
-    // 3. Configure Dot Native Opacity Expressions (continued)
-    if (_dotManager != null) {
-      // Shared tap events for dots
-      _dotManager!.tapEvents(
-        onTap: (annotation) =>
-            _onMarkerTapped(annotation.id, annotation.geometry),
-      );
-      _dotManager!.longPressEvents(
-        onLongPress: (annotation) =>
-            _onMarkerLongPressed(annotation.id, annotation.geometry),
-      );
-    }
-
-    // Handle marker taps for full callouts
-    _annotationManager?.tapEvents(
-      onTap: (annotation) =>
-          _onMarkerTapped(annotation.id, annotation.geometry),
-    );
-    _annotationManager?.longPressEvents(
-      onLongPress: (annotation) {
-        HapticFeedback.heavyImpact();
-        _onMarkerLongPressed(annotation.id, annotation.geometry);
-      },
-    );
 
     if (!mounted) return;
     final spending = context.read<SpendingService>();
@@ -815,12 +666,77 @@ class _MapScreenState extends State<MapScreen>
 
     spending.addListener(_refreshAnnotations);
     spending.addListener(_refreshHotspots);
+  }
+
+  /// Runs on first load and after every style switch: a new style starts
+  /// with no custom images, sources or layers.
+  Future<void> _onStyleLoaded() async {
+    final controller = _mapController;
+    if (controller == null) return;
+    _addedImages.clear();
+    _heatmapAdded = false;
+
+    try {
+      await controller.addGeoJsonSource(_placesSource, _emptyCollection);
+
+      // Dots: hidden below zoom 9. They stay visible under callouts, so they
+      // act as a fallback when a callout is hidden by collision.
+      await controller.addCircleLayer(
+        _placesSource,
+        _dotsLayer,
+        CircleLayerProperties(
+          circleColor: ['get', 'color'],
+          circleRadius: 1.575,
+          circleStrokeWidth: 1.0,
+          circleStrokeColor: '#FFFFFF',
+          circleSortKey: ['get', 'sortKey'],
+          circleOpacity: _stepAt(9.0),
+          circleStrokeOpacity: _stepAt(9.0),
+        ),
+      );
+
+      // Callouts: visible from zoom 11. Overlap is off so MapLibre's
+      // collision engine hides overlapping callouts; lower sortKey wins.
+      await controller.addSymbolLayer(
+        _placesSource,
+        _calloutsLayer,
+        SymbolLayerProperties(
+          iconImage: ['get', 'icon'],
+          iconSize: 1.5,
+          iconAnchor: 'center',
+          iconAllowOverlap: false,
+          iconIgnorePlacement: false,
+          symbolSortKey: ['get', 'sortKey'],
+          iconOpacity: _stepAt(11.0),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[MapScreen] Failed to add place layers: $e');
+      return;
+    }
+
+    _styleReady = true;
     _refreshAnnotations();
     _refreshHotspots();
   }
 
+  static const Map<String, dynamic> _emptyCollection = {
+    'type': 'FeatureCollection',
+    'features': [],
+  };
+
+  /// Opacity 0 below [zoom], 1 at or above it.
+  static List<Object> _stepAt(double zoom) => [
+    'step',
+    ['zoom'],
+    0.0,
+    zoom,
+    1.0,
+  ];
+
   Future<void> _refreshHotspots() async {
-    if (mapboxMapController == null) return;
+    final controller = _mapController;
+    if (controller == null || !_styleReady) return;
     if (!mounted) return;
 
     final spending = context.read<SpendingService>();
@@ -833,21 +749,16 @@ class _MapScreenState extends State<MapScreen>
     // Use try-catch to avoid breaking the UI if style operations fail
     try {
       if (transactions.isEmpty) {
-        if (await mapboxMapController!.style.styleLayerExists(
-          'hotspots-heatmap',
-        )) {
-          await mapboxMapController!.style.removeStyleLayer('hotspots-heatmap');
-        }
-        if (await mapboxMapController!.style.styleSourceExists(
-          'hotspots-source',
-        )) {
-          await mapboxMapController!.style.removeStyleSource('hotspots-source');
+        if (_heatmapAdded) {
+          await controller.removeLayer(_heatmapLayer);
+          await controller.removeSource(_hotspotsSource);
+          _heatmapAdded = false;
         }
         return;
       }
 
       final now = DateTime.now();
-      final geojson = {
+      final geojson = <String, dynamic>{
         'type': 'FeatureCollection',
         'features': transactions.map((tx) {
           final daysAgo = now.difference(tx.timestamp).inDays;
@@ -868,177 +779,130 @@ class _MapScreenState extends State<MapScreen>
         }).toList(),
       };
 
-      // Ensure we remove the layer before removing the source if we were to recreate them,
-      // but here we'll try to update if possible.
-      if (await mapboxMapController!.style.styleSourceExists(
-        'hotspots-source',
-      )) {
-        // Correct way to update GeoJSON data in Mapbox
-        await mapboxMapController!.style.setStyleSourceProperty(
-          'hotspots-source',
-          'data',
-          jsonEncode(geojson),
-        );
-      } else {
-        await mapboxMapController!.style.addSource(
-          mp.GeoJsonSource(id: 'hotspots-source', data: jsonEncode(geojson)),
-        );
+      if (_heatmapAdded) {
+        await controller.setGeoJsonSource(_hotspotsSource, geojson);
+        return;
       }
 
-      if (!await mapboxMapController!.style.styleLayerExists(
-        'hotspots-heatmap',
-      )) {
-        // Create heatmap layer with defaults
-        final heatmapLayer = mp.HeatmapLayer(
-          id: 'hotspots-heatmap',
-          sourceId: 'hotspots-source',
-        );
+      await controller.addGeoJsonSource(_hotspotsSource, geojson);
 
-        // Insert below the annotation layers
-        try {
-          if (_dotManager != null) {
-            await mapboxMapController!.style.addLayerAt(
-              heatmapLayer,
-              mp.LayerPosition(below: _dotManager!.id),
-            );
-          } else {
-            await mapboxMapController!.style.addLayer(heatmapLayer);
-          }
-        } catch (e) {
-          await mapboxMapController!.style.addLayer(heatmapLayer);
-        }
-      }
-
-      // Heatmap styling expressions
-      //
-      // Google Photos-style clustering.
-      //   • Zoomed out (city/country): large overlapping radii fuse nearby
-      //     transactions into unified warm blobs.
-      //   • Zoomed in (street): blobs fragment into individual amber/orange dots.
-      //   • No blue, green, or purple in the gradient.
-      //
-      // Radius is INVERTED — large when zoomed OUT, small when
-      // zoomed IN. This produces the clustering-then-fragmentation behaviour.
-
-      // Intensity: low at country scale to prevent blob fusion, ramps up at
-      // street level so individual dots glow visibly.
-      await mapboxMapController!.style.setStyleLayerProperty(
-        'hotspots-heatmap',
-        'heatmap-intensity',
-        [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          8,
-          0.4,
-          10,
-          0.6,
-          12,
-          1.0,
-          14,
-          1.5,
-          17,
-          2.5,
-        ],
+      // Heatmap styling: zoomed out, large radii fuse nearby transactions
+      // into warm blobs; zoomed in, they fragment into individual dots.
+      // Radius is inverted (large when zoomed out). Warm colours only.
+      await controller.addHeatmapLayer(
+        _hotspotsSource,
+        _heatmapLayer,
+        const HeatmapLayerProperties(
+          // Low at country scale to prevent blob fusion, higher at street level.
+          heatmapIntensity: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8,
+            0.4,
+            10,
+            0.6,
+            12,
+            1.0,
+            14,
+            1.5,
+            17,
+            2.5,
+          ],
+          // Transparent -> amber -> orange -> red -> darkest red core.
+          heatmapColor: [
+            'interpolate',
+            ['linear'],
+            ['heatmap-density'],
+            0.0,
+            'rgba(0, 0, 0, 0)',
+            0.2,
+            'rgba(255, 160, 0, 0.6)',
+            0.4,
+            'rgb(255, 100, 0)',
+            0.6,
+            'rgb(220, 30, 0)',
+            0.8,
+            'rgb(178, 0, 0)',
+            1.0,
+            'rgb(120, 0, 0)',
+          ],
+          heatmapRadius: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            8,
+            60.0,
+            10,
+            50.0,
+            12,
+            30.0,
+            14,
+            18.0,
+            17,
+            10.0,
+          ],
+          // Recent/high-value transactions weigh more; floor 0.15 so small
+          // ones still glow.
+          heatmapWeight: [
+            'interpolate',
+            ['linear'],
+            ['get', 'decayed_amount'],
+            0,
+            0.15,
+            100,
+            0.4,
+            1000,
+            0.75,
+            3000,
+            1.0,
+          ],
+          heatmapOpacity: [
+            'interpolate',
+            ['linear'],
+            ['zoom'],
+            15,
+            0.85,
+            17,
+            0.75,
+          ],
+        ),
+        belowLayerId: _dotsLayer,
       );
-
-      // Color: warm amber, orange, and deep red.
-      // • density 0.0 -> fully transparent (no colour bleed)
-      // • density 0.2 -> faint amber glow (isolated single transactions)
-      // • density 0.4 -> solid orange (small clusters)
-      // • density 0.6 -> red-orange (medium density)
-      // • density 0.8 -> deep red
-      // • density 1.0 -> darkest red core (maximum overlap)
-      await mapboxMapController!.style.setStyleLayerProperty(
-        'hotspots-heatmap',
-        'heatmap-color',
-        [
-          'interpolate',
-          ['linear'],
-          ['heatmap-density'],
-          0.0,
-          'rgba(0, 0, 0, 0)',
-          0.2,
-          'rgba(255, 160, 0, 0.6)',
-          0.4,
-          'rgb(255, 100, 0)',
-          0.6,
-          'rgb(220, 30, 0)',
-          0.8,
-          'rgb(178, 0, 0)',
-          1.0,
-          'rgb(120, 0, 0)',
-        ],
-      );
-
-      // Radius: INVERTED — large when zoomed out, small when zoomed in.
-      // Uses linear interpolation (NOT exponential) for a smooth, predictable
-      // curve. At zoom 8 each point covers ~60px, causing nearby transactions
-      // to merge into a single blob. By zoom 17 the radius shrinks to 10px so
-      // each transaction resolves as an individual dot.
-      await mapboxMapController!.style.setStyleLayerProperty(
-        'hotspots-heatmap',
-        'heatmap-radius',
-        [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          8,
-          60.0,
-          10,
-          50.0,
-          12,
-          30.0,
-          14,
-          18.0,
-          17,
-          10.0,
-        ],
-      );
-
-      // Weight: data-driven by decayed_amount so high-value/recent transactions
-      // contribute more visual density than old/small ones.
-      // Floor is 0.15 (not 0.0) so even tiny transactions cast a soft glow.
-      await mapboxMapController!.style.setStyleLayerProperty(
-        'hotspots-heatmap',
-        'heatmap-weight',
-        [
-          'interpolate',
-          ['linear'],
-          ['get', 'decayed_amount'],
-          0,
-          0.15,
-          100,
-          0.4,
-          1000,
-          0.75,
-          3000,
-          1.0,
-        ],
-      );
-
-      // Opacity: fully opaque at city scale so blobs are bold and visible.
-      // Slightly reduced at street level so individual dots don't obscure the
-      // underlying map features.
-      // First stop is zoom 8 so the heatmap is never hidden when zoomed out.
-      await mapboxMapController!.style.setStyleLayerProperty(
-        'hotspots-heatmap',
-        'heatmap-opacity',
-        [
-          'interpolate',
-          ['linear'],
-          ['zoom'],
-          // 8,  1.0,
-          15, 0.85,
-          17, 0.75,
-        ],
-      );
+      _heatmapAdded = true;
     } catch (e) {
       debugPrint('[MapScreen] Failed to refresh hotspots: $e');
     }
   }
 
-  void _onMarkerTapped(String annotationId, mp.Point geometry) async {
+  void _onFeatureTapped(
+    math.Point<double> point,
+    LatLng coordinates,
+    String id,
+    String layerId,
+    Annotation? annotation,
+  ) {
+    if (layerId != _dotsLayer && layerId != _calloutsLayer) return;
+    _onMarkerTapped(id);
+  }
+
+  /// MapLibre has no per-feature long-press callback, so look up what is
+  /// rendered under the finger.
+  Future<void> _onMapLongClick(math.Point<double> point, LatLng _) async {
+    final controller = _mapController;
+    if (controller == null || !_styleReady) return;
+    final features = await controller.queryRenderedFeatures(point, [
+      _calloutsLayer,
+      _dotsLayer,
+    ], null);
+    if (features.isEmpty) return;
+    final dynamic first = features.first;
+    final Map feature = first is String ? jsonDecode(first) : first as Map;
+    final key = (feature['properties'] as Map?)?['key'] ?? feature['id'];
+    if (key != null) _onMarkerLongPressed(key.toString());
+  }
+
+  void _onMarkerTapped(String annotationId) async {
     final place = _annotationToPlaceMap[annotationId];
     if (place == null) return;
 
@@ -1057,7 +921,7 @@ class _MapScreenState extends State<MapScreen>
       return;
     }
 
-    final screenCoord = await mapboxMapController?.pixelForCoordinate(geometry);
+    final screenCoord = await _screenPointFor(place.latitude, place.longitude);
 
     if (screenCoord != null && mounted) {
       setState(() {
@@ -1075,7 +939,7 @@ class _MapScreenState extends State<MapScreen>
     }
   }
 
-  void _onMarkerLongPressed(String annotationId, mp.Point geometry) async {
+  void _onMarkerLongPressed(String annotationId) async {
     final place = _annotationToPlaceMap[annotationId];
     if (place == null) return;
 
@@ -1102,7 +966,7 @@ class _MapScreenState extends State<MapScreen>
   }
 
   void _refreshAnnotations() async {
-    if (_annotationManager == null) return;
+    if (_mapController == null || !_styleReady) return;
 
     final spending = context.read<SpendingService>();
 
@@ -1140,76 +1004,73 @@ class _MapScreenState extends State<MapScreen>
   }
 
   Future<void> _addAllAnnotations(List<MapPlace> places) async {
-    if (_annotationManager == null || _dotManager == null) return;
+    final controller = _mapController;
+    if (controller == null || !_styleReady) return;
     final spending = context.read<SpendingService>();
 
-    // Generate callout options and dot options in parallel
-    final List<Future<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>>
-    futures = places.map((place) async {
-      final catColor = spending.getCategoryColor(place.category ?? '');
-      final CalloutResult callout = await createCalloutImage(
-        place.name,
-        place.displayPrice,
-        color: catColor,
-      );
-
-      final geometry = mp.Point(
-        coordinates: mp.Position(place.longitude, place.latitude),
-      );
-      final sortKey = _getSortKey(place);
-
-      final pointOptions = mp.PointAnnotationOptions(
-        image: callout.image,
-        iconSize: 1.5,
-        iconAnchor: mp.IconAnchor.CENTER,
-        iconOffset: [0.0, 0.0],
-        symbolSortKey: sortKey,
-        geometry: geometry,
-      );
-
-      final circleOptions = mp.CircleAnnotationOptions(
-        geometry: geometry,
-        circleColor: catColor.toARGB32(),
-        circleRadius: 1.575,
-        circleStrokeWidth: 1.0,
-        circleStrokeColor: CupertinoColors.white.toARGB32(),
-        circleSortKey: sortKey,
-      );
-
-      return (pointOptions, circleOptions);
-    }).toList();
-
-    final List<(mp.PointAnnotationOptions, mp.CircleAnnotationOptions)>
-    results = await Future.wait(futures);
-
-    final pointOptionsList = results.map((r) => r.$1).toList();
-    final circleOptionsList = results.map((r) => r.$2).toList();
-
-    // Perform instantaneous swap on both layers
-    await _annotationManager?.deleteAll();
-    await _dotManager?.deleteAll();
-    _annotationToPlaceMap.clear();
-
-    final pointAnnotations = await _annotationManager?.createMulti(
-      pointOptionsList,
+    // Render any callout images this style hasn't seen yet. Images are keyed
+    // by their content so unchanged callouts are reused across refreshes.
+    await Future.wait(
+      places.map((place) async {
+        final name = _calloutImageName(place, spending);
+        if (_addedImages.contains(name)) return;
+        _addedImages.add(name);
+        final CalloutResult callout = await createCalloutImage(
+          place.name,
+          place.displayPrice,
+          color: spending.getCategoryColor(place.category ?? ''),
+        );
+        await controller.addImage(name, callout.image);
+      }),
     );
-    final circleAnnotations = await _dotManager?.createMulti(circleOptionsList);
 
-    if (pointAnnotations != null) {
-      for (int i = 0; i < pointAnnotations.length; i++) {
-        final ann = pointAnnotations[i];
-        if (ann != null) {
-          _annotationToPlaceMap[ann.id] = places[i];
-        }
-      }
+    _renderedPlaces = places;
+    await _pushPlacesGeoJson();
+  }
+
+  String _calloutImageName(MapPlace place, SpendingService spending) {
+    final color = spending.getCategoryColor(place.category ?? '').toARGB32();
+    return 'callout-${Object.hash(place.name, place.displayPrice, color)}';
+  }
+
+  /// Writes [_renderedPlaces] to the places source (one feature per place).
+  /// Feature ids are list indexes, which [_annotationToPlaceMap] maps back.
+  Future<void> _pushPlacesGeoJson() async {
+    final controller = _mapController;
+    if (controller == null || !_styleReady || !mounted) return;
+    final spending = context.read<SpendingService>();
+
+    _annotationToPlaceMap.clear();
+    final features = <Map<String, dynamic>>[];
+    for (int i = 0; i < _renderedPlaces.length; i++) {
+      final place = _renderedPlaces[i];
+      final key = '$i';
+      _annotationToPlaceMap[key] = place;
+      final rgb =
+          spending.getCategoryColor(place.category ?? '').toARGB32() & 0xFFFFFF;
+      features.add({
+        'type': 'Feature',
+        'id': i,
+        'properties': {
+          'key': key,
+          'icon': _calloutImageName(place, spending),
+          'color': '#${rgb.toRadixString(16).padLeft(6, '0')}',
+          'sortKey': _getSortKey(place),
+        },
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [place.longitude, place.latitude],
+        },
+      });
     }
-    if (circleAnnotations != null) {
-      for (int i = 0; i < circleAnnotations.length; i++) {
-        final ann = circleAnnotations[i];
-        if (ann != null) {
-          _annotationToPlaceMap[ann.id] = places[i];
-        }
-      }
+
+    try {
+      await controller.setGeoJsonSource(_placesSource, {
+        'type': 'FeatureCollection',
+        'features': features,
+      });
+    } catch (e) {
+      debugPrint('[MapScreen] Failed to update places: $e');
     }
   }
 
@@ -1253,29 +1114,19 @@ class _MapScreenState extends State<MapScreen>
     // This moves the "center" of the map higher up so the popup isn't blocked by the modal.
     final bottomPadding = screenHeight * 0.55;
 
-    await mapboxMapController?.flyTo(
-      mp.CameraOptions(
-        zoom: 17,
-        center: mp.Point(
-          coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
-        ),
-        padding: mp.MbxEdgeInsets(
-          top: 0.0,
-          left: 0.0,
-          bottom: bottomPadding,
-          right: 0.0,
-        ),
-      ),
-      mp.MapAnimationOptions(duration: 400),
+    await _flyTo(
+      targetPlace.latitude,
+      targetPlace.longitude,
+      durationMs: 400,
+      bottomPadding: bottomPadding,
     );
 
     await Future.delayed(const Duration(milliseconds: 450));
     if (!mounted) return;
 
-    final screenCoord = await mapboxMapController?.pixelForCoordinate(
-      mp.Point(
-        coordinates: mp.Position(targetPlace.longitude, targetPlace.latitude),
-      ),
+    final screenCoord = await _screenPointFor(
+      targetPlace.latitude,
+      targetPlace.longitude,
     );
 
     if (screenCoord != null && mounted) {

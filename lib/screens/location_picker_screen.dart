@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mp;
+import 'package:maplibre_gl/maplibre_gl.dart';
+import 'package:geocent/utils/map_styles.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocent/utils/icons.dart';
 import 'package:provider/provider.dart';
@@ -21,8 +22,8 @@ class LocationPickerScreen extends StatefulWidget {
 }
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
-  mp.MapboxMap? _mapboxMap;
-  mp.Position? _initialPosition;
+  MapLibreMapController? _mapController;
+  LatLng? _initialPosition;
   bool _isSaving = false;
 
   @override
@@ -36,7 +37,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final firstTx = widget.transactions.first;
     if (firstTx.latitude != null && firstTx.longitude != null) {
       setState(() {
-        _initialPosition = mp.Position(firstTx.longitude!, firstTx.latitude!);
+        _initialPosition = LatLng(firstTx.latitude!, firstTx.longitude!);
       });
       return;
     }
@@ -57,35 +58,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
     final position = await Geolocator.getCurrentPosition();
     setState(() {
-      _initialPosition = mp.Position(position.longitude, position.latitude);
+      _initialPosition = LatLng(position.latitude, position.longitude);
     });
 
-    if (_mapboxMap != null) {
-      _mapboxMap?.setCamera(
-        mp.CameraOptions(
-          center: mp.Point(coordinates: _initialPosition!),
-          zoom: 15,
-        ),
-      );
-    }
+    _mapController?.moveCamera(
+      CameraUpdate.newLatLngZoom(_initialPosition!, 15),
+    );
   }
 
-  Future<void> _onMapCreated(mp.MapboxMap controller) async {
-    _mapboxMap = controller;
-
-    // Enable user location indicator (blue dot)
-    controller.location.updateSettings(
-      mp.LocationComponentSettings(enabled: true, pulsingEnabled: false),
-    );
-
-    if (_initialPosition != null) {
-      controller.setCamera(
-        mp.CameraOptions(
-          center: mp.Point(coordinates: _initialPosition!),
-          zoom: 15,
-        ),
-      );
-    }
+  Future<void> _onMapCreated(MapLibreMapController controller) async {
+    _mapController = controller;
   }
 
   Future<void> _flyToUserLocation() async {
@@ -96,14 +78,12 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         ),
       );
       if (!mounted) return;
-      await _mapboxMap?.flyTo(
-        mp.CameraOptions(
-          zoom: 17,
-          center: mp.Point(
-            coordinates: mp.Position(position.longitude, position.latitude),
-          ),
+      await _mapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude),
+          17,
         ),
-        mp.MapAnimationOptions(duration: 1000),
+        duration: const Duration(milliseconds: 1000),
       );
     } catch (e) {
       debugPrint('[LocationPicker] Could not get user location: $e');
@@ -111,14 +91,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   Future<void> _onConfirm() async {
-    if (_mapboxMap == null || _isSaving) return;
+    if (_mapController == null || _isSaving) return;
 
     setState(() => _isSaving = true);
 
     try {
       // Get the current camera center which corresponds to the fixed marker's position
-      final cameraState = await _mapboxMap!.getCameraState();
-      final center = cameraState.center.coordinates;
+      final cameraPosition = await _mapController!.queryCameraPosition();
+      final center = cameraPosition?.target;
+      if (center == null) return;
 
       if (!mounted) return;
       final spendingService = context.read<SpendingService>();
@@ -126,8 +107,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
       await spendingService.bulkAttachLocation(
         ids,
-        center.lat.toDouble(),
-        center.lng.toDouble(),
+        center.latitude,
+        center.longitude,
       );
 
       final isReassigning = widget.transactions.any(
@@ -233,13 +214,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           if (_initialPosition == null)
             const Center(child: CupertinoActivityIndicator())
           else
-            mp.MapWidget(
-              cameraOptions: mp.CameraOptions(
-                center: mp.Point(coordinates: _initialPosition!),
+            MapLibreMap(
+              initialCameraPosition: CameraPosition(
+                target: _initialPosition!,
                 zoom: 15,
               ),
-              styleUri: mp.MapboxStyles.STANDARD_SATELLITE,
+              styleString: MapStyles.standard,
               onMapCreated: _onMapCreated,
+              myLocationEnabled: true,
+              myLocationRenderMode: MyLocationRenderMode.normal,
             ),
           // Precision Crosshair
           IgnorePointer(child: Center(child: locationPicker)),

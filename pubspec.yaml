@@ -34,8 +34,6 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  mapbox_maps_flutter: ^2.22.0
-  flutter_dotenv: ^6.0.1
   geolocator: ^14.0.2
   permission_handler: ^12.0.1
   google_fonts: ^8.0.2
@@ -55,6 +53,7 @@ dependencies:
   lottie: ^3.3.3
   cupertino_calendar_picker: ^2.2.6
   intl: ^0.20.2
+  maplibre_gl: ^0.28.1
 
 dev_dependencies:
   flutter_test:
@@ -80,7 +79,6 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - .env
     - assets/
     - assets/icon/
     - assets/app_images/
