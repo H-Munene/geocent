@@ -1,50 +1,55 @@
 # Technical Architecture
 
-This document provides an overview of the rendering logic and state management strategies implemented in Geocent.
+Geocent is a single-module native Android app (`app/`) written in Kotlin with Jetpack Compose. All data stays on the device.
 
-## 1. Mapbox Rendering Logic
-Geocent utilizes a high-performance rendering strategy on top of Mapbox. Rendering heavy lifting is delegated directly to the Mapbox Native GPU to ensure the UI thread remains responsive even with thousands of markers.
+## Packages (`app.geocent`)
 
-### Dual-Manager Strategy
-Two separate annotation managers are used concurrently:
-- **CircleAnnotationManager (Dots)**: Renders lightweight, color-coded circles.
-- **PointAnnotationManager (Callouts)**: Renders detailed text/image callouts (price and merchant).
+| Package | Responsibility |
+|---|---|
+| `domain` | Pure Kotlin logic with no Android dependencies, unit tested: SMS parsing, periods (Sunday-start weeks), geo maths, budget alert rule, place grouping, analytics, hotspot clustering, category catalog |
+| `data` | Room database, DAOs and repositories; messages query builder; area and budget summaries; DataStore settings |
+| `ingest` | SMS receiver, workers (live SMS, inbox import, hotspot refresh and transitions), geofence and boot receivers |
+| `location` | Fused location provider, geofence registration |
+| `notify` | Notification channels and budget alert checks |
+| `ui` | Compose screens per tab (`map`, `messages`, `budgets`, `analytics`, `profile`), onboarding, location picker, shared components and theme |
+| `di` | Hilt modules |
 
-**Visual Hierarchy**
-Dots act as fallbacks when zoomed out, while detailed callouts appear when zoomed in. If callouts collide, dots remain visible beneath them.
+## How a payment flows through the app
 
-### Native GPU Zoom Expressions
-To manage performance and visual clutter, `setStyleLayerProperty` applies native step expressions based on the camera's zoom level:
-- **Callouts** are set to opacity: 0.0 below zoom level 13.0, and 1.0 above.
-- **Dots** are hidden below 11.0 and visible above 11.0.
+1. `SmsReceiver` (manifest receiver, protected by `BROADCAST_SMS`) gets every SMS. If `SmsParser` recognises it, it enqueues an expedited `IngestSmsWorker`. The work is unique per transaction id, so duplicates can't be processed twice.
+2. `TransactionIngestor.ingestLive`:
+   - stores it (skipping duplicates and forgotten ids) and applies the learned merchant category
+   - posts "New expense tracked"
+   - checks the category's budget
+   - attaches the current location: a fix under 5 minutes old, otherwise a fresh one (30 s timeout)
+3. Screens observe Room `Flow`s, so every tab updates by itself. There are no manual refresh events.
+4. A new location requests a debounced hotspot refresh.
 
-Because these rules are executed on the GPU, panning and zooming remain smooth regardless of the number of transactions loaded.
+There is no always-on foreground service. Work runs only when an SMS arrives or a scheduled job is due.
 
-### Collision & Priority
-- `IconAllowOverlap` is disabled to leverage Mapbox's native collision engine for hiding overlapping callouts.
-- When a user selects a transaction, the `symbolSortKey` for that specific annotation is updated to -1,000,000.0. This ensures the selected marker renders on top of others.
+## Map rendering
 
-## 2. State Management (Unified State)
-Geocent uses the `provider` package for state management, primarily handled by the `SpendingService`.
+The Map tab uses MapLibre Native with OpenFreeMap vector styles (`ui/map/MapLibreView.kt`). `installGeocentLayers` adds Geocent's own sources and layers to each style:
 
-### The SpendingService
-`SpendingService` acts as the source of truth for transaction and map state. It maintains in-memory lists:
-- `_periodTransactions`: Transactions within the active filter (e.g., Today, This Week).
-- `_mappedTransactions`: Transactions with valid GPS coordinates.
-- `_paginatedMessages`: A paginated, filterable list of all messages.
+- **`places-dots`** (circle layer): category-coloured dots, visible from zoom 9.
+- **`places-callouts`** (symbol layer): price-tag images drawn by `CalloutRenderer`, visible from zoom 11.
+  - Collision is on, and `symbol-sort-key` decides who wins: selected marker, then multi-payment spots, then smaller amounts.
+  - The callout bitmap is vertically symmetric so the dot sits exactly on the coordinate.
+- **`area-fill`, `area-line`, `area-pin`**: the "spending around here" radius.
 
-### The BudgetService
-`BudgetService` manages category-specific spending limits, coordinating with `BudgetRepository` for persistence and `TransactionRepository` for progress calculations. Percentage usage is calculated dynamically based on the requested period.
+Switching styles drops custom layers, so they are re-added in the style-loaded callback. Today's payments are grouped per identical coordinate (`domain/Places.kt`).
 
-### Database-to-UI Synchronization
-The app follows a unidirectional data flow to prevent race conditions:
-1. **Action**: User modifies data or the background service saves a new SMS.
-2. **Persistence**: The action is routed through `TransactionRepository` and executed against SQLite.
-3. **Refresh**: `SpendingService.refresh()` queries the database for the updated state.
-4. **Rebuild**: `notifyListeners()` triggers the Map, Messages List, and Analytics widgets to rebuild with synchronized data.
+"Spending around here" queries a lat/lng bounding box in SQL, then keeps only points within the exact radius (`data/AreaSpending.kt`).
 
-### Isolate Boundary Synchronization
-Transactions arriving via `SmsService` in the background run in a separate Dart isolate.
-- The background isolate writes the transaction to SQLite.
-- It broadcasts an event via `FlutterBackgroundService().invoke('transaction_saved')`.
-- The main UI isolate listens for this event and triggers `SpendingService.refresh()`.
+The heatmap from the Flutter app is not shown for now. It's planned as an optional toggle; the original layer is in commit `a834992`.
+
+## Hotspots and geofences
+
+- `Hotspots.cluster` runs DBSCAN: 100 m neighbourhood, 3 neighbours, centred on the medoid, at least 50 m radius. It needs 10 or more geotagged payments.
+- `Hotspots.assignIds` keeps a hotspot's id when a new cluster lies within 150 m of it, so geofences and the 6-hour alert cooldown survive re-clustering.
+- `GeofenceManager` registers the 100 nearest hotspots: dwell after 5 minutes, plus exit. This needs location "all the time".
+- `HotspotRefreshWorker` runs one minute after new locations, every 12 hours, and after reboot.
+
+## Theme
+
+`ui/theme` implements `DESIGN.md`: light and dark colour tokens, `#0071E3` as the only interactive colour, Space Grotesk for text and tabular Inter for numbers.
