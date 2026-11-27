@@ -1,91 +1,74 @@
 # Geocent
 
-Geocent is a smart personal finance application designed for geo-verified transaction and visit tracking. It automatically parses financial SMS messages (e.g., M-PESA, Equity Bank), links them to real-world GPS coordinates, and provides an interactive map-based view of spending habits alongside intelligent auto-categorization.
+Geocent is a personal finance app for Android that turns M-PESA and bank SMS into a map of where your money goes. It reads financial SMS as they arrive, tags each payment with where you were, and gives you budgets, analytics and alerts. Everything stays on your phone.
 
-## Getting Started
+Android only: iOS does not let apps read SMS.
 
-Follow these instructions to set up Geocent on your local development machine.
+## Features
 
-### Prerequisites
+- **Automatic tracking:** M-PESA (sent, paid, airtime) and Equity Bank card SMS are parsed as they arrive, even with the app closed. USD charges are kept separate from KES.
+- **Location tagging:** each new payment is tagged with your location. Imported or untagged payments can be placed on a map later, one at a time or in bulk.
+- **Opt-in import:** on first launch, choose how much SMS history to import (none, 7 days, 30 days, 3 months or everything). You can import again from Profile.
+- **Map:** today's spending as price-tag markers on OpenStreetMap.
+  - Long-press anywhere to see what you've spent within a radius (100 m to 2 km).
+  - Light, Standard and Dark styles.
+- **Messages:** triage payments that still need a location or category, with search, filters and multi-select.
+- **Categories:** auto-categorisation learned from your choices; add or delete your own.
+- **Budgets:** daily, weekly (Sunday start) or monthly limits per category, with alerts at 50%, 80% and 100%.
+- **Analytics:** week, month or year totals with trend, stacked bar, line and donut charts, category and recipient breakdowns, and quick insights.
+- **Spending hotspots:** places you spend often are learned automatically. Lingering in one for 5 minutes sends a heads-up (at most every 6 hours).
 
-- **Flutter SDK**: [Install Flutter](https://docs.flutter.dev/get-started/install) (latest stable version recommended).
-- **Git**: For cloning the repository.
-- **Mapbox Account**: You will need a Mapbox account to get an access token for the maps. [Sign up here](https://account.mapbox.com/).
+## Getting started
 
-### Installation
+### Requirements
 
-1.  **Clone the Repository**:
-    ```bash
-    git clone https://github.com/your-username/geocent.git
-    cd geocent
-    ```
+- Android Studio, or the Android SDK command-line tools
+- **JDK 21**
+- **Android SDK platform 37.2**: `sdkmanager "platforms/android-37.2"`
+- A device or emulator running Android 8.0 (API 26) or newer
 
-2.  **Install Dependencies**:
-    ```bash
-    flutter pub get
-    ```
+No map account or API key is needed. Maps use OpenStreetMap data served by [OpenFreeMap](https://openfreemap.org).
 
-3.  **Configure Environment Variables**:
-    Create a `.env` file in the root directory and add your Mapbox Public Access Token:
-    ```bash
-    cp .env.example .env
-    ```
-    Edit `.env` and replace the placeholder with your token:
-    ```env
-    MAPBOX_ACCESS_TOKEN=your_mapbox_public_access_token
-    ```
-
-### Platform Setup
-
-#### Android
-
-To download the Mapbox SDK, you need to configure a secret token in your global `gradle.properties` file.
-
-1.  Generate a **Secret Access Token** from your Mapbox account with the `DOWNLOADS:READ` scope.
-2.  Add the following to your `~/.gradle/gradle.properties` (or `C:\Users\<User>\.gradle\gradle.properties` on Windows):
-    ```properties
-    MAPBOX_DOWNLOADS_TOKEN=your_secret_mapbox_download_token
-    ```
-
-#### iOS
-
-Reading messages on IOS is not supported
-
-### Running the App
-
-Connect a device or start an emulator/simulator, then run:
+### Build and run
 
 ```bash
-flutter run
+git clone https://github.com/H-Munene/geocent.git
+cd geocent
+./gradlew installDebug      # build and install on a connected device
+./gradlew testDebugUnitTest # run the unit tests
 ```
 
-## Core Features
+### Trying it on an emulator
 
-1.  **SMS Parsing & Auto-Tracking**: Automatically detects incoming financial SMS messages, extracting merchant, amount, and timestamp.
-2.  **Geo-Verification**: Captures the device's GPS location when a transaction occurs and links it to the transaction.
-3.  **Advanced Mapbox UI**: High-performance Mapbox implementation with custom GPU-accelerated expressions and dual-layer annotations.
-4.  **Intelligent Auto-Categorization**: Automatically assigns categories to recurring merchants based on user history.
-5.  **Real-time Budgeting**: Set spending limits per category for daily, weekly, or monthly periods.
-6.  **Interactive Analytics**: Searchable interface for all messages and comprehensive spending analytics.
+```bash
+adb emu sms send MPESA "UDR0H250GJ Confirmed. Ksh750.00 paid to JAVA HOUSE. on 27/11/26 at 7:58 AM. New M-PESA balance is Ksh1,037.84."
+adb emu geo fix 36.8172 -1.2864   # longitude latitude: Nairobi CBD
+```
 
-## Supported SMS Formats
+## Supported SMS formats
 
-Geocent currently supports parsing for the following providers:
-- **M-PESA**: Sent payments, paid bills, and airtime purchases.
-- **Equity Bank**: Card authorization messages (KES and USD).
+- **M-PESA:** sent money, paid bills/merchants, airtime purchases
+- **Equity Bank:** card authorisations in KES and USD
 
-## Tech Stack
+The parser lives in `app/src/main/java/app/geocent/domain/SmsParser.kt` and has tests in `app/src/test/java/app/geocent/domain/SmsParserTest.kt`.
 
-- **Framework**: Flutter
-- **Mapping**: Mapbox Maps Flutter (Native GPU Expressions)
-- **Local Database**: SQLite (sqflite)
-- **Background Processing**: flutter_background_service
-- **State Management**: Provider (ChangeNotifier)
-- **Icons**: Hugeicons & Cupertino Icons
+## Tech stack
+
+| Concern | Choice |
+|---|---|
+| Language / UI | Kotlin, Jetpack Compose |
+| Architecture | ViewModel + StateFlow, Hilt |
+| Storage | Room (SQLite), DataStore |
+| Background work | WorkManager (expedited for SMS) |
+| Location | Play Services fused location and geofencing |
+| Maps | MapLibre Native with OpenFreeMap styles |
+| Charts | Drawn with Compose Canvas |
+| Icons / fonts | Hugeicons (generated vectors), Space Grotesk, Inter |
 
 ## Documentation
 
-For a deeper dive into the architecture and database logic:
-- [Technical Architecture](docs/TECHNICAL_ARCHITECTURE.md)
-- [Database Schema & Logic](docs/DATABASE_SCHEMA.md)
-- [Design Principles](DESIGN.md)
+- [Technical architecture](docs/TECHNICAL_ARCHITECTURE.md)
+- [Database schema](docs/DATABASE_SCHEMA.md)
+- [Design principles](DESIGN.md)
+
+To regenerate the category and UI icons, run `tools/gen_icons.py` against the Hugeicons package data (see the script's header).

@@ -50,7 +50,7 @@ The typography blends consumer readability with mathematical alignment.
   * Apply universal negative letter-spacing (-0.374px to \-0.28px depending on size) for a tightly machined, efficient feel.  
   * Use extremely tight line-heights (1.07 to 1.14) for large map overlay headings.  
 * **Secondary Font Family (Data):** Inter.  
-  * Any numerical value, financial figure, or coordinate must use monospace tabular lining. Explicitly enable FontFeature.tabularFigures() in Flutter to ensure perfect vertical decimal alignment in transaction lists without disrupting native iOS baselines.  
+  * Any numerical value, financial figure, or coordinate must use monospace tabular lining. Enable tabular figures (`fontFeatureSettings = "tnum"` in Compose) so decimals line up vertically in transaction lists.  
 * **Alignment:** Numerical data must always be right-aligned; standard text is strictly left-aligned.
 
 #### ---
